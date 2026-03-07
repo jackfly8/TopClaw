@@ -324,7 +324,7 @@ pub fn all_tools_with_runtime(
 
     if browser_config.enabled {
         // Add legacy browser_open tool for simple URL opening (unless disabled)
-        if browser_config.browser_open.to_ascii_lowercase() != "disable" {
+        if has_shell_access && browser_config.browser_open.to_ascii_lowercase() != "disable" {
             tool_arcs.push(Arc::new(BrowserOpenTool::new(
                 security.clone(),
                 browser_config.allowed_domains.clone(),
@@ -755,6 +755,48 @@ mod tests {
         assert!(!names.contains(&"file_read"));
         assert!(!names.contains(&"file_write"));
         assert!(!names.contains(&"file_edit"));
+        assert!(!names.contains(&"browser_open"));
+    }
+
+    #[test]
+    fn all_tools_with_runtime_excludes_browser_open_without_shell_access() {
+        let tmp = TempDir::new().unwrap();
+        let security = Arc::new(SecurityPolicy::default());
+        let mem_cfg = MemoryConfig {
+            backend: "markdown".into(),
+            ..MemoryConfig::default()
+        };
+        let mem: Arc<dyn Memory> =
+            Arc::from(crate::memory::create_memory(&mem_cfg, tmp.path(), None).unwrap());
+        let runtime: Arc<dyn RuntimeAdapter> =
+            Arc::new(WasmRuntime::new(WasmRuntimeConfig::default()));
+
+        let browser = BrowserConfig {
+            enabled: true,
+            allowed_domains: vec!["example.com".into()],
+            session_name: None,
+            ..BrowserConfig::default()
+        };
+        let http = crate::config::HttpRequestConfig::default();
+        let cfg = test_config(&tmp);
+
+        let tools = all_tools_with_runtime(
+            Arc::new(Config::default()),
+            &security,
+            runtime,
+            mem,
+            None,
+            None,
+            &browser,
+            &http,
+            &crate::config::WebFetchConfig::default(),
+            tmp.path(),
+            &HashMap::new(),
+            None,
+            &cfg,
+        );
+        let names: Vec<&str> = tools.iter().map(|t| t.name()).collect();
+        assert!(!names.contains(&"browser_open"));
     }
 
     #[test]

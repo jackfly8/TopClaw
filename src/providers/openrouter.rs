@@ -368,10 +368,7 @@ impl Provider for OpenRouterProvider {
             .http_client()
             .post("https://openrouter.ai/api/v1/chat/completions")
             .header("Authorization", format!("Bearer {credential}"))
-            .header(
-                "HTTP-Referer",
-                "https://github.com/theonlyhennygod/topclaw",
-            )
+            .header("HTTP-Referer", "https://github.com/topclaw-labs/topclaw")
             .header("X-Title", "TopClaw")
             .json(&request)
             .send()
@@ -419,10 +416,7 @@ impl Provider for OpenRouterProvider {
             .http_client()
             .post("https://openrouter.ai/api/v1/chat/completions")
             .header("Authorization", format!("Bearer {credential}"))
-            .header(
-                "HTTP-Referer",
-                "https://github.com/theonlyhennygod/topclaw",
-            )
+            .header("HTTP-Referer", "https://github.com/topclaw-labs/topclaw")
             .header("X-Title", "TopClaw")
             .json(&request)
             .send()
@@ -468,10 +462,7 @@ impl Provider for OpenRouterProvider {
             .http_client()
             .post("https://openrouter.ai/api/v1/chat/completions")
             .header("Authorization", format!("Bearer {credential}"))
-            .header(
-                "HTTP-Referer",
-                "https://github.com/theonlyhennygod/topclaw",
-            )
+            .header("HTTP-Referer", "https://github.com/topclaw-labs/topclaw")
             .header("X-Title", "TopClaw")
             .json(&native_request)
             .send()
@@ -563,10 +554,7 @@ impl Provider for OpenRouterProvider {
             .http_client()
             .post("https://openrouter.ai/api/v1/chat/completions")
             .header("Authorization", format!("Bearer {credential}"))
-            .header(
-                "HTTP-Referer",
-                "https://github.com/theonlyhennygod/topclaw",
-            )
+            .header("HTTP-Referer", "https://github.com/topclaw-labs/topclaw")
             .header("X-Title", "TopClaw")
             .json(&native_request)
             .send()

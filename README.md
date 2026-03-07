@@ -13,7 +13,7 @@ sudo apt install -y build-essential pkg-config libssl-dev ca-certificates curl g
 curl https://sh.rustup.rs -sSf | sh
 source "$HOME/.cargo/env"
 
-git clone https://github.com/jackfly8/TopClaw.git
+git clone https://github.com/topclaw-labs/topclaw.git
 cd TopClaw
 ./bootstrap.sh
 topclaw status
@@ -40,7 +40,7 @@ source "$HOME/.cargo/env"
 Clone and bootstrap TopClaw:
 
 ```bash
-git clone https://github.com/jackfly8/TopClaw.git
+git clone https://github.com/topclaw-labs/topclaw.git
 cd TopClaw
 ./bootstrap.sh
 topclaw status
