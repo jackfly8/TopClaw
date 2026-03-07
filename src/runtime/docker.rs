@@ -50,6 +50,53 @@ impl DockerRuntime {
 
         Ok(resolved)
     }
+
+    fn build_docker_base_command(
+        &self,
+        workspace_dir: &Path,
+    ) -> anyhow::Result<tokio::process::Command> {
+        let mut process = tokio::process::Command::new("docker");
+        process
+            .arg("run")
+            .arg("--rm")
+            .arg("--init")
+            .arg("--interactive");
+
+        let network = self.config.network.trim();
+        if !network.is_empty() {
+            process.arg("--network").arg(network);
+        }
+
+        if let Some(memory_limit_mb) = self.config.memory_limit_mb.filter(|mb| *mb > 0) {
+            process.arg("--memory").arg(format!("{memory_limit_mb}m"));
+        }
+
+        if let Some(cpu_limit) = self.config.cpu_limit.filter(|cpus| *cpus > 0.0) {
+            process.arg("--cpus").arg(cpu_limit.to_string());
+        }
+
+        if self.config.read_only_rootfs {
+            process.arg("--read-only");
+        }
+
+        if self.config.mount_workspace {
+            let host_workspace = self.workspace_mount_path(workspace_dir).with_context(|| {
+                format!(
+                    "Failed to validate workspace mount path {}",
+                    workspace_dir.display()
+                )
+            })?;
+
+            process
+                .arg("--volume")
+                .arg(format!("{}:/workspace:rw", host_workspace.display()))
+                .arg("--workdir")
+                .arg("/workspace");
+        }
+
+        process.arg(self.config.image.trim());
+        Ok(process)
+    }
 }
 
 impl RuntimeAdapter for DockerRuntime {
@@ -92,51 +139,20 @@ impl RuntimeAdapter for DockerRuntime {
         command: &str,
         workspace_dir: &Path,
     ) -> anyhow::Result<tokio::process::Command> {
-        let mut process = tokio::process::Command::new("docker");
-        process
-            .arg("run")
-            .arg("--rm")
-            .arg("--init")
-            .arg("--interactive");
+        let mut process = self.build_docker_base_command(workspace_dir)?;
+        process.arg("sh").arg("-c").arg(command);
+        Ok(process)
+    }
 
-        let network = self.config.network.trim();
-        if !network.is_empty() {
-            process.arg("--network").arg(network);
-        }
-
-        if let Some(memory_limit_mb) = self.config.memory_limit_mb.filter(|mb| *mb > 0) {
-            process.arg("--memory").arg(format!("{memory_limit_mb}m"));
-        }
-
-        if let Some(cpu_limit) = self.config.cpu_limit.filter(|cpus| *cpus > 0.0) {
-            process.arg("--cpus").arg(cpu_limit.to_string());
-        }
-
-        if self.config.read_only_rootfs {
-            process.arg("--read-only");
-        }
-
-        if self.config.mount_workspace {
-            let host_workspace = self.workspace_mount_path(workspace_dir).with_context(|| {
-                format!(
-                    "Failed to validate workspace mount path {}",
-                    workspace_dir.display()
-                )
-            })?;
-
-            process
-                .arg("--volume")
-                .arg(format!("{}:/workspace:rw", host_workspace.display()))
-                .arg("--workdir")
-                .arg("/workspace");
-        }
-
-        process
-            .arg(self.config.image.trim())
-            .arg("sh")
-            .arg("-c")
-            .arg(command);
-
+    fn build_exec_command(
+        &self,
+        program: &str,
+        args: &[String],
+        workspace_dir: &Path,
+    ) -> anyhow::Result<tokio::process::Command> {
+        let mut process = self.build_docker_base_command(workspace_dir)?;
+        process.arg(program);
+        process.args(args);
         Ok(process)
     }
 }

@@ -250,37 +250,51 @@ impl Agent {
         self.history.clear();
     }
 
-    pub fn from_config(config: &Config) -> Result<Self> {
-        let observer: Arc<dyn Observer> =
-            Arc::from(observability::create_observer(&config.observability));
-        let runtime: Arc<dyn runtime::RuntimeAdapter> =
-            Arc::from(runtime::create_runtime(&config.runtime)?);
-        let security = Arc::new(SecurityPolicy::from_runtime_config(config)?);
+    fn build_observer_from_config(config: &Config) -> Arc<dyn Observer> {
+        Arc::from(observability::create_observer(&config.observability))
+    }
 
-        let memory: Arc<dyn Memory> = Arc::from(memory::create_memory_with_storage_and_routes(
+    fn build_runtime_from_config(config: &Config) -> Result<Arc<dyn runtime::RuntimeAdapter>> {
+        Ok(Arc::from(runtime::create_runtime(&config.runtime)?))
+    }
+
+    fn build_security_policy_from_config(config: &Config) -> Result<Arc<SecurityPolicy>> {
+        Ok(Arc::new(SecurityPolicy::from_runtime_config(config)?))
+    }
+
+    fn build_memory_from_config(config: &Config) -> Result<Arc<dyn Memory>> {
+        Ok(Arc::from(memory::create_memory_with_storage_and_routes(
             &config.memory,
             &config.embedding_routes,
             Some(&config.storage.provider.config),
             &config.workspace_dir,
             config.api_key.as_deref(),
-        )?);
+        )?))
+    }
 
-        let composio_key = if config.composio.enabled {
-            config.composio.api_key.as_deref()
+    fn composio_context_from_config(config: &Config) -> (Option<&str>, Option<&str>) {
+        if config.composio.enabled {
+            (
+                config.composio.api_key.as_deref(),
+                Some(config.composio.entity_id.as_str()),
+            )
         } else {
-            None
-        };
-        let composio_entity_id = if config.composio.enabled {
-            Some(config.composio.entity_id.as_str())
-        } else {
-            None
-        };
+            (None, None)
+        }
+    }
 
-        let tools = tools::all_tools_with_runtime(
+    fn build_tools_from_config(
+        config: &Config,
+        security: &Arc<SecurityPolicy>,
+        runtime: Arc<dyn runtime::RuntimeAdapter>,
+        memory: Arc<dyn Memory>,
+    ) -> Vec<Box<dyn Tool>> {
+        let (composio_key, composio_entity_id) = Self::composio_context_from_config(config);
+        tools::all_tools_with_runtime(
             Arc::new(config.clone()),
-            &security,
+            security,
             runtime,
-            memory.clone(),
+            memory,
             composio_key,
             composio_entity_id,
             &config.browser,
@@ -290,39 +304,69 @@ impl Agent {
             &config.agents,
             config.api_key.as_deref(),
             config,
-        );
+        )
+    }
 
-        let provider_name = config.default_provider.as_deref().unwrap_or("openrouter");
-
-        let model_name = config
+    fn resolve_model_name_from_config(config: &Config) -> String {
+        config
             .default_model
             .as_deref()
             .unwrap_or("anthropic/claude-sonnet-4-20250514")
-            .to_string();
+            .to_string()
+    }
 
-        let provider: Box<dyn Provider> = providers::create_routed_provider(
+    fn build_provider_from_config(config: &Config, model_name: &str) -> Result<Box<dyn Provider>> {
+        let provider_name = config.default_provider.as_deref().unwrap_or("openrouter");
+        providers::create_routed_provider(
             provider_name,
             config.api_key.as_deref(),
             config.api_url.as_deref(),
             &config.reliability,
             &config.model_routes,
-            &model_name,
-        )?;
+            model_name,
+        )
+    }
 
-        let dispatcher_choice = config.agent.tool_dispatcher.as_str();
-        let tool_dispatcher: Box<dyn ToolDispatcher> = match dispatcher_choice {
+    fn build_tool_dispatcher_from_config(
+        config: &Config,
+        provider: &dyn Provider,
+    ) -> Box<dyn ToolDispatcher> {
+        match config.agent.tool_dispatcher.as_str() {
             "native" => Box::new(NativeToolDispatcher),
             "xml" => Box::new(XmlToolDispatcher),
             _ if provider.supports_native_tools() => Box::new(NativeToolDispatcher),
             _ => Box::new(XmlToolDispatcher),
-        };
+        }
+    }
 
+    fn build_model_route_index_from_config(
+        config: &Config,
+    ) -> (HashMap<String, String>, Vec<String>) {
         let route_model_by_hint: HashMap<String, String> = config
             .model_routes
             .iter()
             .map(|route| (route.hint.clone(), route.model.clone()))
             .collect();
-        let available_hints: Vec<String> = route_model_by_hint.keys().cloned().collect();
+        let available_hints = route_model_by_hint.keys().cloned().collect();
+        (route_model_by_hint, available_hints)
+    }
+
+    fn load_skills_from_config(config: &Config) -> Vec<crate::skills::Skill> {
+        crate::skills::load_skills_with_config(&config.workspace_dir, config)
+    }
+
+    pub fn from_config(config: &Config) -> Result<Self> {
+        let observer = Self::build_observer_from_config(config);
+        let runtime = Self::build_runtime_from_config(config)?;
+        let security = Self::build_security_policy_from_config(config)?;
+        let memory = Self::build_memory_from_config(config)?;
+        let tools = Self::build_tools_from_config(config, &security, runtime, memory.clone());
+        let model_name = Self::resolve_model_name_from_config(config);
+        let provider = Self::build_provider_from_config(config, &model_name)?;
+        let tool_dispatcher = Self::build_tool_dispatcher_from_config(config, provider.as_ref());
+        let (route_model_by_hint, available_hints) =
+            Self::build_model_route_index_from_config(config);
+        let skills = Self::load_skills_from_config(config);
 
         Agent::builder()
             .provider(provider)
@@ -343,10 +387,7 @@ impl Agent {
             .available_hints(available_hints)
             .route_model_by_hint(route_model_by_hint)
             .identity_config(config.identity.clone())
-            .skills(crate::skills::load_skills_with_config(
-                &config.workspace_dir,
-                config,
-            ))
+            .skills(skills)
             .skills_prompt_mode(config.skills.prompt_injection_mode)
             .auto_save(config.memory.auto_save)
             .research_config(config.research.clone())
@@ -397,37 +438,38 @@ impl Agent {
     async fn execute_tool_call(&self, call: &ParsedToolCall) -> ToolExecutionResult {
         let start = Instant::now();
 
-        let result = if let Some(tool) = self.tools.iter().find(|t| t.name() == call.name) {
-            match tool.execute(call.arguments.clone()).await {
-                Ok(r) => {
-                    self.observer.record_event(&ObserverEvent::ToolCall {
-                        tool: call.name.clone(),
-                        duration: start.elapsed(),
-                        success: r.success,
-                    });
-                    if r.success {
-                        r.output
-                    } else {
-                        format!("Error: {}", r.error.unwrap_or(r.output))
+        let (result, success) =
+            if let Some(tool) = self.tools.iter().find(|t| t.name() == call.name) {
+                match tool.execute(call.arguments.clone()).await {
+                    Ok(r) => {
+                        self.observer.record_event(&ObserverEvent::ToolCall {
+                            tool: call.name.clone(),
+                            duration: start.elapsed(),
+                            success: r.success,
+                        });
+                        if r.success {
+                            (r.output, true)
+                        } else {
+                            (format!("Error: {}", r.error.unwrap_or(r.output)), false)
+                        }
+                    }
+                    Err(e) => {
+                        self.observer.record_event(&ObserverEvent::ToolCall {
+                            tool: call.name.clone(),
+                            duration: start.elapsed(),
+                            success: false,
+                        });
+                        (format!("Error executing {}: {e}", call.name), false)
                     }
                 }
-                Err(e) => {
-                    self.observer.record_event(&ObserverEvent::ToolCall {
-                        tool: call.name.clone(),
-                        duration: start.elapsed(),
-                        success: false,
-                    });
-                    format!("Error executing {}: {e}", call.name)
-                }
-            }
-        } else {
-            format!("Unknown tool: {}", call.name)
-        };
+            } else {
+                (format!("Unknown tool: {}", call.name), false)
+            };
 
         ToolExecutionResult {
             name: call.name.clone(),
             output: result,
-            success: true,
+            success,
             tool_call_id: call.tool_call_id.clone(),
         }
     }
@@ -711,7 +753,6 @@ mod tests {
     use super::*;
     use async_trait::async_trait;
     use parking_lot::Mutex;
-    use std::collections::HashMap;
 
     struct MockProvider {
         responses: Mutex<Vec<crate::providers::ChatResponse>>,
@@ -787,6 +828,10 @@ mod tests {
 
     struct MockTool;
 
+    struct ToolResultFailureTool;
+
+    struct ToolExecutionErrorTool;
+
     #[async_trait]
     impl Tool for MockTool {
         fn name(&self) -> &str {
@@ -808,6 +853,106 @@ mod tests {
                 error: None,
             })
         }
+    }
+
+    #[async_trait]
+    impl Tool for ToolResultFailureTool {
+        fn name(&self) -> &str {
+            "tool_result_failure"
+        }
+
+        fn description(&self) -> &str {
+            "returns a failed tool result"
+        }
+
+        fn parameters_schema(&self) -> serde_json::Value {
+            serde_json::json!({"type": "object"})
+        }
+
+        async fn execute(&self, _args: serde_json::Value) -> Result<crate::tools::ToolResult> {
+            Ok(crate::tools::ToolResult {
+                success: false,
+                output: String::new(),
+                error: Some("intentional failure".into()),
+            })
+        }
+    }
+
+    #[async_trait]
+    impl Tool for ToolExecutionErrorTool {
+        fn name(&self) -> &str {
+            "tool_execution_error"
+        }
+
+        fn description(&self) -> &str {
+            "throws an execution error"
+        }
+
+        fn parameters_schema(&self) -> serde_json::Value {
+            serde_json::json!({"type": "object"})
+        }
+
+        async fn execute(&self, _args: serde_json::Value) -> Result<crate::tools::ToolResult> {
+            anyhow::bail!("catastrophic tool failure")
+        }
+    }
+
+    fn build_test_agent_with_tools(tools: Vec<Box<dyn Tool>>) -> Agent {
+        let memory_cfg = crate::config::MemoryConfig {
+            backend: "none".into(),
+            ..crate::config::MemoryConfig::default()
+        };
+        let mem: Arc<dyn Memory> = Arc::from(
+            crate::memory::create_memory(&memory_cfg, std::path::Path::new("/tmp"), None)
+                .expect("memory creation should succeed with valid config"),
+        );
+
+        let observer: Arc<dyn Observer> = Arc::from(crate::observability::NoopObserver {});
+        Agent::builder()
+            .provider(Box::new(MockProvider {
+                responses: Mutex::new(vec![]),
+            }))
+            .tools(tools)
+            .memory(mem)
+            .observer(observer)
+            .tool_dispatcher(Box::new(XmlToolDispatcher))
+            .workspace_dir(std::path::PathBuf::from("/tmp"))
+            .build()
+            .expect("agent builder should succeed with valid config")
+    }
+
+    #[tokio::test]
+    async fn execute_tool_call_marks_failed_tool_result_as_unsuccessful() {
+        let agent = build_test_agent_with_tools(vec![Box::new(ToolResultFailureTool)]);
+        let result = agent
+            .execute_tool_call(&ParsedToolCall {
+                name: "tool_result_failure".into(),
+                arguments: serde_json::json!({}),
+                tool_call_id: Some("tc_fail".into()),
+            })
+            .await;
+
+        assert!(!result.success);
+        assert!(result.output.contains("intentional failure"));
+        assert_eq!(result.tool_call_id.as_deref(), Some("tc_fail"));
+    }
+
+    #[tokio::test]
+    async fn execute_tool_call_marks_execution_error_as_unsuccessful() {
+        let agent = build_test_agent_with_tools(vec![Box::new(ToolExecutionErrorTool)]);
+        let result = agent
+            .execute_tool_call(&ParsedToolCall {
+                name: "tool_execution_error".into(),
+                arguments: serde_json::json!({}),
+                tool_call_id: Some("tc_err".into()),
+            })
+            .await;
+
+        assert!(!result.success);
+        assert!(result
+            .output
+            .contains("Error executing tool_execution_error"));
+        assert_eq!(result.tool_call_id.as_deref(), Some("tc_err"));
     }
 
     #[tokio::test]

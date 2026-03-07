@@ -1089,18 +1089,6 @@ impl SecurityPolicy {
     /// This is best-effort token parsing for shell commands and is intended
     /// as a safety gate before command execution.
     pub fn forbidden_path_argument(&self, command: &str) -> Option<String> {
-        let forbidden_candidate = |raw: &str| {
-            let candidate = strip_wrapping_quotes(raw).trim();
-            if candidate.is_empty() || candidate.contains("://") {
-                return None;
-            }
-            if looks_like_path(candidate) && !self.is_path_allowed(candidate) {
-                Some(candidate.to_string())
-            } else {
-                None
-            }
-        };
-
         for segment in split_unquoted_segments(command) {
             let cmd_part = skip_env_assignments(&segment);
             let mut words = cmd_part.split_whitespace();
@@ -1110,7 +1098,7 @@ impl SecurityPolicy {
 
             // Cover inline forms like `cat</etc/passwd`.
             if let Some(target) = redirection_target(strip_wrapping_quotes(executable)) {
-                if let Some(blocked) = forbidden_candidate(target) {
+                if let Some(blocked) = self.forbidden_path_token(target) {
                     return Some(blocked);
                 }
             }
@@ -1122,7 +1110,7 @@ impl SecurityPolicy {
                 }
 
                 if let Some(target) = redirection_target(candidate) {
-                    if let Some(blocked) = forbidden_candidate(target) {
+                    if let Some(blocked) = self.forbidden_path_token(target) {
                         return Some(blocked);
                     }
                 }
@@ -1130,21 +1118,61 @@ impl SecurityPolicy {
                 // Handle option assignment forms like `--file=/etc/passwd`.
                 if candidate.starts_with('-') {
                     if let Some((_, value)) = candidate.split_once('=') {
-                        if let Some(blocked) = forbidden_candidate(value) {
+                        if let Some(blocked) = self.forbidden_path_token(value) {
                             return Some(blocked);
                         }
                     }
                     if let Some(value) = attached_short_option_value(candidate) {
-                        if let Some(blocked) = forbidden_candidate(value) {
+                        if let Some(blocked) = self.forbidden_path_token(value) {
                             return Some(blocked);
                         }
                     }
                     continue;
                 }
 
-                if let Some(blocked) = forbidden_candidate(candidate) {
+                if let Some(blocked) = self.forbidden_path_token(candidate) {
                     return Some(blocked);
                 }
+            }
+        }
+
+        None
+    }
+
+    /// Return the first argv token value blocked by path policy.
+    ///
+    /// Unlike `forbidden_path_argument()`, this inspects structured argv tokens
+    /// directly and still covers smuggling forms like `--file=/etc/passwd`,
+    /// `-f/etc/passwd`, and inline redirections.
+    pub fn forbidden_path_argv(&self, argv: &[String]) -> Option<String> {
+        for token in argv {
+            let candidate = strip_wrapping_quotes(token).trim();
+            if candidate.is_empty() || candidate.contains("://") {
+                continue;
+            }
+
+            if let Some(target) = redirection_target(candidate) {
+                if let Some(blocked) = self.forbidden_path_token(target) {
+                    return Some(blocked);
+                }
+            }
+
+            if candidate.starts_with('-') {
+                if let Some((_, value)) = candidate.split_once('=') {
+                    if let Some(blocked) = self.forbidden_path_token(value) {
+                        return Some(blocked);
+                    }
+                }
+                if let Some(value) = attached_short_option_value(candidate) {
+                    if let Some(blocked) = self.forbidden_path_token(value) {
+                        return Some(blocked);
+                    }
+                }
+                continue;
+            }
+
+            if let Some(blocked) = self.forbidden_path_token(candidate) {
+                return Some(blocked);
             }
         }
 
@@ -1205,6 +1233,18 @@ impl SecurityPolicy {
         }
 
         true
+    }
+
+    fn forbidden_path_token(&self, raw: &str) -> Option<String> {
+        let candidate = strip_wrapping_quotes(raw).trim();
+        if candidate.is_empty() || candidate.contains("://") {
+            return None;
+        }
+        if looks_like_path(candidate) && !self.is_path_allowed(candidate) {
+            Some(candidate.to_string())
+        } else {
+            None
+        }
     }
 
     /// Validate that a resolved path is inside the workspace or an allowed root.

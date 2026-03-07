@@ -72,6 +72,17 @@ pub trait RuntimeAdapter: Send + Sync {
         command: &str,
         workspace_dir: &Path,
     ) -> anyhow::Result<tokio::process::Command>;
+
+    /// Build a direct argv-based process configured for this runtime.
+    ///
+    /// Prefer this over `build_shell_command()` whenever the caller has a
+    /// structured program + args invocation and does not require shell syntax.
+    fn build_exec_command(
+        &self,
+        program: &str,
+        args: &[String],
+        workspace_dir: &Path,
+    ) -> anyhow::Result<tokio::process::Command>;
 }
 
 #[cfg(test)]
@@ -112,6 +123,18 @@ mod tests {
         ) -> anyhow::Result<tokio::process::Command> {
             let mut cmd = tokio::process::Command::new("echo");
             cmd.arg(command);
+            cmd.current_dir(workspace_dir);
+            Ok(cmd)
+        }
+
+        fn build_exec_command(
+            &self,
+            program: &str,
+            args: &[String],
+            workspace_dir: &Path,
+        ) -> anyhow::Result<tokio::process::Command> {
+            let mut cmd = tokio::process::Command::new(program);
+            cmd.args(args);
             cmd.current_dir(workspace_dir);
             Ok(cmd)
         }

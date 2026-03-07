@@ -719,6 +719,18 @@ impl RuntimeAdapter for WasmRuntime {
              Use `execute_module()` to run WASM tools, or switch to runtime.kind = \"native\" for shell access."
         )
     }
+
+    fn build_exec_command(
+        &self,
+        _program: &str,
+        _args: &[String],
+        _workspace_dir: &Path,
+    ) -> anyhow::Result<tokio::process::Command> {
+        bail!(
+            "WASM runtime does not support process execution. \
+             Use `execute_module()` to run WASM tools, or switch to runtime.kind = \"native\" for process access."
+        )
+    }
 }
 
 // ── Tests ───────────────────────────────────────────────────────

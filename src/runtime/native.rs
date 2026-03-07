@@ -196,6 +196,18 @@ impl RuntimeAdapter for NativeRuntime {
         process.current_dir(workspace_dir);
         Ok(process)
     }
+
+    fn build_exec_command(
+        &self,
+        program: &str,
+        args: &[String],
+        workspace_dir: &Path,
+    ) -> anyhow::Result<tokio::process::Command> {
+        let mut process = tokio::process::Command::new(program);
+        process.args(args);
+        process.current_dir(workspace_dir);
+        Ok(process)
+    }
 }
 
 #[cfg(test)]

@@ -68,58 +68,81 @@ impl ProcessTool {
     }
 
     fn handle_spawn(&self, args: &serde_json::Value) -> anyhow::Result<ToolResult> {
-        if !self.runtime.supports_long_running() {
-            return Ok(ToolResult {
-                success: false,
-                output: String::new(),
-                error: Some("Runtime does not support long-running processes".into()),
-            });
-        }
-
-        self.prune_exited_processes();
-
-        let command = args
-            .get("command")
+        let program = args
+            .get("program")
             .and_then(|v| v.as_str())
-            .ok_or_else(|| anyhow::anyhow!("Missing 'command' parameter for spawn action"))?;
-        let effective_command = self.security.apply_shell_redirect_policy(command);
-
-        // Check concurrent running process count.
-        {
-            let processes = self.processes.read().unwrap();
-            let running = processes
-                .values()
-                .filter(|e| {
-                    e.child
-                        .lock()
-                        .map(|mut c| matches!(c.try_wait(), Ok(None)))
-                        .unwrap_or(false)
-                })
-                .count();
-            if running >= MAX_PROCESSES {
-                return Ok(ToolResult {
-                    success: false,
-                    output: String::new(),
-                    error: Some(format!(
-                        "Maximum concurrent processes ({MAX_PROCESSES}) reached"
-                    )),
-                });
-            }
-        }
-
-        // Reuse shell security chain: rate limit → command validation → path check → record.
-        if self.security.is_rate_limited() {
-            return Ok(ToolResult {
-                success: false,
-                output: String::new(),
-                error: Some("Rate limit exceeded: too many actions in the last hour".into()),
-            });
-        }
-
+            .ok_or_else(|| anyhow::anyhow!("Missing 'program' parameter for spawn action"))?;
+        let argv = parse_process_args(args)?;
         let approved = args
             .get("approved")
             .and_then(|v| v.as_bool())
             .unwrap_or(false);
+
+        if let Some(result) = self.prepare_spawn_failure_result() {
+            return Ok(result);
+        }
+
+        if let Err(reason) = self.security.validate_command_execution(program, approved) {
+            return Ok(ToolResult {
+                success: false,
+                output: String::new(),
+                error: Some(reason),
+            });
+        }
+
+        if let Some(path) = self.security.forbidden_path_argv(&argv) {
+            return Ok(ToolResult {
+                success: false,
+                output: String::new(),
+                error: Some(format!("Path blocked by security policy: {path}")),
+            });
+        }
+
+        let cmd =
+            match self
+                .runtime
+                .build_exec_command(program, &argv, &self.security.workspace_dir)
+            {
+                Ok(cmd) => cmd,
+                Err(e) => {
+                    return Ok(ToolResult {
+                        success: false,
+                        output: String::new(),
+                        error: Some(format!("Failed to build runtime exec command: {e}")),
+                    });
+                }
+            };
+
+        let display = format_process_command(program, &argv);
+        self.spawn_prepared_command(cmd, display.clone(), format!("Process started: {display}"))
+    }
+
+    fn handle_spawn_shell(&self, args: &serde_json::Value) -> anyhow::Result<ToolResult> {
+        let command = args
+            .get("shell_command")
+            .and_then(|v| v.as_str())
+            .or_else(|| args.get("command").and_then(|v| v.as_str()))
+            .ok_or_else(|| {
+                anyhow::anyhow!("Missing 'shell_command' parameter for spawn_shell action")
+            })?;
+        let approved = args
+            .get("approved")
+            .and_then(|v| v.as_bool())
+            .unwrap_or(false);
+
+        if !approved {
+            return Ok(ToolResult {
+                success: false,
+                output: String::new(),
+                error: Some(
+                    "spawn_shell requires explicit approval (`approved=true`) because it executes through the runtime shell".into(),
+                ),
+            });
+        }
+
+        if let Some(result) = self.prepare_spawn_failure_result() {
+            return Ok(result);
+        }
 
         if let Err(reason) = self.security.validate_command_execution(command, approved) {
             return Ok(ToolResult {
@@ -129,6 +152,7 @@ impl ProcessTool {
             });
         }
 
+        let effective_command = self.security.apply_shell_redirect_policy(command);
         if let Some(path) = self.security.forbidden_path_argument(&effective_command) {
             return Ok(ToolResult {
                 success: false,
@@ -137,16 +161,7 @@ impl ProcessTool {
             });
         }
 
-        if !self.security.record_action() {
-            return Ok(ToolResult {
-                success: false,
-                output: String::new(),
-                error: Some("Rate limit exceeded: action budget exhausted".into()),
-            });
-        }
-
-        // Build command via runtime adapter.
-        let mut cmd = match self
+        let cmd = match self
             .runtime
             .build_shell_command(&effective_command, &self.security.workspace_dir)
         {
@@ -155,11 +170,74 @@ impl ProcessTool {
                 return Ok(ToolResult {
                     success: false,
                     output: String::new(),
-                    error: Some(format!("Failed to build runtime command: {e}")),
+                    error: Some(format!("Failed to build runtime shell command: {e}")),
                 });
             }
         };
 
+        self.spawn_prepared_command(
+            cmd,
+            command.to_string(),
+            format!("Shell process started: {command}"),
+        )
+    }
+
+    fn prepare_spawn_failure_result(&self) -> Option<ToolResult> {
+        if !self.runtime.supports_long_running() {
+            return Some(ToolResult {
+                success: false,
+                output: String::new(),
+                error: Some("Runtime does not support long-running processes".into()),
+            });
+        }
+
+        self.prune_exited_processes();
+
+        let processes = self.processes.read().unwrap();
+        let running = processes
+            .values()
+            .filter(|e| {
+                e.child
+                    .lock()
+                    .map(|mut c| matches!(c.try_wait(), Ok(None)))
+                    .unwrap_or(false)
+            })
+            .count();
+        if running >= MAX_PROCESSES {
+            return Some(ToolResult {
+                success: false,
+                output: String::new(),
+                error: Some(format!(
+                    "Maximum concurrent processes ({MAX_PROCESSES}) reached"
+                )),
+            });
+        }
+
+        if self.security.is_rate_limited() {
+            return Some(ToolResult {
+                success: false,
+                output: String::new(),
+                error: Some("Rate limit exceeded: too many actions in the last hour".into()),
+            });
+        }
+
+        if !self.security.record_action() {
+            return Some(ToolResult {
+                success: false,
+                output: String::new(),
+                error: Some("Rate limit exceeded: action budget exhausted".into()),
+            });
+        }
+
+        None
+    }
+
+    fn spawn_prepared_command(
+        &self,
+        mut cmd: tokio::process::Command,
+        command_label: String,
+        success_message: String,
+    ) -> anyhow::Result<ToolResult> {
         cmd.stdin(Stdio::null());
         cmd.stdout(Stdio::piped());
         cmd.stderr(Stdio::piped());
@@ -193,7 +271,6 @@ impl ProcessTool {
             });
         };
 
-        // Set up background output readers.
         let stdout_buf = Arc::new(Mutex::new(OutputBuffer::default()));
         let stderr_buf = Arc::new(Mutex::new(OutputBuffer::default()));
 
@@ -213,7 +290,7 @@ impl ProcessTool {
 
         let entry = ProcessEntry {
             id,
-            command: command.to_string(),
+            command: command_label,
             pid,
             started_at: Instant::now(),
             child: Mutex::new(child),
@@ -229,7 +306,7 @@ impl ProcessTool {
             output: json!({
                 "id": id,
                 "pid": pid,
-                "message": format!("Process started: {command}")
+                "message": success_message
             })
             .to_string(),
             error: None,
@@ -456,6 +533,32 @@ fn parse_id(args: &serde_json::Value, action: &str) -> anyhow::Result<usize> {
         .ok_or_else(|| anyhow::anyhow!("Missing 'id' parameter for {action} action"))
 }
 
+fn parse_process_args(args: &serde_json::Value) -> anyhow::Result<Vec<String>> {
+    let Some(raw_args) = args.get("args") else {
+        return Ok(Vec::new());
+    };
+    let Some(items) = raw_args.as_array() else {
+        anyhow::bail!("'args' must be an array of strings");
+    };
+
+    items
+        .iter()
+        .map(|item| {
+            item.as_str()
+                .map(std::string::ToString::to_string)
+                .ok_or_else(|| anyhow::anyhow!("'args' entries must be strings"))
+        })
+        .collect()
+}
+
+fn format_process_command(program: &str, args: &[String]) -> String {
+    if args.is_empty() {
+        program.to_string()
+    } else {
+        format!("{program} {}", args.join(" "))
+    }
+}
+
 /// Append data to a bounded buffer, draining oldest bytes when over limit.
 fn append_bounded(buf: &Mutex<OutputBuffer>, new_data: &str) {
     let mut guard = buf.lock().unwrap();
@@ -538,12 +641,27 @@ impl Tool for ProcessTool {
             "properties": {
                 "action": {
                     "type": "string",
-                    "enum": ["spawn", "list", "output", "kill"],
-                    "description": "Action to perform: spawn a process, list all, get output, or kill"
+                    "enum": ["spawn", "spawn_shell", "list", "output", "kill"],
+                    "description": "Action to perform: spawn argv-safe process, spawn unsafe shell process, list all, get output, or kill"
+                },
+                "program": {
+                    "type": "string",
+                    "description": "Executable to run directly without shell parsing (required for 'spawn')"
+                },
+                "args": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    },
+                    "description": "Argument vector for direct process execution (optional for 'spawn')"
+                },
+                "shell_command": {
+                    "type": "string",
+                    "description": "Unsafe raw shell command to run in background (required for 'spawn_shell'; requires approved=true)"
                 },
                 "command": {
                     "type": "string",
-                    "description": "Shell command to run in background (required for 'spawn')"
+                    "description": "Deprecated alias for shell_command when using spawn_shell or legacy spawn"
                 },
                 "id": {
                     "type": "integer",
@@ -551,7 +669,7 @@ impl Tool for ProcessTool {
                 },
                 "approved": {
                     "type": "boolean",
-                    "description": "Approve medium/high-risk commands (for 'spawn')",
+                    "description": "Approve medium/high-risk execution. Required for 'spawn_shell'",
                     "default": false
                 }
             },
@@ -563,7 +681,22 @@ impl Tool for ProcessTool {
         let action = args.get("action").and_then(|v| v.as_str()).unwrap_or("");
 
         match action {
-            "spawn" => self.handle_spawn(&args),
+            "spawn" => {
+                if args.get("program").is_some() {
+                    self.handle_spawn(&args)
+                } else if args.get("shell_command").is_some() || args.get("command").is_some() {
+                    self.handle_spawn_shell(&args)
+                } else {
+                    Ok(ToolResult {
+                        success: false,
+                        output: String::new(),
+                        error: Some(
+                            "spawn requires 'program' (preferred) or a legacy shell alias; use spawn_shell for explicit raw shell execution".into(),
+                        ),
+                    })
+                }
+            }
+            "spawn_shell" => self.handle_spawn_shell(&args),
             "list" => self.handle_list(),
             "output" => self.handle_output(&args),
             "kill" => self.handle_kill(&args).await,
@@ -571,7 +704,7 @@ impl Tool for ProcessTool {
                 success: false,
                 output: String::new(),
                 error: Some(format!(
-                    "Unknown action '{other}'. Use: spawn, list, output, kill"
+                    "Unknown action '{other}'. Use: spawn, spawn_shell, list, output, kill"
                 )),
             }),
         }
@@ -663,7 +796,8 @@ mod tests {
         let result = tool
             .execute(json!({
                 "action": "spawn",
-                "command": "echo hello_process_test"
+                "program": "echo",
+                "args": ["hello_process_test"]
             }))
             .await
             .unwrap();
@@ -678,7 +812,8 @@ mod tests {
         let tool = make_tool();
         tool.execute(json!({
             "action": "spawn",
-            "command": "echo list_test"
+            "program": "echo",
+            "args": ["list_test"]
         }))
         .await
         .unwrap();
@@ -694,7 +829,8 @@ mod tests {
         let spawn_result = tool
             .execute(json!({
                 "action": "spawn",
-                "command": "echo prune_test"
+                "program": "echo",
+                "args": ["prune_test"]
             }))
             .await
             .unwrap();
@@ -719,7 +855,8 @@ mod tests {
         let spawn_result = tool
             .execute(json!({
                 "action": "spawn",
-                "command": "echo output_capture_test"
+                "program": "echo",
+                "args": ["output_capture_test"]
             }))
             .await
             .unwrap();
@@ -747,7 +884,8 @@ mod tests {
         let spawn_result = tool
             .execute(json!({
                 "action": "spawn",
-                "command": "sleep 60"
+                "program": "sleep",
+                "args": ["60"]
             }))
             .await
             .unwrap();
@@ -772,7 +910,8 @@ mod tests {
         let spawn_result = tool
             .execute(json!({
                 "action": "spawn",
-                "command": "sleep 60"
+                "program": "sleep",
+                "args": ["60"]
             }))
             .await
             .unwrap();
@@ -812,8 +951,9 @@ mod tests {
         let tool = make_tool();
         let result = tool
             .execute(json!({
-                "action": "spawn",
-                "command": "rm -rf /"
+                "action": "spawn_shell",
+                "command": "rm -rf /",
+                "approved": true
             }))
             .await
             .unwrap();
@@ -821,12 +961,58 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn spawn_blocks_forbidden_path() {
+    async fn spawn_shell_blocks_forbidden_path() {
+        let tool = make_tool();
+        let result = tool
+            .execute(json!({
+                "action": "spawn_shell",
+                "command": "cat /etc/passwd",
+                "approved": true
+            }))
+            .await
+            .unwrap();
+        assert!(!result.success);
+        assert!(result.error.as_deref().unwrap().contains("Path blocked"));
+    }
+
+    #[tokio::test]
+    async fn spawn_blocks_forbidden_path_arg() {
         let tool = make_tool();
         let result = tool
             .execute(json!({
                 "action": "spawn",
-                "command": "cat /etc/passwd"
+                "program": "cat",
+                "args": ["/etc/passwd"]
+            }))
+            .await
+            .unwrap();
+        assert!(!result.success);
+        assert!(result.error.as_deref().unwrap().contains("Path blocked"));
+    }
+
+    #[tokio::test]
+    async fn spawn_blocks_forbidden_option_assignment_path_arg() {
+        let tool = make_tool();
+        let result = tool
+            .execute(json!({
+                "action": "spawn",
+                "program": "grep",
+                "args": ["--file=/etc/passwd", "root", "./src"]
+            }))
+            .await
+            .unwrap();
+        assert!(!result.success);
+        assert!(result.error.as_deref().unwrap().contains("Path blocked"));
+    }
+
+    #[tokio::test]
+    async fn spawn_blocks_forbidden_attached_short_option_path_arg() {
+        let tool = make_tool();
+        let result = tool
+            .execute(json!({
+                "action": "spawn",
+                "program": "grep",
+                "args": ["-f/etc/passwd", "root", "./src"]
             }))
             .await
             .unwrap();
@@ -886,7 +1072,8 @@ mod tests {
         let result = tool
             .execute(json!({
                 "action": "spawn",
-                "command": "echo test"
+                "program": "echo",
+                "args": ["test"]
             }))
             .await
             .unwrap();
@@ -925,6 +1112,17 @@ mod tests {
             cmd.arg("-c").arg(command).current_dir(workspace_dir);
             Ok(cmd)
         }
+
+        fn build_exec_command(
+            &self,
+            program: &str,
+            args: &[String],
+            workspace_dir: &std::path::Path,
+        ) -> anyhow::Result<tokio::process::Command> {
+            let mut cmd = tokio::process::Command::new(program);
+            cmd.args(args).current_dir(workspace_dir);
+            Ok(cmd)
+        }
     }
 
     #[tokio::test]
@@ -933,7 +1131,8 @@ mod tests {
         let result = tool
             .execute(json!({
                 "action": "spawn",
-                "command": "echo test"
+                "program": "echo",
+                "args": ["test"]
             }))
             .await
             .unwrap();
@@ -979,7 +1178,8 @@ mod tests {
         let spawn_result = tool
             .execute(json!({
                 "action": "spawn",
-                "command": "echo seccomp denied syscall=openat"
+                "program": "echo",
+                "args": ["seccomp denied syscall=openat"]
             }))
             .await
             .expect("spawn should return result");
@@ -1019,5 +1219,42 @@ mod tests {
             second_lines, first_lines,
             "incremental offsets should prevent duplicate detector emissions for unchanged output"
         );
+    }
+
+    #[tokio::test]
+    async fn spawn_shell_requires_explicit_approval() {
+        let tool = make_tool();
+        let result = tool
+            .execute(json!({
+                "action": "spawn_shell",
+                "shell_command": "echo unsafe"
+            }))
+            .await
+            .unwrap();
+        assert!(!result.success);
+        assert!(result
+            .error
+            .as_deref()
+            .unwrap()
+            .contains("requires explicit approval"));
+    }
+
+    #[tokio::test]
+    async fn legacy_spawn_command_alias_routes_to_shell_mode() {
+        let tool = make_tool();
+        let result = tool
+            .execute(json!({
+                "action": "spawn",
+                "command": "echo legacy_shell_mode",
+                "approved": true
+            }))
+            .await
+            .unwrap();
+        assert!(result.success);
+        let output: serde_json::Value = serde_json::from_str(&result.output).unwrap();
+        assert!(output["message"]
+            .as_str()
+            .unwrap_or_default()
+            .contains("Shell process started"));
     }
 }
