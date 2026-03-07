@@ -404,7 +404,11 @@ mod tests {
             .await
             .unwrap();
         assert!(!denied.success);
-        assert!(denied.error.as_deref().unwrap_or("").contains("OTP code required"));
+        assert!(denied
+            .error
+            .as_deref()
+            .unwrap_or("")
+            .contains("OTP code required"));
 
         let allowed = tool
             .execute(json!({"command": "echo gated", "otp_code": code}))

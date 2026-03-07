@@ -18,8 +18,7 @@ use tokio::process::Command;
 /// Resolved path to the telegram_reader.py script.
 fn script_path() -> PathBuf {
     let home = std::env::var("HOME").expect("HOME env var required");
-    PathBuf::from(home)
-        .join(".topclaw/workspace/skills/telegram-reader/scripts/telegram_reader.py")
+    PathBuf::from(home).join(".topclaw/workspace/skills/telegram-reader/scripts/telegram_reader.py")
 }
 
 /// Path to the .env file used as credential fallback.

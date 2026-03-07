@@ -52,10 +52,11 @@ impl Tool for MemoryForgetTool {
             .ok_or_else(|| anyhow::anyhow!("Missing 'key' parameter"))?;
         let otp_code = args.get("otp_code").and_then(|v| v.as_str());
 
-        if let Err(error) = self
-            .security
-            .enforce_sensitive_tool_operation("memory_forget", ToolOperation::Act, otp_code)
-        {
+        if let Err(error) = self.security.enforce_sensitive_tool_operation(
+            "memory_forget",
+            ToolOperation::Act,
+            otp_code,
+        ) {
             return Ok(ToolResult {
                 success: false,
                 output: String::new(),

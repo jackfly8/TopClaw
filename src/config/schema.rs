@@ -5040,9 +5040,7 @@ pub(crate) fn resolve_config_dir_for_workspace(workspace_dir: &Path) -> (PathBuf
         );
     }
 
-    let legacy_config_dir = workspace_dir
-        .parent()
-        .map(|parent| parent.join(".topclaw"));
+    let legacy_config_dir = workspace_dir.parent().map(|parent| parent.join(".topclaw"));
     if let Some(legacy_dir) = legacy_config_dir {
         if legacy_dir.join("config.toml").exists() {
             return (legacy_dir, workspace_config_dir);
@@ -6480,8 +6478,7 @@ impl Config {
         }
 
         // Gateway host: TOPCLAW_GATEWAY_HOST or HOST
-        if let Ok(host) = std::env::var("TOPCLAW_GATEWAY_HOST").or_else(|_| std::env::var("HOST"))
-        {
+        if let Ok(host) = std::env::var("TOPCLAW_GATEWAY_HOST").or_else(|_| std::env::var("HOST")) {
             if !host.is_empty() {
                 self.gateway.host = host;
             }

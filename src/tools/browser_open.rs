@@ -88,7 +88,10 @@ impl Tool for BrowserOpenTool {
             }
         };
 
-        if let Err(error) = self.security.enforce_otp_for_url("browser_open", &url, otp_code) {
+        if let Err(error) = self
+            .security
+            .enforce_otp_for_url("browser_open", &url, otp_code)
+        {
             return Ok(ToolResult {
                 success: false,
                 output: String::new(),
@@ -424,11 +427,8 @@ mod tests {
         );
         Arc::new(SecurityPolicy {
             autonomy: AutonomyLevel::Supervised,
-            otp_gated_domains: crate::security::DomainMatcher::new(
-                &otp_config.gated_domains,
-                &[],
-            )
-            .unwrap(),
+            otp_gated_domains: crate::security::DomainMatcher::new(&otp_config.gated_domains, &[])
+                .unwrap(),
             otp_validator: Some(Arc::new(validator)),
             ..SecurityPolicy::default()
         })
@@ -592,7 +592,11 @@ mod tests {
     async fn execute_blocks_gated_domain_without_otp() {
         let tmp = tempfile::tempdir().unwrap();
         let security = security_with_gated_domain(&tmp);
-        let tool = BrowserOpenTool::new(security, vec!["accounts.google.com".into()], "default".into());
+        let tool = BrowserOpenTool::new(
+            security,
+            vec!["accounts.google.com".into()],
+            "default".into(),
+        );
         let result = tool
             .execute(json!({"url": "https://accounts.google.com"}))
             .await
