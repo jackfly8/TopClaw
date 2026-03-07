@@ -78,6 +78,20 @@ topclaw agent -m "Hello!"
 topclaw gateway
 ```
 
+## Uninstall
+
+To remove the TopClaw binary and service artifacts:
+
+```bash
+./topclaw_uninstall.sh
+```
+
+To remove TopClaw completely, including `~/.topclaw` config, logs, auth profiles, and workspace data:
+
+```bash
+./topclaw_uninstall.sh --purge
+```
+
 ## Documentation Map
 
 - Getting started: [`docs/getting-started/README.md`](docs/getting-started/README.md)
