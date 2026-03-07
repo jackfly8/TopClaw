@@ -78,6 +78,29 @@ topclaw agent -m "Hello!"
 topclaw gateway
 ```
 
+## Run In Background
+
+To keep TopClaw running all the time as a background service:
+
+```bash
+topclaw service install
+topclaw service start
+topclaw service status
+```
+
+To restart the service after a config change or channel issue:
+
+```bash
+topclaw service stop
+topclaw service start
+```
+
+To stop the background service completely:
+
+```bash
+topclaw service stop
+```
+
 ## Uninstall
 
 To remove the TopClaw binary and service artifacts:

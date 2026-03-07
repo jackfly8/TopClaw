@@ -188,6 +188,21 @@ Sau đó xác minh thông tin xác thực và trường allowlist cho từng kê
 
 ## Chế độ dịch vụ
 
+Để TopClaw luôn chạy nền:
+
+```bash
+topclaw service install
+topclaw service start
+topclaw service status
+```
+
+Để khởi động lại sạch:
+
+```bash
+topclaw service stop
+topclaw service start
+```
+
 ### Dịch vụ đã cài nhưng không chạy
 
 Kiểm tra:

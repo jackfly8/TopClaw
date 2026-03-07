@@ -23,6 +23,31 @@ Nếu đây là lần cài đặt đầu tiên, hãy bắt đầu từ [one-clic
 | Foreground gateway only | `topclaw gateway` | kiểm thử webhook endpoint |
 | User service | `topclaw service install && topclaw service start` | runtime được quản lý liên tục bởi operator |
 
+## Service luôn chạy nền
+
+Hãy dùng service mode khi TopClaw cần chạy liên tục trong nền ngay cả khi bạn đóng terminal.
+
+Cài đặt và khởi động:
+
+```bash
+topclaw service install
+topclaw service start
+topclaw service status
+```
+
+Khởi động lại sau khi đổi config hoặc chỉnh channel:
+
+```bash
+topclaw service stop
+topclaw service start
+```
+
+Dừng service hoàn toàn:
+
+```bash
+topclaw service stop
+```
+
 ## Checklist Cơ bản cho Operator
 
 1. Xác thực cấu hình:

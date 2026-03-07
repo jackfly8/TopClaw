@@ -87,6 +87,21 @@ topclaw channel doctor
 
 ## 4. Λειτουργία ως Υπηρεσία (Service Mode)
 
+Για να παραμένει το TopClaw ενεργό στο παρασκήνιο:
+
+```bash
+topclaw service install
+topclaw service start
+topclaw service status
+```
+
+Για καθαρή επανεκκίνηση:
+
+```bash
+topclaw service stop
+topclaw service start
+```
+
 ### Η υπηρεσία δεν εκκινεί
 
 Ελέγξτε την κατάσταση μέσω του TopClaw CLI:

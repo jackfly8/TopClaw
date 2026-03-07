@@ -194,6 +194,21 @@ Then verify channel-specific credentials + allowlist fields in config.
 
 ## Service Mode
 
+To keep TopClaw running in the background all the time:
+
+```bash
+topclaw service install
+topclaw service start
+topclaw service status
+```
+
+To restart it cleanly:
+
+```bash
+topclaw service stop
+topclaw service start
+```
+
 ### Service installed but not running
 
 Checks:

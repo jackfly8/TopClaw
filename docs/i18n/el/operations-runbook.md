@@ -22,6 +22,31 @@
 | Πύλη (Gateway) | `topclaw gateway` | Έλεγχος τελικών σημείων (endpoints) webhook. |
 | Υπηρεσία Συστήματος | `topclaw service install && topclaw service start` | Μόνιμη εκτέλεση υπό τη διαχείριση του συστήματος. |
 
+## Πάντα Ενεργή Υπηρεσία
+
+Χρησιμοποιήστε το service mode όταν θέλετε το TopClaw να παραμένει ενεργό στο παρασκήνιο συνεχώς.
+
+Εγκατάσταση και εκκίνηση:
+
+```bash
+topclaw service install
+topclaw service start
+topclaw service status
+```
+
+Επανεκκίνηση μετά από αλλαγή ρυθμίσεων ή καναλιών:
+
+```bash
+topclaw service stop
+topclaw service start
+```
+
+Πλήρης διακοπή της υπηρεσίας:
+
+```bash
+topclaw service stop
+```
+
 ## Βασική Ροή Εργασίας Διαχειριστή
 
 1. **Επικύρωση Ρυθμίσεων**:

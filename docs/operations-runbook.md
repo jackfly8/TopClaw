@@ -23,6 +23,31 @@ For first-time installation, start from [one-click-bootstrap.md](one-click-boots
 | Foreground gateway only | `topclaw gateway` | webhook endpoint testing |
 | User service | `topclaw service install && topclaw service start` | persistent operator-managed runtime |
 
+## Always-On Service
+
+Use the service mode when TopClaw should stay active in the background across terminal sessions.
+
+Install and start it:
+
+```bash
+topclaw service install
+topclaw service start
+topclaw service status
+```
+
+Restart it after a config or channel change:
+
+```bash
+topclaw service stop
+topclaw service start
+```
+
+Stop it completely:
+
+```bash
+topclaw service stop
+```
+
 ## Baseline Operator Checklist
 
 1. Validate configuration:
