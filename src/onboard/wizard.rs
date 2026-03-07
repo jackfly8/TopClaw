@@ -2362,11 +2362,7 @@ async fn setup_provider_simple(
             .allow_empty(true)
             .interact_text()?;
 
-        let model = default_model_for_provider("openai");
-        print_bullet(&format!(
-            "Using default model {}. You can change it later in config.toml or rerun onboarding.",
-            style(&model).green()
-        ));
+        let model = prompt_for_default_model(workspace_dir, "openai", &api_key, None).await?;
 
         return Ok((format!("custom:{base_url}"), api_key, model, None));
     }
@@ -2389,11 +2385,13 @@ async fn setup_provider_simple(
         provider_api_url = Some("http://localhost:11434".into());
     }
 
-    let model = default_model_for_provider(provider_name);
-    print_bullet(&format!(
-        "Using default model {}. You can change it later in config.toml or rerun onboarding.",
-        style(&model).green()
-    ));
+    let model = prompt_for_default_model(
+        workspace_dir,
+        provider_name,
+        &api_key,
+        provider_api_url.as_deref(),
+    )
+    .await?;
 
     println!(
         "  {} Provider: {} | Model: {}",
@@ -2936,6 +2934,30 @@ async fn setup_provider(workspace_dir: &Path) -> Result<(String, String, String,
     };
 
     // ── Model selection ──
+    let model = prompt_for_default_model(
+        workspace_dir,
+        provider_name,
+        &api_key,
+        provider_api_url.as_deref(),
+    )
+    .await?;
+
+    println!(
+        "  {} Provider: {} | Model: {}",
+        style("✓").green().bold(),
+        style(provider_name).green(),
+        style(&model).green()
+    );
+
+    Ok((provider_name.to_string(), api_key, model, provider_api_url))
+}
+
+async fn prompt_for_default_model(
+    workspace_dir: &Path,
+    provider_name: &str,
+    api_key: &str,
+    provider_api_url: Option<&str>,
+) -> Result<String> {
     let canonical_provider = canonical_provider_name(provider_name);
     let mut model_options: Vec<(String, String)> = curated_models_for_provider(canonical_provider);
 
@@ -3112,14 +3134,7 @@ async fn setup_provider(workspace_dir: &Path) -> Result<(String, String, String,
         selected_model
     };
 
-    println!(
-        "  {} Provider: {} | Model: {}",
-        style("✓").green().bold(),
-        style(provider_name).green(),
-        style(&model).green()
-    );
-
-    Ok((provider_name.to_string(), api_key, model, provider_api_url))
+    Ok(model)
 }
 
 fn local_provider_choices() -> Vec<(&'static str, &'static str)> {

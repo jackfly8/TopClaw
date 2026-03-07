@@ -18,6 +18,8 @@ const TELEGRAM_MAX_MESSAGE_LENGTH: usize = 4096;
 /// worst case is "(continued)\n\n" + chunk + "\n\n(continues...)" = 30 extra chars
 const TELEGRAM_CONTINUATION_OVERHEAD: usize = 30;
 const TELEGRAM_ACK_REACTIONS: &[&str] = &["⚡️", "👌", "👀", "🔥", "👍"];
+const TELEGRAM_STARTUP_PROBE_RETRY_SECS: u64 = 5;
+const TELEGRAM_STARTUP_PROBE_MAX_409_RETRIES: u32 = 6;
 
 /// Metadata for an incoming document or photo attachment.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -826,6 +828,13 @@ impl TelegramChannel {
 
     fn api_url(&self, method: &str) -> String {
         format!("{}/bot{}/{method}", self.api_base, self.bot_token)
+    }
+
+    fn telegram_polling_conflict_message(description: &str) -> String {
+        format!(
+            "Telegram polling conflict (409): {description}. Another Telegram getUpdates consumer is already using this bot token. \
+Stop any other `topclaw channel start`, `topclaw daemon`, system service, or external bot process using the same token, then retry."
+        )
     }
 
     async fn fetch_bot_username(&self) -> anyhow::Result<String> {
@@ -2981,13 +2990,14 @@ impl Channel for TelegramChannel {
             let _ = self.get_bot_username().await;
         }
 
-        tracing::info!("Telegram channel listening for messages...");
+        tracing::info!("Telegram channel starting polling slot check...");
 
         // Startup probe: claim the getUpdates slot before entering the long-poll loop.
         // A previous daemon's 30-second poll may still be active on Telegram's server.
         // We retry with timeout=0 until we receive a successful (non-409) response,
         // confirming the slot is ours. This prevents the long-poll loop from entering
         // a self-sustaining 409 cycle where each rejected request is immediately retried.
+        let mut startup_probe_409_retries = 0u32;
         loop {
             let url = self.api_url("getUpdates");
             let probe = serde_json::json!({
@@ -3037,7 +3047,30 @@ impl Channel for TelegramChannel {
                                 .and_then(serde_json::Value::as_i64)
                                 .unwrap_or_default();
                             if error_code == 409 {
-                                tracing::debug!("Startup probe: slot busy (409), retrying in 5s");
+                                startup_probe_409_retries += 1;
+                                let description = data
+                                    .get("description")
+                                    .and_then(serde_json::Value::as_str)
+                                    .unwrap_or("terminated by other getUpdates request");
+
+                                if startup_probe_409_retries == 1 {
+                                    tracing::warn!(
+                                        "{} Waiting up to {}s before failing startup.",
+                                        Self::telegram_polling_conflict_message(description),
+                                        TELEGRAM_STARTUP_PROBE_RETRY_SECS
+                                            * u64::from(TELEGRAM_STARTUP_PROBE_MAX_409_RETRIES)
+                                    );
+                                }
+
+                                if startup_probe_409_retries
+                                    >= TELEGRAM_STARTUP_PROBE_MAX_409_RETRIES
+                                {
+                                    anyhow::bail!(
+                                        "{} Startup aborted after {} retries.",
+                                        Self::telegram_polling_conflict_message(description),
+                                        TELEGRAM_STARTUP_PROBE_MAX_409_RETRIES
+                                    );
+                                }
                             } else {
                                 let desc = data
                                     .get("description")
@@ -3047,13 +3080,17 @@ impl Channel for TelegramChannel {
                                     "Startup probe: API error {error_code}: {desc}; retrying in 5s"
                                 );
                             }
-                            tokio::time::sleep(std::time::Duration::from_secs(5)).await;
+                            tokio::time::sleep(std::time::Duration::from_secs(
+                                TELEGRAM_STARTUP_PROBE_RETRY_SECS,
+                            ))
+                            .await;
                         }
                     }
                 }
             }
         }
 
+        tracing::info!("Telegram channel listening for messages...");
         tracing::debug!("Startup probe succeeded; entering main long-poll loop.");
 
         loop {
@@ -3106,10 +3143,7 @@ impl Channel for TelegramChannel {
                     .unwrap_or("unknown Telegram API error");
 
                 if error_code == 409 {
-                    tracing::warn!(
-                        "Telegram polling conflict (409): {description}. \
-Ensure only one `topclaw` process is using this bot token."
-                    );
+                    tracing::warn!("{}", Self::telegram_polling_conflict_message(description));
                     // Back off for 35 seconds — longer than Telegram's 30-second poll
                     // timeout — so any competing session (e.g. a stale connection from
                     // a previous daemon) has time to expire before we retry.

@@ -10,8 +10,7 @@ use std::process::Command;
 
 /// GitHub repository for releases
 const GITHUB_REPO: &str = "jackfly8/TopClaw";
-const GITHUB_API_RELEASES: &str =
-    "https://api.github.com/repos/jackfly8/TopClaw/releases/latest";
+const GITHUB_API_RELEASES: &str = "https://api.github.com/repos/jackfly8/TopClaw/releases/latest";
 
 /// Release information from GitHub API
 #[derive(Debug, serde::Deserialize)]
