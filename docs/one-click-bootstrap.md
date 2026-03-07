@@ -15,7 +15,7 @@ brew install topclaw
 ```bash
 git clone https://github.com/jackfly8/TopClaw.git
 cd TopClaw
-./bootstrap.sh
+./bootstrap.sh --install-system-deps --install-rust --prefer-prebuilt
 ```
 
 Windows PowerShell equivalent:
@@ -23,13 +23,15 @@ Windows PowerShell equivalent:
 ```powershell
 git clone https://github.com/jackfly8/TopClaw.git
 cd TopClaw
-.\bootstrap.ps1
+.\bootstrap.ps1 -InstallRust -PreferPrebuilt
 ```
 
-What it does by default:
+What this recommended path does:
 
-1. `cargo build --release --locked`
-2. `cargo install --path . --force --locked`
+1. installs standard prerequisites when supported
+2. installs Rust when missing
+3. tries a prebuilt binary first
+4. falls back to source build only if no compatible release asset exists
 
 ### Resource preflight and pre-built flow
 

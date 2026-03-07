@@ -5,9 +5,10 @@ Use this section for first install, onboarding, and first-run validation.
 ## Recommended Path
 
 1. Run the main quick start: [../../README.md](../../README.md)
-2. Let `./bootstrap.sh` install prerequisites and launch onboarding
-3. Validate with `topclaw status`
-4. Send a test prompt with `topclaw agent -m "Hello!"`
+2. Run `./bootstrap.sh --install-system-deps --install-rust --prefer-prebuilt`
+3. Let bootstrap install prerequisites, prefer a prebuilt binary, and launch onboarding
+4. Validate with `topclaw status`
+5. Send a test prompt with `topclaw agent -m "Hello!"`
 
 ## Setup Paths
 

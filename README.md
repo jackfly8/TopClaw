@@ -7,20 +7,14 @@ TopClaw is a Rust-based AI agent runtime for local and remote AI workflows.
 ### Ubuntu
 
 ```bash
-sudo apt update
-sudo apt install -y build-essential pkg-config libssl-dev ca-certificates curl git
-
-curl https://sh.rustup.rs -sSf | sh -s -- -y
-source "$HOME/.cargo/env"
-
 git clone https://github.com/jackfly8/TopClaw.git
 cd TopClaw
-./bootstrap.sh
+./bootstrap.sh --install-system-deps --install-rust --prefer-prebuilt
 topclaw status
 topclaw agent -m "Hello!"
 ```
 
-`./bootstrap.sh` installs missing prerequisites, builds TopClaw, and starts onboarding automatically.
+This path installs standard prerequisites, installs Rust when missing, prefers a prebuilt binary first, and starts onboarding automatically.
 
 ### macOS (Apple Silicon)
 
@@ -30,32 +24,31 @@ Install Apple developer tools first:
 xcode-select --install
 ```
 
-Install Rust:
-
-```bash
-curl https://sh.rustup.rs -sSf | sh -s -- -y
-source "$HOME/.cargo/env"
-```
-
 Clone and bootstrap TopClaw:
 
 ```bash
 git clone https://github.com/jackfly8/TopClaw.git
 cd TopClaw
-./bootstrap.sh
+./bootstrap.sh --install-system-deps --install-rust --prefer-prebuilt
 topclaw status
 topclaw agent -m "Hello!"
 ```
 
-`./bootstrap.sh` installs missing prerequisites, builds TopClaw, and starts onboarding automatically.
+This path installs standard prerequisites, installs Rust when missing, prefers a prebuilt binary first, and starts onboarding automatically.
 
 ## What Bootstrap Does
 
-Running `./bootstrap.sh` with no flags will:
+Recommended first-run command:
+
+```bash
+./bootstrap.sh --install-system-deps --install-rust --prefer-prebuilt
+```
+
+What those flags do:
 
 1. install missing system dependencies when possible
 2. install Rust if it is not already present
-3. build and install `topclaw`
+3. try a prebuilt `topclaw` binary first, then fall back to source build if needed
 4. start the onboarding wizard
 
 During onboarding, the default path is now:
