@@ -128,6 +128,17 @@ enum EstopLevelArg {
 #[command(author = "theonlyhennygod")]
 #[command(version)]
 #[command(about = "The fastest, smallest AI assistant.", long_about = None)]
+#[command(after_help = "\
+Background service:
+  topclaw service install
+  topclaw service start
+  topclaw service stop
+  topclaw service restart
+  topclaw service uninstall
+
+Full uninstall:
+  ./topclaw_uninstall.sh
+  ./topclaw_uninstall.sh --purge")]
 struct Cli {
     #[arg(long, global = true)]
     config_dir: Option<String>,
@@ -281,7 +292,19 @@ Examples:
         host: Option<String>,
     },
 
-    /// Manage OS service lifecycle (launchd/systemd user service)
+    /// Manage OS service lifecycle (install, start, stop, restart, uninstall)
+    #[command(long_about = "\
+Manage OS service lifecycle for the TopClaw daemon.
+
+Use this command group when you want TopClaw to stay active in the background.
+
+Examples:
+  topclaw service install
+  topclaw service start
+  topclaw service stop
+  topclaw service restart
+  topclaw service status
+  topclaw service uninstall")]
     Service {
         /// Init system to use: auto (detect), systemd, or openrc
         #[arg(long, default_value = "auto", value_parser = ["auto", "systemd", "openrc"])]
