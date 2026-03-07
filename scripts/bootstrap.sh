@@ -1522,6 +1522,13 @@ else
   fi
 fi
 
+if [[ "$DOCKER_MODE" == false && "$RUN_ONBOARD" == false && -t 0 && -t 1 ]]; then
+  RUN_ONBOARD=true
+  if [[ -z "$API_KEY" ]]; then
+    INTERACTIVE_ONBOARD=true
+  fi
+fi
+
 WORK_DIR="$ROOT_DIR"
 TEMP_CLONE=false
 TEMP_DIR=""
