@@ -10,10 +10,10 @@ TopClaw is a Rust-based AI agent runtime for local and remote AI workflows.
 sudo apt update
 sudo apt install -y build-essential pkg-config libssl-dev ca-certificates curl git
 
-curl https://sh.rustup.rs -sSf | sh
+curl https://sh.rustup.rs -sSf | sh -s -- -y
 source "$HOME/.cargo/env"
 
-git clone https://github.com/topclaw-labs/topclaw.git
+git clone https://github.com/jackfly8/TopClaw.git
 cd TopClaw
 ./bootstrap.sh
 topclaw status
@@ -33,14 +33,14 @@ xcode-select --install
 Install Rust:
 
 ```bash
-curl https://sh.rustup.rs -sSf | sh
+curl https://sh.rustup.rs -sSf | sh -s -- -y
 source "$HOME/.cargo/env"
 ```
 
 Clone and bootstrap TopClaw:
 
 ```bash
-git clone https://github.com/topclaw-labs/topclaw.git
+git clone https://github.com/jackfly8/TopClaw.git
 cd TopClaw
 ./bootstrap.sh
 topclaw status

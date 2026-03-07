@@ -66,8 +66,8 @@ ssh arduino@<UNO_Q_IP>
 
 4. **Λήψη και Μεταγλώττιση**:
    ```bash
-   git clone https://github.com/topclaw-labs/topclaw.git
-   cd topclaw
+   git clone https://github.com/jackfly8/TopClaw.git
+   cd TopClaw
    cargo build --release --features hardware
    ```
 

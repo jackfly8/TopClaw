@@ -13,8 +13,8 @@ This guide explains how to run TopClaw in Docker mode, including bootstrap, onbo
 
 ```bash
 # Clone the repository
-git clone https://github.com/topclaw-labs/topclaw.git
-cd topclaw
+git clone https://github.com/jackfly8/TopClaw.git
+cd TopClaw
 
 # Run bootstrap with Docker mode
 ./bootstrap.sh --docker

@@ -26,7 +26,7 @@ Build output is generated at:
 Notes:
 
 - Output directory is intentionally `gh-pages/` (not `out/`).
-- Vite base is configured to `/topclaw/` for `https://topclaw-labs.github.io/topclaw/`.
+- Vite base is configured to `/topclaw/` for `https://jackfly8.github.io/TopClaw/`.
 - Docs links in UI point to rendered GitHub docs pages for direct reading.
 - Docs Navigator supports:
   - keyword search with weighted ranking

@@ -172,7 +172,7 @@ sudo usermod -aG dialout $USER
 ```bash
 # Clone repo (or copy from USB)
 git clone https://github.com/theonlyhennygod/topclaw
-cd topclaw
+cd TopClaw
 
 # Build robot kit
 cargo build --release -p topclaw-robot-kit

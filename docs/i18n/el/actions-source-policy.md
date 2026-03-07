@@ -32,8 +32,8 @@
 Χρησιμοποιήστε τις παρακάτω εντολές για να επαληθεύσετε την τρέχουσα πολιτική:
 
 ```bash
-gh api repos/topclaw-labs/topclaw/actions/permissions
-gh api repos/topclaw-labs/topclaw/actions/permissions/selected-actions
+gh api repos/jackfly8/TopClaw/actions/permissions
+gh api repos/jackfly8/TopClaw/actions/permissions/selected-actions
 ```
 
 Κάθε αλλαγή στην πολιτική πρέπει να καταγράφει:

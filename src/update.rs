@@ -9,9 +9,9 @@ use std::path::{Path, PathBuf};
 use std::process::Command;
 
 /// GitHub repository for releases
-const GITHUB_REPO: &str = "topclaw-labs/topclaw";
+const GITHUB_REPO: &str = "jackfly8/TopClaw";
 const GITHUB_API_RELEASES: &str =
-    "https://api.github.com/repos/topclaw-labs/topclaw/releases/latest";
+    "https://api.github.com/repos/jackfly8/TopClaw/releases/latest";
 
 /// Release information from GitHub API
 #[derive(Debug, serde::Deserialize)]

@@ -59,13 +59,13 @@ SLA targets:
 
 Use:
 
-- `gh run list --repo topclaw-labs/topclaw --workflow feature-matrix.yml --limit 10`
-- `gh run view <run_id> --repo topclaw-labs/topclaw --json jobs,headSha,event,createdAt,url`
+- `gh run list --repo jackfly8/TopClaw --workflow feature-matrix.yml --limit 10`
+- `gh run view <run_id> --repo jackfly8/TopClaw --json jobs,headSha,event,createdAt,url`
 - inspect `nightly-history.json` in `nightly-all-features-summary` artifact
 
 Manual trigger (nightly profile):
 
-- `gh workflow run feature-matrix.yml --repo topclaw-labs/topclaw --ref dev -f profile=nightly -f fail_on_failure=true`
+- `gh workflow run feature-matrix.yml --repo jackfly8/TopClaw --ref dev -f profile=nightly -f fail_on_failure=true`
 
 Project update expectation:
 

@@ -14,8 +14,8 @@ brew install topclaw
 
 1. **Κλωνοποίηση του αποθετηρίου**:
    ```bash
-   git clone https://github.com/topclaw-labs/topclaw.git
-   cd topclaw
+   git clone https://github.com/jackfly8/TopClaw.git
+   cd TopClaw
    ```
 2. **Εκτέλεση του bootstrap**:
    ```bash
@@ -57,7 +57,7 @@ brew install topclaw
 ## Επιλογή Β: Απομακρυσμένη Εκτέλεση
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/topclaw-labs/topclaw/main/scripts/bootstrap.sh | bash
+curl -fsSL https://raw.githubusercontent.com/jackfly8/TopClaw/main/scripts/bootstrap.sh | bash
 ```
 > [!IMPORTANT]
 > Για περιβάλλοντα υψηλής ασφάλειας, συνιστάται η **Επιλογή Α**, ώστε να μπορείτε να επιθεωρήσετε το σενάριο πριν από την εκτέλεση.

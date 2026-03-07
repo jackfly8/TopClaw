@@ -30,8 +30,8 @@ Selected allowlist patterns:
 Use these commands to export the current effective policy for audit/change control:
 
 ```bash
-gh api repos/topclaw-labs/topclaw/actions/permissions
-gh api repos/topclaw-labs/topclaw/actions/permissions/selected-actions
+gh api repos/jackfly8/TopClaw/actions/permissions
+gh api repos/jackfly8/TopClaw/actions/permissions/selected-actions
 ```
 
 Record each policy change with:

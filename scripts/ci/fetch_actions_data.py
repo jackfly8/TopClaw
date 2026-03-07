@@ -9,7 +9,7 @@ Options:
     --mode brief|full   Output mode (default: full)
                         brief: billable minutes/hours table only
                         full:  detailed breakdown with per-run list
-    --repo OWNER/NAME   Repository (default: topclaw-labs/topclaw)
+    --repo OWNER/NAME   Repository (default: jackfly8/TopClaw)
     -h, --help          Show this help message
 """
 
@@ -38,8 +38,8 @@ def parse_args():
     )
     parser.add_argument(
         "--repo",
-        default="topclaw-labs/topclaw",
-        help="Repository in OWNER/NAME format (default: topclaw-labs/topclaw)",
+        default="jackfly8/TopClaw",
+        help="Repository in OWNER/NAME format (default: jackfly8/TopClaw)",
     )
     return parser.parse_args()
 

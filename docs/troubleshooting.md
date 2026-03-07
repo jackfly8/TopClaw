@@ -220,8 +220,8 @@ journalctl --user -u topclaw.service -f
 Both still work:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/topclaw-labs/topclaw/main/scripts/bootstrap.sh | bash
-curl -fsSL https://raw.githubusercontent.com/topclaw-labs/topclaw/main/scripts/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/jackfly8/TopClaw/main/scripts/bootstrap.sh | bash
+curl -fsSL https://raw.githubusercontent.com/jackfly8/TopClaw/main/scripts/install.sh | bash
 ```
 
 `install.sh` is a compatibility entry and forwards/falls back to bootstrap behavior.
