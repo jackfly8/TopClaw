@@ -38,7 +38,6 @@ struct FailedAttemptState {
 /// Bearer tokens are stored as SHA-256 hashes to prevent plaintext exposure
 /// in config files. When a new token is generated, the plaintext is returned
 /// to the client once, and only the hash is retained.
-// TODO: I've just made this work with parking_lot but it should use either flume or tokio's async mutexes
 #[derive(Debug, Clone)]
 pub struct PairingGuard {
     /// Whether pairing is required at all.
@@ -184,19 +183,7 @@ impl PairingGuard {
     /// Returns `Err(lockout_seconds)` if locked out due to brute force.
     /// `client_id` identifies the client for per-client lockout accounting.
     pub async fn try_pair(&self, code: &str, client_id: &str) -> Result<Option<String>, u64> {
-        let this = self.clone();
-        let code = code.to_string();
-        let client_id = client_id.to_string();
-        // TODO: make this function the main one without spawning a task
-        let handle = tokio::task::spawn_blocking(move || this.try_pair_blocking(&code, &client_id));
-
-        match handle.await {
-            Ok(result) => result,
-            Err(err) => {
-                tracing::error!("pairing worker task failed: {err}");
-                Ok(None)
-            }
-        }
+        self.try_pair_blocking(code, client_id)
     }
 
     /// Check if a bearer token is valid (compares against stored hashes).
