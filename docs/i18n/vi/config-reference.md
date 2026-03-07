@@ -294,9 +294,9 @@ Lưu ý:
 | `level` | `supervised` | `read_only`, `supervised` hoặc `full` |
 | `workspace_only` | `true` | Giới hạn ghi/lệnh trong phạm vi workspace |
 | `allowed_commands` | _bắt buộc để chạy shell_ | Danh sách lệnh được phép |
-| `forbidden_paths` | `[]` | Danh sách đường dẫn bị cấm |
-| `max_actions_per_hour` | `100` | Ngân sách hành động mỗi giờ |
-| `max_cost_per_day_cents` | `1000` | Giới hạn chi tiêu mỗi ngày (cent) |
+| `forbidden_paths` | danh sách bảo vệ dựng sẵn | Danh sách đường dẫn bị cấm |
+| `max_actions_per_hour` | `20` | Ngân sách hành động mỗi giờ |
+| `max_cost_per_day_cents` | `500` | Giới hạn chi tiêu mỗi ngày (cent) |
 | `require_approval_for_medium_risk` | `true` | Yêu cầu phê duyệt cho lệnh rủi ro trung bình |
 | `block_high_risk_commands` | `true` | Chặn cứng lệnh rủi ro cao |
 | `auto_approve` | `[]` | Thao tác tool luôn được tự động phê duyệt |
@@ -305,6 +305,8 @@ Lưu ý:
 Lưu ý:
 
 - `level = "full"` bỏ qua phê duyệt rủi ro trung bình cho shell execution, nhưng vẫn áp dụng guardrail đã cấu hình.
+- Các file policy/identity trong workspace như `AGENTS.md`, `SOUL.md`, `TOOLS.md`, `IDENTITY.md`, `USER.md`, `HEARTBEAT.md`, và `BOOTSTRAP.md` được coi là file do con người quản lý và bị bảo vệ theo mặc định.
+- Tự động hóa GUI / browser cấp hệ điều hành bị tắt theo mặc định. Giữ `browser.enabled = false` và tránh `backend = "computer_use"` trừ khi bạn đang dùng máy thử nghiệm cách ly.
 - Phân tích toán tử/dấu phân cách shell nhận biết dấu ngoặc kép. Ký tự như `;` trong đối số được trích dẫn được xử lý là ký tự, không phải dấu phân cách lệnh.
 - Toán tử chuỗi shell không trích dẫn vẫn được kiểm tra bởi policy (`;`, `|`, `&&`, `||`, chạy nền và chuyển hướng).
 

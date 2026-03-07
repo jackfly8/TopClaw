@@ -132,7 +132,7 @@ pub async fn run_wizard(force: bool) -> Result<Config> {
     let channels_config = setup_channels_simple()?;
 
     // ── Build config with sensible defaults for everything else ──────
-    // Default: SQLite memory, full autonomy, native runtime
+    // Default: SQLite memory, supervised autonomy, native runtime
     let config = Config {
         workspace_dir: workspace_dir.clone(),
         config_path: config_path.clone(),
@@ -5756,7 +5756,7 @@ async fn scaffold_workspace(workspace_dir: &Path, ctx: &ProjectContext) -> Resul
          - **Vibe:** Sharp, direct, resourceful. Not corporate. Not a chatbot.\n\
          - **Emoji:** \u{1f980}\n\n\
          ---\n\n\
-         Update this file as you evolve. Your identity is yours to shape.\n"
+         This file is user-owned. Suggest edits when your identity should change, but ask the human to update it manually.\n"
     );
 
     let agents = format!(
@@ -5778,7 +5778,7 @@ async fn scaffold_workspace(workspace_dir: &Path, ctx: &ProjectContext) -> Resul
          - Memory is limited — if you want to remember something, WRITE IT TO A FILE\n\
          - \"Mental notes\" don't survive session restarts. Files do.\n\
          - When someone says \"remember this\" -> update daily file or MEMORY.md\n\
-         - When you learn a lesson -> update AGENTS.md, TOOLS.md, or the relevant skill\n\n\
+         - When you learn a lesson -> store it in memory or suggest a manual update to AGENTS.md / TOOLS.md\n\n\
          ## Safety\n\n\
          - Don't exfiltrate private data. Ever.\n\
          - Don't run destructive commands without asking.\n\
@@ -5802,7 +5802,7 @@ async fn scaffold_workspace(workspace_dir: &Path, ctx: &ProjectContext) -> Resul
          - Keep sub-tasks small, verify each output, then merge results.\n\
          - Prefer one clear objective per sub-task over broad \"do everything\" asks.\n\n\
          ## Make It Yours\n\n\
-         This is a starting point. Add your own conventions, style, and rules.\n"
+         This is a starting point. Suggest changes, but treat AGENTS.md / SOUL.md / USER.md / TOOLS.md as human-maintained files.\n"
     );
 
     let heartbeat = format!(
@@ -5849,9 +5849,10 @@ async fn scaffold_workspace(workspace_dir: &Path, ctx: &ProjectContext) -> Resul
          - You're not the user's voice — be careful in group chats.\n\n\
          ## Continuity\n\n\
          Each session, you wake up fresh. These files ARE your memory.\n\
-         Read them. Update them. They're how you persist.\n\n\
+         Read them. Treat SOUL.md / USER.md / IDENTITY.md / AGENTS.md / TOOLS.md as human-maintained.\n\
+         Suggest edits when they should change.\n\n\
          ---\n\n\
-         *This file is yours to evolve. As you learn who you are, update it.*\n"
+         *This file is user-owned. Suggest revisions when needed, but do not rewrite it yourself unless the human explicitly changes policy.*\n"
     );
 
     let user_md = format!(
@@ -5868,7 +5869,7 @@ async fn scaffold_workspace(workspace_dir: &Path, ctx: &ProjectContext) -> Resul
          ## Work Context\n\
          - (Add your work context here — e.g. building a SaaS product)\n\n\
          ---\n\
-         *Update this anytime. The more {agent} knows, the better it helps.*\n"
+         *This file is user-owned. Ask the human to edit it directly when preferences or context change.*\n"
     );
 
     let tools = "\
@@ -5912,13 +5913,12 @@ async fn scaffold_workspace(workspace_dir: &Path, ctx: &ProjectContext) -> Resul
          Don't interrogate. Don't be robotic. Just... talk.\n\
          Introduce yourself as {agent} and get to know each other.\n\n\
          ## After You Know Each Other\n\n\
-         Update these files with what you learned:\n\
+         Ask your human to update these files with what you learned:\n\
          - `IDENTITY.md` — your name, vibe, emoji\n\
          - `USER.md` — their preferences, work context\n\
          - `SOUL.md` — boundaries and behavior\n\n\
          ## When You're Done\n\n\
-         Delete this file. You don't need a bootstrap script anymore —\n\
-         you're you now.\n"
+         Ask your human to delete this file when onboarding is complete.\n"
     );
 
     let memory = "\

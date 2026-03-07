@@ -504,7 +504,7 @@ Notes:
 | `block_high_risk_commands` | `true` | hard block for high-risk commands |
 | `auto_approve` | `[]` | tool operations always auto-approved |
 | `always_ask` | `[]` | tool operations that always require approval |
-| `non_cli_excluded_tools` | `[]` | tools hidden from non-CLI channel tool specs |
+| `non_cli_excluded_tools` | built-in restricted list | tools hidden from non-CLI channel tool specs |
 | `non_cli_approval_approvers` | `[]` | optional allowlist for who can run non-CLI approval-management commands |
 | `non_cli_natural_language_approval_mode` | `direct` | natural-language behavior for approval-management commands (`direct`, `request_confirm`, `disabled`) |
 | `non_cli_natural_language_approval_mode_by_channel` | `{}` | per-channel override map for natural-language approval mode |
@@ -515,6 +515,8 @@ Notes:
 - Access outside the workspace requires `allowed_roots`, even when `workspace_only = false`.
 - `allowed_roots` supports absolute paths, `~/...`, and workspace-relative paths.
 - `allowed_commands` entries can be command names (for example, `"git"`), explicit executable paths (for example, `"/usr/bin/antigravity"`), or `"*"` to allow any command name/path (risk gates still apply).
+- Workspace policy files such as `AGENTS.md`, `SOUL.md`, `TOOLS.md`, `IDENTITY.md`, `USER.md`, `HEARTBEAT.md`, and `BOOTSTRAP.md` are treated as protected human-managed files by default.
+- OS-level browser / GUI automation is disabled by default. Keep `browser.enabled = false` and avoid `backend = "computer_use"` unless you are on an isolated machine and explicitly want that capability.
 - Shell separator/operator parsing is quote-aware. Characters like `;` inside quoted arguments are treated as literals, not command separators.
 - Unquoted shell chaining/operators are still enforced by policy checks (`;`, `|`, `&&`, `||`, background chaining, and redirects).
 - In supervised mode on non-CLI channels, operators can persist human-approved tools with:

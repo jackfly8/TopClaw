@@ -1772,6 +1772,9 @@ pub(crate) fn build_shell_policy_instructions(autonomy: &crate::config::Autonomy
     instructions.push_str(
         "- If a requested command is outside policy, choose allowed alternatives and explain the limitation.\n",
     );
+    instructions.push_str(
+        "- Before any shell command, first present a compact preflight with the goal, exact command(s), affected paths, risk level, reversibility, rollback plan, and execution rationale.\n",
+    );
 
     instructions
 }

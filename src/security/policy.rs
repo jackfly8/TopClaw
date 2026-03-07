@@ -15,9 +15,9 @@ pub enum AutonomyLevel {
     /// Read-only: can observe but not act
     ReadOnly,
     /// Supervised: acts but requires approval for risky operations
+    #[default]
     Supervised,
     /// Full: autonomous execution within policy bounds
-    #[default]
     Full,
 }
 
@@ -139,16 +139,16 @@ pub struct SecurityPolicy {
 impl Default for SecurityPolicy {
     fn default() -> Self {
         Self {
-            autonomy: AutonomyLevel::Full,
+            autonomy: AutonomyLevel::Supervised,
             workspace_dir: PathBuf::from("."),
-            workspace_only: false,
-            allowed_commands: vec!["*".into()],
-            forbidden_paths: vec![],
+            workspace_only: true,
+            allowed_commands: vec![],
+            forbidden_paths: default_forbidden_paths(),
             allowed_roots: Vec::new(),
-            max_actions_per_hour: u32::MAX,
-            max_cost_per_day_cents: u32::MAX,
-            require_approval_for_medium_risk: false,
-            block_high_risk_commands: false,
+            max_actions_per_hour: 20,
+            max_cost_per_day_cents: 500,
+            require_approval_for_medium_risk: true,
+            block_high_risk_commands: true,
             shell_redirect_policy: ShellRedirectPolicy::Block,
             shell_env_passthrough: vec![],
             otp_gated_actions: HashSet::new(),
@@ -161,6 +161,44 @@ impl Default for SecurityPolicy {
 
 fn home_dir() -> Option<PathBuf> {
     std::env::var_os("HOME").map(PathBuf::from)
+}
+
+fn default_forbidden_paths() -> Vec<String> {
+    [
+        "/etc",
+        "/root",
+        "/home",
+        "/usr",
+        "/bin",
+        "/sbin",
+        "/lib",
+        "/opt",
+        "/boot",
+        "/dev",
+        "/proc",
+        "/sys",
+        "/var",
+        "/tmp",
+        "~/.ssh",
+        "~/.gnupg",
+        "~/.aws",
+        "~/.config/secrets",
+    ]
+    .into_iter()
+    .map(std::string::ToString::to_string)
+    .collect()
+}
+
+fn protected_workspace_files() -> &'static [&'static str] {
+    &[
+        "AGENTS.md",
+        "SOUL.md",
+        "TOOLS.md",
+        "IDENTITY.md",
+        "USER.md",
+        "HEARTBEAT.md",
+        "BOOTSTRAP.md",
+    ]
 }
 
 fn expand_user_path(path: &str) -> PathBuf {
@@ -177,6 +215,17 @@ fn expand_user_path(path: &str) -> PathBuf {
     }
 
     PathBuf::from(path)
+}
+
+fn normalize_workspace_relative_path(path: &Path) -> PathBuf {
+    let mut normalized = PathBuf::new();
+    for component in path.components() {
+        if matches!(component, std::path::Component::CurDir) {
+            continue;
+        }
+        normalized.push(component.as_os_str());
+    }
+    normalized
 }
 
 // ── Shell Command Parsing Utilities ───────────────────────────────────────
@@ -1138,6 +1187,10 @@ impl SecurityPolicy {
         // Expand "~" for consistent matching with forbidden paths and allowlists.
         let expanded_path = expand_user_path(path);
 
+        if self.is_protected_workspace_path(&expanded_path) {
+            return false;
+        }
+
         // Block absolute paths when workspace_only is set
         if self.workspace_only && expanded_path.is_absolute() {
             return false;
@@ -1157,6 +1210,10 @@ impl SecurityPolicy {
     /// Validate that a resolved path is inside the workspace or an allowed root.
     /// Call this AFTER joining `workspace_dir` + relative path and canonicalizing.
     pub fn is_resolved_path_allowed(&self, resolved: &Path) -> bool {
+        if self.is_protected_workspace_path(resolved) {
+            return false;
+        }
+
         // Prefer canonical workspace root so `/a/../b` style config paths don't
         // cause false positives or negatives.
         let workspace_root = self
@@ -1196,6 +1253,13 @@ impl SecurityPolicy {
     }
 
     pub fn resolved_path_violation_message(&self, resolved: &Path) -> String {
+        if self.is_protected_workspace_path(resolved) {
+            return format!(
+                "Path is protected by security policy and must be changed manually: {}",
+                resolved.display()
+            );
+        }
+
         let guidance = if self.allowed_roots.is_empty() {
             "Add the directory to [autonomy].allowed_roots (for example: allowed_roots = [\"/absolute/path\"]), or move the file into the workspace."
         } else {
@@ -1212,6 +1276,36 @@ impl SecurityPolicy {
     /// Check if autonomy level permits any action at all
     pub fn can_act(&self) -> bool {
         self.autonomy != AutonomyLevel::ReadOnly
+    }
+
+    fn is_protected_workspace_path(&self, path: &Path) -> bool {
+        let workspace_root = self
+            .workspace_dir
+            .canonicalize()
+            .unwrap_or_else(|_| self.workspace_dir.clone());
+
+        let relative = if path.is_absolute() {
+            let canonical = path.canonicalize().unwrap_or_else(|_| path.to_path_buf());
+            match canonical.strip_prefix(&workspace_root) {
+                Ok(stripped) => normalize_workspace_relative_path(stripped),
+                Err(_) => return false,
+            }
+        } else {
+            normalize_workspace_relative_path(path)
+        };
+
+        let mut components = relative.components();
+        let Some(first) = components.next() else {
+            return false;
+        };
+        if components.next().is_some() {
+            return false;
+        }
+
+        let candidate = first.as_os_str().to_string_lossy();
+        protected_workspace_files()
+            .iter()
+            .any(|protected| candidate.eq_ignore_ascii_case(protected))
     }
 
     fn normalize_tool_name(name: &str) -> String {
@@ -1456,8 +1550,8 @@ mod tests {
     // ── AutonomyLevel ────────────────────────────────────────
 
     #[test]
-    fn autonomy_default_is_full() {
-        assert_eq!(AutonomyLevel::default(), AutonomyLevel::Full);
+    fn autonomy_default_is_supervised() {
+        assert_eq!(AutonomyLevel::default(), AutonomyLevel::Supervised);
     }
 
     #[test]
@@ -1751,6 +1845,20 @@ mod tests {
     }
 
     #[test]
+    fn protected_workspace_rule_files_blocked() {
+        let workspace = PathBuf::from("/tmp/topclaw-protected-policy");
+        let p = SecurityPolicy {
+            workspace_dir: workspace.clone(),
+            ..SecurityPolicy::default()
+        };
+
+        assert!(!p.is_path_allowed("AGENTS.md"));
+        assert!(!p.is_path_allowed("./SOUL.md"));
+        assert!(!p.is_path_allowed(&workspace.join("TOOLS.md").display().to_string()));
+        assert!(p.is_path_allowed("notes/AGENTS.md"));
+    }
+
+    #[test]
     fn forbidden_paths_blocked() {
         let p = SecurityPolicy {
             workspace_only: false,
@@ -1840,14 +1948,14 @@ mod tests {
     #[test]
     fn default_policy_has_sane_values() {
         let p = SecurityPolicy::default();
-        assert_eq!(p.autonomy, AutonomyLevel::Full);
-        assert!(!p.workspace_only);
-        assert_eq!(p.allowed_commands, vec!["*"]);
-        assert!(p.forbidden_paths.is_empty());
-        assert!(p.max_actions_per_hour > 0);
-        assert!(p.max_cost_per_day_cents > 0);
-        assert!(!p.require_approval_for_medium_risk);
-        assert!(!p.block_high_risk_commands);
+        assert_eq!(p.autonomy, AutonomyLevel::Supervised);
+        assert!(p.workspace_only);
+        assert!(p.allowed_commands.is_empty());
+        assert!(p.forbidden_paths.iter().any(|p| p == "/etc"));
+        assert_eq!(p.max_actions_per_hour, 20);
+        assert_eq!(p.max_cost_per_day_cents, 500);
+        assert!(p.require_approval_for_medium_risk);
+        assert!(p.block_high_risk_commands);
         assert_eq!(p.shell_redirect_policy, ShellRedirectPolicy::Block);
         assert!(p.shell_env_passthrough.is_empty());
     }

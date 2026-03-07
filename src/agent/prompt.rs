@@ -146,7 +146,7 @@ impl PromptSection for SafetySection {
     }
 
     fn build(&self, _ctx: &PromptContext<'_>) -> Result<String> {
-        Ok("## Safety\n\n- Assess operational risk before every state-changing action.\n- Choose the least destructive path that still accomplishes the goal.\n- Minimize blast radius: prefer scoped edits, targeted commands, and reversible actions.\n- Do not exfiltrate private data.\n- Do not bypass explicit policy constraints when they exist.\n- Ask only when the user's intent is ambiguous or the required action is unclear; otherwise decide and act autonomously.".into())
+        Ok("## Safety\n\n- Before any write, execute, network, or delete action, emit a compact structured preflight covering: goal, tools/commands, affected paths, risk level (`low`/`medium`/`high`/`critical`), reversibility, rollback plan, and why execution should continue.\n- Treat that preflight as a self-check, not a permission bypass.\n- Choose the least destructive path that still accomplishes the goal.\n- Minimize blast radius: prefer scoped edits, targeted commands, and reversible actions.\n- Treat AGENTS/identity/bootstrap files as user-owned unless a human explicitly changes policy.\n- Do not exfiltrate private data.\n- Do not bypass explicit policy constraints when they exist.\n- OS-level GUI/browser automation is exceptional; do not use it unless the relevant tool is explicitly enabled and necessary.".into())
     }
 }
 
