@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "topclaw-tools"
-version = "0.1.0"
+version = "0.1.1"
 description = "Python companion package for TopClaw - LangGraph-based tool calling for consistent LLM agent execution"
 readme = "README.md"
 license = { text = "MIT OR Apache-2.0" }
