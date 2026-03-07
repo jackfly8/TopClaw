@@ -12,8 +12,7 @@ use std::path::PathBuf;
 const DEFAULT_CODEX_RESPONSES_URL: &str = "https://chatgpt.com/backend-api/codex/responses";
 const CODEX_RESPONSES_URL_ENV: &str = "TOPCLAW_CODEX_RESPONSES_URL";
 const CODEX_BASE_URL_ENV: &str = "TOPCLAW_CODEX_BASE_URL";
-const DEFAULT_CODEX_INSTRUCTIONS: &str =
-    "You are TopClaw, a concise and helpful coding assistant.";
+const DEFAULT_CODEX_INSTRUCTIONS: &str = "You are TopClaw, a concise and helpful coding assistant.";
 
 pub struct OpenAiCodexProvider {
     auth: AuthService,
@@ -116,7 +115,6 @@ impl OpenAiCodexProvider {
                 .unwrap_or_else(|_| Client::new()),
         })
     }
-
 }
 
 fn default_topclaw_dir() -> PathBuf {

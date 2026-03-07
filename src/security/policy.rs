@@ -2844,15 +2844,12 @@ mod tests {
     fn otp_is_required_for_gated_domains() {
         let (_tmp, policy, code) = otp_test_policy(&[], &["accounts.google.com"]);
 
-        let missing = policy.enforce_otp_for_url("browser_open", "https://accounts.google.com", None);
+        let missing =
+            policy.enforce_otp_for_url("browser_open", "https://accounts.google.com", None);
         assert!(missing.unwrap_err().contains("OTP code required"));
 
         policy
-            .enforce_otp_for_url(
-                "browser_open",
-                "https://accounts.google.com",
-                Some(&code),
-            )
+            .enforce_otp_for_url("browser_open", "https://accounts.google.com", Some(&code))
             .expect("valid OTP should allow gated domain");
         policy
             .enforce_otp_for_url("browser_open", "https://example.com", None)

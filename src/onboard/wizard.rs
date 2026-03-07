@@ -30,9 +30,9 @@ use std::time::Duration;
 use tokio::fs;
 
 // ── SIMPLIFIED WIZARD: 3 Steps for Newbies ───────────────────────
-// 
+//
 // Step 1: Workspace - Where to store files
-// Step 2: AI Provider - Choose model and paste API key  
+// Step 2: AI Provider - Choose model and paste API key
 // Step 3: How to reach you - Telegram / Discord / Skip
 //
 // Everything else (Tunnel, Web tools, Hardware, Memory) can be configured later.
@@ -93,13 +93,11 @@ pub async fn run_wizard(force: bool) -> Result<Config> {
     );
     println!(
         "  {}",
-        style("This wizard will configure your agent in under 2 minutes.")
-            .dim()
+        style("This wizard will configure your agent in under 2 minutes.").dim()
     );
     println!(
         "  {}",
-        style("Tip: Press Enter to accept defaults. Everything can be changed later.")
-            .dim()
+        style("Tip: Press Enter to accept defaults. Everything can be changed later.").dim()
     );
     println!();
 
@@ -107,7 +105,7 @@ pub async fn run_wizard(force: bool) -> Result<Config> {
     println!("  {}", style("[1/3] Where should we work?").cyan().bold());
     println!("  {}", style("─".repeat(40)).dim());
     let (workspace_dir, config_path) = setup_workspace().await?;
-    
+
     match resolve_interactive_onboarding_mode(&config_path, force)? {
         InteractiveOnboardingMode::FullOnboarding => {}
         InteractiveOnboardingMode::UpdateProviderOnly => {
@@ -119,11 +117,17 @@ pub async fn run_wizard(force: bool) -> Result<Config> {
     println!();
     println!("  {}", style("[2/3] Connect to an AI").cyan().bold());
     println!("  {}", style("─".repeat(40)).dim());
-    let (provider, api_key, model, provider_api_url) = setup_provider_simple(&workspace_dir).await?;
+    let (provider, api_key, model, provider_api_url) =
+        setup_provider_simple(&workspace_dir).await?;
 
     // ── STEP 3: How to reach you (Channels) ──────────────────────────
     println!();
-    println!("  {}", style("[3/3] How do you want to talk to TopClaw?").cyan().bold());
+    println!(
+        "  {}",
+        style("[3/3] How do you want to talk to TopClaw?")
+            .cyan()
+            .bold()
+    );
     println!("  {}", style("─".repeat(40)).dim());
     let channels_config = setup_channels_simple()?;
 
@@ -2040,7 +2044,7 @@ fn resolve_interactive_onboarding_mode(
             config_path.display()
         ))
         .items(options)
-        .default(0)  // Default to FULL onboarding (not update-only) - safer for new users
+        .default(0) // Default to FULL onboarding (not update-only) - safer for new users
         .interact()?;
 
     match mode {
@@ -2121,10 +2125,7 @@ fn setup_channels_simple() -> Result<ChannelsConfig> {
         1 => {
             // Telegram
             println!();
-            println!(
-                "  {} Telegram Setup",
-                style("→").cyan()
-            );
+            println!("  {} Telegram Setup", style("→").cyan());
             print_bullet("1. Open Telegram and message @BotFather");
             print_bullet("2. Send /newbot and follow the prompts");
             print_bullet("3. Copy the bot token and paste it below");
@@ -2174,7 +2175,9 @@ fn setup_channels_simple() -> Result<ChannelsConfig> {
 
                 // Ask for allowed users (simplified - just ask for your username)
                 let users_str: String = Input::new()
-                    .with_prompt("  Your Telegram username (without @), or press Enter for '*' (allow all)")
+                    .with_prompt(
+                        "  Your Telegram username (without @), or press Enter for '*' (allow all)",
+                    )
                     .allow_empty(true)
                     .interact_text()?;
 
@@ -2199,10 +2202,7 @@ fn setup_channels_simple() -> Result<ChannelsConfig> {
         2 => {
             // Discord
             println!();
-            println!(
-                "  {} Discord Setup",
-                style("→").cyan()
-            );
+            println!("  {} Discord Setup", style("→").cyan());
             print_bullet("1. Go to https://discord.com/developers/applications");
             print_bullet("2. Create a New Application → Bot → Copy token");
             print_bullet("3. Enable MESSAGE CONTENT intent under Bot settings");
@@ -2320,7 +2320,9 @@ async fn setup_workspace() -> Result<(PathBuf, PathBuf)> {
 
 // ── Step 2: Provider & API Key ───────────────────────────────────
 
-async fn setup_provider_simple(workspace_dir: &Path) -> Result<(String, String, String, Option<String>)> {
+async fn setup_provider_simple(
+    workspace_dir: &Path,
+) -> Result<(String, String, String, Option<String>)> {
     let options = vec![
         ("openrouter", "OpenRouter"),
         ("openai", "OpenAI"),
@@ -2348,9 +2350,7 @@ async fn setup_provider_simple(workspace_dir: &Path) -> Result<(String, String, 
     if choice == "custom" {
         println!();
         print_bullet("Enter the base URL for any OpenAI-compatible endpoint.");
-        let base_url: String = Input::new()
-            .with_prompt("  API base URL")
-            .interact_text()?;
+        let base_url: String = Input::new().with_prompt("  API base URL").interact_text()?;
 
         let base_url = base_url.trim().trim_end_matches('/').to_string();
         if base_url.is_empty() {

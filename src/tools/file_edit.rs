@@ -45,6 +45,10 @@ impl Tool for FileEditTool {
                 "new_string": {
                     "type": "string",
                     "description": "The replacement text (empty string to delete the matched text)"
+                },
+                "otp_code": {
+                    "type": "string",
+                    "description": "One-time password required when file_edit is OTP-gated by security policy"
                 }
             },
             "required": ["path", "old_string", "new_string"]
@@ -67,6 +71,7 @@ impl Tool for FileEditTool {
             .get("new_string")
             .and_then(|v| v.as_str())
             .ok_or_else(|| anyhow::anyhow!("Missing 'new_string' parameter"))?;
+        let otp_code = args.get("otp_code").and_then(|v| v.as_str());
 
         if old_string.is_empty() {
             return Ok(ToolResult {
@@ -76,25 +81,20 @@ impl Tool for FileEditTool {
             });
         }
 
-        // ── 2. Autonomy check ──────────────────────────────────────
-        if !self.security.can_act() {
+        // ── 2. Policy enforcement ──────────────────────────────────
+        if let Err(error) = self.security.enforce_sensitive_tool_operation(
+            "file_edit",
+            crate::security::policy::ToolOperation::Act,
+            otp_code,
+        ) {
             return Ok(ToolResult {
                 success: false,
                 output: String::new(),
-                error: Some("Action blocked: autonomy is read-only".into()),
+                error: Some(error),
             });
         }
 
-        // ── 3. Rate limit check ────────────────────────────────────
-        if self.security.is_rate_limited() {
-            return Ok(ToolResult {
-                success: false,
-                output: String::new(),
-                error: Some("Rate limit exceeded: too many actions in the last hour".into()),
-            });
-        }
-
-        // ── 4. Path pre-validation ─────────────────────────────────
+        // ── 3. Path pre-validation ─────────────────────────────────
         if !self.security.is_path_allowed(path) {
             return Ok(ToolResult {
                 success: false,
@@ -105,7 +105,7 @@ impl Tool for FileEditTool {
 
         let full_path = self.security.workspace_dir.join(path);
 
-        // ── 5. Canonicalize parent ─────────────────────────────────
+        // ── 4. Canonicalize parent ─────────────────────────────────
         let Some(parent) = full_path.parent() else {
             return Ok(ToolResult {
                 success: false,
@@ -125,7 +125,7 @@ impl Tool for FileEditTool {
             }
         };
 
-        // ── 6. Resolved path post-validation ───────────────────────
+        // ── 5. Resolved path post-validation ───────────────────────
         if !self.security.is_resolved_path_allowed(&resolved_parent) {
             return Ok(ToolResult {
                 success: false,
@@ -147,7 +147,7 @@ impl Tool for FileEditTool {
 
         let resolved_target = resolved_parent.join(file_name);
 
-        // ── 7. Symlink check ───────────────────────────────────────
+        // ── 6. Symlink check ───────────────────────────────────────
         if let Ok(meta) = tokio::fs::symlink_metadata(&resolved_target).await {
             if meta.file_type().is_symlink() {
                 return Ok(ToolResult {
@@ -161,16 +161,7 @@ impl Tool for FileEditTool {
             }
         }
 
-        // ── 8. Record action ───────────────────────────────────────
-        if !self.security.record_action() {
-            return Ok(ToolResult {
-                success: false,
-                output: String::new(),
-                error: Some("Rate limit exceeded: action budget exhausted".into()),
-            });
-        }
-
-        // ── 9. Read → match → replace → write ─────────────────────
+        // ── 7. Read → match → replace → write ─────────────────────
         let content = match tokio::fs::read_to_string(&resolved_target).await {
             Ok(c) => c,
             Err(e) => {
@@ -225,7 +216,12 @@ impl Tool for FileEditTool {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::security::{AutonomyLevel, SecurityPolicy};
+    use crate::config::OtpConfig;
+    use crate::security::{
+        AutonomyLevel, DomainMatcher, OtpValidator, SecretStore, SecurityPolicy,
+    };
+    use std::collections::HashSet;
+    use std::time::{SystemTime, UNIX_EPOCH};
 
     fn test_security(workspace: std::path::PathBuf) -> Arc<SecurityPolicy> {
         Arc::new(SecurityPolicy {
@@ -248,6 +244,39 @@ mod tests {
         })
     }
 
+    fn security_with_otp_gated_file_edit(
+        workspace: std::path::PathBuf,
+    ) -> (tempfile::TempDir, Arc<SecurityPolicy>, String) {
+        let tmp = tempfile::tempdir().unwrap();
+        let otp_config = OtpConfig {
+            enabled: true,
+            token_ttl_secs: 3600,
+            cache_valid_secs: 7200,
+            gated_actions: vec!["file_edit".into()],
+            ..OtpConfig::default()
+        };
+        let store = SecretStore::new(tmp.path(), false);
+        let (validator, _) = OtpValidator::from_config(&otp_config, tmp.path(), &store).unwrap();
+        let now = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap()
+            .as_secs();
+        let code = validator.code_for_timestamp(now);
+
+        (
+            tmp,
+            Arc::new(SecurityPolicy {
+                autonomy: AutonomyLevel::Supervised,
+                workspace_dir: workspace,
+                otp_gated_actions: HashSet::from([String::from("file_edit")]),
+                otp_gated_domains: DomainMatcher::new(&otp_config.gated_domains, &[]).unwrap(),
+                otp_validator: Some(Arc::new(validator)),
+                ..SecurityPolicy::default()
+            }),
+            code,
+        )
+    }
+
     #[test]
     fn file_edit_name() {
         let tool = FileEditTool::new(test_security(std::env::temp_dir()));
@@ -261,6 +290,7 @@ mod tests {
         assert!(schema["properties"]["path"].is_object());
         assert!(schema["properties"]["old_string"].is_object());
         assert!(schema["properties"]["new_string"].is_object());
+        assert!(schema["properties"]["otp_code"].is_object());
         let required = schema["required"].as_array().unwrap();
         assert!(required.contains(&json!("path")));
         assert!(required.contains(&json!("old_string")));
@@ -636,6 +666,72 @@ mod tests {
             .await
             .unwrap();
         assert_eq!(content, "hello");
+
+        let _ = tokio::fs::remove_dir_all(&dir).await;
+    }
+
+    #[tokio::test]
+    async fn file_edit_blocks_otp_gated_edits_without_code() {
+        let dir = std::env::temp_dir().join("topclaw_test_file_edit_otp_required");
+        let _ = tokio::fs::remove_dir_all(&dir).await;
+        tokio::fs::create_dir_all(&dir).await.unwrap();
+        tokio::fs::write(dir.join("test.txt"), "hello")
+            .await
+            .unwrap();
+
+        let (_tmp, security, _code) = security_with_otp_gated_file_edit(dir.clone());
+        let tool = FileEditTool::new(security);
+        let result = tool
+            .execute(json!({
+                "path": "test.txt",
+                "old_string": "hello",
+                "new_string": "world"
+            }))
+            .await
+            .unwrap();
+
+        assert!(!result.success);
+        assert!(result
+            .error
+            .as_deref()
+            .unwrap_or("")
+            .contains("OTP code required"));
+
+        let content = tokio::fs::read_to_string(dir.join("test.txt"))
+            .await
+            .unwrap();
+        assert_eq!(content, "hello");
+
+        let _ = tokio::fs::remove_dir_all(&dir).await;
+    }
+
+    #[tokio::test]
+    async fn file_edit_allows_otp_gated_edits_with_valid_code() {
+        let dir = std::env::temp_dir().join("topclaw_test_file_edit_otp_valid");
+        let _ = tokio::fs::remove_dir_all(&dir).await;
+        tokio::fs::create_dir_all(&dir).await.unwrap();
+        tokio::fs::write(dir.join("test.txt"), "hello")
+            .await
+            .unwrap();
+
+        let (_tmp, security, code) = security_with_otp_gated_file_edit(dir.clone());
+        let tool = FileEditTool::new(security);
+        let result = tool
+            .execute(json!({
+                "path": "test.txt",
+                "old_string": "hello",
+                "new_string": "world",
+                "otp_code": code
+            }))
+            .await
+            .unwrap();
+
+        assert!(result.success, "edit should succeed: {:?}", result.error);
+
+        let content = tokio::fs::read_to_string(dir.join("test.txt"))
+            .await
+            .unwrap();
+        assert_eq!(content, "world");
 
         let _ = tokio::fs::remove_dir_all(&dir).await;
     }

@@ -206,7 +206,10 @@ impl Tool for HttpRequestTool {
             }
         };
 
-        if let Err(error) = self.security.enforce_otp_for_url("http_request", &url, otp_code) {
+        if let Err(error) = self
+            .security
+            .enforce_otp_for_url("http_request", &url, otp_code)
+        {
             return Ok(ToolResult {
                 success: false,
                 output: String::new(),
@@ -214,10 +217,10 @@ impl Tool for HttpRequestTool {
             });
         }
 
-        if let Err(error) = self.security.enforce_tool_operation(
-            crate::security::policy::ToolOperation::Act,
-            "http_request",
-        ) {
+        if let Err(error) = self
+            .security
+            .enforce_tool_operation(crate::security::policy::ToolOperation::Act, "http_request")
+        {
             return Ok(ToolResult {
                 success: false,
                 output: String::new(),
