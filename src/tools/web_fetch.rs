@@ -185,58 +185,63 @@ impl WebFetchTool {
 
     async fn fetch_with_http_provider(&self, url: &str) -> anyhow::Result<String> {
         let client = self.build_http_client()?;
-        let response = client.get(url).send().await?;
+        let mut current_url = url.to_string();
 
-        if response.status().is_redirection() {
-            let location = response
+        for _ in 0..5 {
+            let response = client.get(&current_url).send().await?;
+
+            if response.status().is_redirection() {
+                let location = response
+                    .headers()
+                    .get(reqwest::header::LOCATION)
+                    .and_then(|v| v.to_str().ok())
+                    .ok_or_else(|| anyhow::anyhow!("Redirect response missing Location header"))?;
+
+                let redirected_url = reqwest::Url::parse(&current_url)
+                    .and_then(|base| base.join(location))
+                    .or_else(|_| reqwest::Url::parse(location))
+                    .map_err(|e| anyhow::anyhow!("Invalid redirect Location header: {e}"))?
+                    .to_string();
+
+                current_url = self.validate_url(&redirected_url)?;
+                continue;
+            }
+
+            let status = response.status();
+            if !status.is_success() {
+                anyhow::bail!(
+                    "HTTP {} {}",
+                    status.as_u16(),
+                    status.canonical_reason().unwrap_or("Unknown")
+                );
+            }
+
+            let content_type = response
                 .headers()
-                .get(reqwest::header::LOCATION)
+                .get(reqwest::header::CONTENT_TYPE)
                 .and_then(|v| v.to_str().ok())
-                .ok_or_else(|| anyhow::anyhow!("Redirect response missing Location header"))?;
+                .unwrap_or("")
+                .to_lowercase();
 
-            let redirected_url = reqwest::Url::parse(url)
-                .and_then(|base| base.join(location))
-                .or_else(|_| reqwest::Url::parse(location))
-                .map_err(|e| anyhow::anyhow!("Invalid redirect Location header: {e}"))?
-                .to_string();
+            let body = response.text().await?;
 
-            // Validate redirect target with the same SSRF/allowlist policy.
-            self.validate_url(&redirected_url)?;
-            return Ok(redirected_url);
-        }
+            if content_type.contains("text/plain")
+                || content_type.contains("text/markdown")
+                || content_type.contains("application/json")
+            {
+                return Ok(body);
+            }
 
-        let status = response.status();
-        if !status.is_success() {
+            if content_type.contains("text/html") || content_type.is_empty() {
+                return self.convert_html_to_output(&body);
+            }
+
             anyhow::bail!(
-                "HTTP {} {}",
-                status.as_u16(),
-                status.canonical_reason().unwrap_or("Unknown")
-            );
+                "Unsupported content type: {content_type}. web_fetch supports text/html, text/plain, text/markdown, and application/json."
+            )
         }
 
-        let content_type = response
-            .headers()
-            .get(reqwest::header::CONTENT_TYPE)
-            .and_then(|v| v.to_str().ok())
-            .unwrap_or("")
-            .to_lowercase();
-
-        let body = response.text().await?;
-
-        if content_type.contains("text/plain")
-            || content_type.contains("text/markdown")
-            || content_type.contains("application/json")
-        {
-            return Ok(body);
-        }
-
-        if content_type.contains("text/html") || content_type.is_empty() {
-            return self.convert_html_to_output(&body);
-        }
-
-        anyhow::bail!(
-            "Unsupported content type: {content_type}. web_fetch supports text/html, text/plain, text/markdown, and application/json."
-        )
+        anyhow::bail!("Too many redirects while fetching {url}")
     }
 
     #[cfg(feature = "firecrawl")]
@@ -493,6 +498,8 @@ mod tests {
     use super::*;
     use crate::security::{AutonomyLevel, SecurityPolicy};
     use crate::tools::url_validation::{is_private_or_local_host, normalize_domain};
+    use wiremock::matchers::{method, path};
+    use wiremock::{Mock, MockServer, ResponseTemplate};
 
     fn test_tool(allowed_domains: Vec<&str>) -> WebFetchTool {
         test_tool_with_provider(allowed_domains, vec![], "fast_html2md", None, None)
@@ -732,6 +739,34 @@ mod tests {
             .unwrap();
         assert!(!result.success);
         assert!(result.error.unwrap().contains("rate limit"));
+    }
+
+    #[tokio::test]
+    async fn execute_follows_validated_redirect_and_returns_target_content() {
+        let server = MockServer::start().await;
+        Mock::given(method("GET"))
+            .and(path("/redirect"))
+            .respond_with(ResponseTemplate::new(302).insert_header("location", "/final"))
+            .mount(&server)
+            .await;
+        Mock::given(method("GET"))
+            .and(path("/final"))
+            .respond_with(
+                ResponseTemplate::new(200)
+                    .insert_header("content-type", "text/plain")
+                    .set_body_string("redirect target body"),
+            )
+            .mount(&server)
+            .await;
+
+        let tool = test_tool(vec!["*"]);
+        let result = tool
+            .execute(json!({"url": format!("{}/redirect", server.uri())}))
+            .await
+            .unwrap();
+
+        assert!(result.success);
+        assert_eq!(result.output, "redirect target body");
     }
 
     #[test]

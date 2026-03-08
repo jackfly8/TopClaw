@@ -252,12 +252,12 @@ impl Tool for HttpRequestTool {
                 // Get response headers (redact sensitive ones)
                 let response_headers = response.headers().iter();
                 let headers_text = response_headers
-                    .map(|(k, _)| {
+                    .map(|(k, v)| {
                         let is_sensitive = k.as_str().to_lowercase().contains("set-cookie");
                         if is_sensitive {
                             format!("{}: ***REDACTED***", k.as_str())
                         } else {
-                            format!("{}: {:?}", k.as_str(), k.as_str())
+                            format!("{}: {}", k.as_str(), v.to_str().unwrap_or("<non-utf8>"))
                         }
                     })
                     .collect::<Vec<_>>()
@@ -301,6 +301,8 @@ mod tests {
     use super::*;
     use crate::security::{AutonomyLevel, SecurityPolicy};
     use crate::tools::url_validation::{is_private_or_local_host, normalize_domain};
+    use wiremock::matchers::{method, path};
+    use wiremock::{Mock, MockServer, ResponseTemplate};
 
     fn test_tool(allowed_domains: Vec<&str>) -> HttpRequestTool {
         let security = Arc::new(SecurityPolicy {
@@ -578,6 +580,29 @@ mod tests {
             .unwrap();
         assert!(!result.success);
         assert!(result.error.unwrap().contains("rate limit"));
+    }
+
+    #[tokio::test]
+    async fn execute_renders_actual_response_header_values() {
+        let server = MockServer::start().await;
+        Mock::given(method("GET"))
+            .and(path("/headers"))
+            .respond_with(
+                ResponseTemplate::new(200)
+                    .insert_header("x-trace-id", "trace-123")
+                    .set_body_string("ok"),
+            )
+            .mount(&server)
+            .await;
+
+        let tool = test_tool(vec!["*"]);
+        let result = tool
+            .execute(json!({"url": format!("{}/headers", server.uri())}))
+            .await
+            .unwrap();
+
+        assert!(result.success);
+        assert!(result.output.contains("x-trace-id: trace-123"));
     }
 
     #[test]

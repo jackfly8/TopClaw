@@ -15,6 +15,22 @@ impl FileWriteTool {
     }
 }
 
+async fn write_text_atomically(target: &std::path::Path, content: &str) -> anyhow::Result<()> {
+    let tmp_name = format!(
+        ".{}.tmp.{}.{}",
+        target
+            .file_name()
+            .and_then(|name| name.to_str())
+            .unwrap_or("topclaw-write"),
+        std::process::id(),
+        chrono::Utc::now().timestamp_nanos_opt().unwrap_or_default()
+    );
+    let tmp_path = target.with_file_name(tmp_name);
+    tokio::fs::write(&tmp_path, content).await?;
+    tokio::fs::rename(&tmp_path, target).await?;
+    Ok(())
+}
+
 #[async_trait]
 impl Tool for FileWriteTool {
     fn name(&self) -> &str {
@@ -139,7 +155,7 @@ impl Tool for FileWriteTool {
             }
         }
 
-        match tokio::fs::write(&resolved_target, content).await {
+        match write_text_atomically(&resolved_target, content).await {
             Ok(()) => Ok(ToolResult {
                 success: true,
                 output: format!("Written {} bytes to {path}", content.len()),
@@ -262,6 +278,34 @@ mod tests {
         assert_eq!(content, "new");
 
         let _ = tokio::fs::remove_dir_all(&dir).await;
+    }
+
+    #[tokio::test]
+    async fn file_write_allows_absolute_path_inside_allowed_root() {
+        let workspace = std::env::temp_dir().join("topclaw_test_file_write_workspace");
+        let allowed = std::env::temp_dir().join("topclaw_test_file_write_allowed");
+        let _ = tokio::fs::remove_dir_all(&workspace).await;
+        let _ = tokio::fs::remove_dir_all(&allowed).await;
+        tokio::fs::create_dir_all(&workspace).await.unwrap();
+        tokio::fs::create_dir_all(&allowed).await.unwrap();
+
+        let security = Arc::new(SecurityPolicy {
+            autonomy: AutonomyLevel::Supervised,
+            workspace_dir: workspace,
+            allowed_roots: vec![allowed.clone()],
+            ..SecurityPolicy::default()
+        });
+        let tool = FileWriteTool::new(security);
+        let target = allowed.join("shared.txt");
+        let result = tool
+            .execute(json!({"path": target.display().to_string(), "content": "shared"}))
+            .await
+            .unwrap();
+
+        assert!(result.success, "{result:?}");
+        assert_eq!(tokio::fs::read_to_string(&target).await.unwrap(), "shared");
+
+        let _ = tokio::fs::remove_dir_all(&allowed).await;
     }
 
     #[tokio::test]

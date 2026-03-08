@@ -20,6 +20,22 @@ impl FileEditTool {
     }
 }
 
+async fn write_text_atomically(target: &std::path::Path, content: &str) -> anyhow::Result<()> {
+    let tmp_name = format!(
+        ".{}.tmp.{}.{}",
+        target
+            .file_name()
+            .and_then(|name| name.to_str())
+            .unwrap_or("topclaw-edit"),
+        std::process::id(),
+        chrono::Utc::now().timestamp_nanos_opt().unwrap_or_default()
+    );
+    let tmp_path = target.with_file_name(tmp_name);
+    tokio::fs::write(&tmp_path, content).await?;
+    tokio::fs::rename(&tmp_path, target).await?;
+    Ok(())
+}
+
 #[async_trait]
 impl Tool for FileEditTool {
     fn name(&self) -> &str {
@@ -195,7 +211,7 @@ impl Tool for FileEditTool {
 
         let new_content = content.replacen(old_string, new_string, 1);
 
-        match tokio::fs::write(&resolved_target, &new_content).await {
+        match write_text_atomically(&resolved_target, &new_content).await {
             Ok(()) => Ok(ToolResult {
                 success: true,
                 output: format!(
