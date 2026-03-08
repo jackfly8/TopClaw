@@ -463,8 +463,34 @@ Notes:
 Notes:
 
 - When `backend = "computer_use"`, the agent delegates browser actions to the sidecar at `computer_use.endpoint`.
+- The sidecar contract is intended to be cross-platform: macOS, Windows, and Linux backends can expose the same TopClaw action surface.
 - `allow_remote_endpoint = false` (default) rejects any non-loopback endpoint to prevent accidental public exposure.
 - Use `window_allowlist` to restrict which OS windows the sidecar can interact with.
+- Current computer-use action surface includes OS-level mouse/keyboard/screen actions plus desktop-control actions such as `window_list`, `window_focus`, `window_close`, `app_launch`, and `app_terminate`.
+
+Linux preset:
+
+```toml
+[browser]
+enabled = true
+backend = "computer_use"
+allowed_domains = ["docs.topclaw.dev", "github.com"]
+session_name = "linux-desktop"
+
+[browser.computer_use]
+endpoint = "http://127.0.0.1:8788/v1/actions"
+timeout_ms = 15000
+allow_remote_endpoint = false
+window_allowlist = ["Visual Studio Code", "Firefox", "Chromium"]
+max_coordinate_x = 3840
+max_coordinate_y = 2160
+```
+
+Run the Linux sidecar example locally before enabling the preset:
+
+```bash
+cargo run --example computer_use_sidecar_linux
+```
 
 ## `[http_request]`
 
