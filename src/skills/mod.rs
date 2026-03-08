@@ -6,6 +6,8 @@ use std::io::{BufRead, IsTerminal};
 use std::path::{Path, PathBuf};
 use std::process::Command;
 use std::time::{Duration, SystemTime};
+#[cfg(unix)]
+use std::{fs, os::unix::fs::PermissionsExt};
 
 mod audit;
 
@@ -22,10 +24,7 @@ const DEFAULT_PRELOADED_SKILL_SOURCES: [(&str, &str); 7] = [
         "find-skills",
         "https://skills.sh/vercel-labs/skills/find-skills",
     ),
-    (
-        "skill-creator",
-        "https://skills.sh/anthropics/skills/skill-creator",
-    ),
+    ("skill-creator", "https://clawhub.ai/chindden/skill-creator"),
     (
         "local-file-analyzer",
         "https://github.com/jackfly8/TopClaw/tree/main/skills/local-file-analyzer",
@@ -51,7 +50,13 @@ const DEFAULT_PRELOADED_SKILL_SOURCES: [(&str, &str); 7] = [
 struct BuiltinPreloadedSkill {
     dir_name: &'static str,
     source_url: &'static str,
-    markdown: &'static str,
+    files: &'static [BuiltinPreloadedSkillFile],
+}
+
+struct BuiltinPreloadedSkillFile {
+    relative_path: &'static str,
+    contents: &'static str,
+    executable: bool,
 }
 
 fn is_builtin_preloaded_skill(name: &str) -> bool {
@@ -72,58 +77,136 @@ const BUILTIN_PRELOADED_SKILLS: [BuiltinPreloadedSkill; 7] = [
     BuiltinPreloadedSkill {
         dir_name: "find-skills",
         source_url: "https://skills.sh/vercel-labs/skills/find-skills",
-        markdown: include_str!(concat!(
-            env!("CARGO_MANIFEST_DIR"),
-            "/skills/find-skills/SKILL.md"
-        )),
+        files: &[BuiltinPreloadedSkillFile {
+            relative_path: "SKILL.md",
+            contents: include_str!(concat!(
+                env!("CARGO_MANIFEST_DIR"),
+                "/skills/find-skills/SKILL.md"
+            )),
+            executable: false,
+        }],
     },
     BuiltinPreloadedSkill {
         dir_name: "skill-creator",
-        source_url: "https://skills.sh/anthropics/skills/skill-creator",
-        markdown: include_str!(concat!(
-            env!("CARGO_MANIFEST_DIR"),
-            "/skills/skill-creator/SKILL.md"
-        )),
+        source_url: "https://clawhub.ai/chindden/skill-creator",
+        files: &[
+            BuiltinPreloadedSkillFile {
+                relative_path: "SKILL.md",
+                contents: include_str!(concat!(
+                    env!("CARGO_MANIFEST_DIR"),
+                    "/skills/skill-creator/SKILL.md"
+                )),
+                executable: false,
+            },
+            BuiltinPreloadedSkillFile {
+                relative_path: "LICENSE.txt",
+                contents: include_str!(concat!(
+                    env!("CARGO_MANIFEST_DIR"),
+                    "/skills/skill-creator/LICENSE.txt"
+                )),
+                executable: false,
+            },
+            BuiltinPreloadedSkillFile {
+                relative_path: "references/output-patterns.md",
+                contents: include_str!(concat!(
+                    env!("CARGO_MANIFEST_DIR"),
+                    "/skills/skill-creator/references/output-patterns.md"
+                )),
+                executable: false,
+            },
+            BuiltinPreloadedSkillFile {
+                relative_path: "references/workflows.md",
+                contents: include_str!(concat!(
+                    env!("CARGO_MANIFEST_DIR"),
+                    "/skills/skill-creator/references/workflows.md"
+                )),
+                executable: false,
+            },
+            BuiltinPreloadedSkillFile {
+                relative_path: "scripts/init_skill.py",
+                contents: include_str!(concat!(
+                    env!("CARGO_MANIFEST_DIR"),
+                    "/skills/skill-creator/scripts/init_skill.py"
+                )),
+                executable: true,
+            },
+            BuiltinPreloadedSkillFile {
+                relative_path: "scripts/package_skill.py",
+                contents: include_str!(concat!(
+                    env!("CARGO_MANIFEST_DIR"),
+                    "/skills/skill-creator/scripts/package_skill.py"
+                )),
+                executable: true,
+            },
+            BuiltinPreloadedSkillFile {
+                relative_path: "scripts/quick_validate.py",
+                contents: include_str!(concat!(
+                    env!("CARGO_MANIFEST_DIR"),
+                    "/skills/skill-creator/scripts/quick_validate.py"
+                )),
+                executable: true,
+            },
+        ],
     },
     BuiltinPreloadedSkill {
         dir_name: "local-file-analyzer",
         source_url: "https://github.com/jackfly8/TopClaw/tree/main/skills/local-file-analyzer",
-        markdown: include_str!(concat!(
-            env!("CARGO_MANIFEST_DIR"),
-            "/skills/local-file-analyzer/SKILL.md"
-        )),
+        files: &[BuiltinPreloadedSkillFile {
+            relative_path: "SKILL.md",
+            contents: include_str!(concat!(
+                env!("CARGO_MANIFEST_DIR"),
+                "/skills/local-file-analyzer/SKILL.md"
+            )),
+            executable: false,
+        }],
     },
     BuiltinPreloadedSkill {
         dir_name: "workspace-search",
         source_url: "https://github.com/jackfly8/TopClaw/tree/main/skills/workspace-search",
-        markdown: include_str!(concat!(
-            env!("CARGO_MANIFEST_DIR"),
-            "/skills/workspace-search/SKILL.md"
-        )),
+        files: &[BuiltinPreloadedSkillFile {
+            relative_path: "SKILL.md",
+            contents: include_str!(concat!(
+                env!("CARGO_MANIFEST_DIR"),
+                "/skills/workspace-search/SKILL.md"
+            )),
+            executable: false,
+        }],
     },
     BuiltinPreloadedSkill {
         dir_name: "code-explainer",
         source_url: "https://github.com/jackfly8/TopClaw/tree/main/skills/code-explainer",
-        markdown: include_str!(concat!(
-            env!("CARGO_MANIFEST_DIR"),
-            "/skills/code-explainer/SKILL.md"
-        )),
+        files: &[BuiltinPreloadedSkillFile {
+            relative_path: "SKILL.md",
+            contents: include_str!(concat!(
+                env!("CARGO_MANIFEST_DIR"),
+                "/skills/code-explainer/SKILL.md"
+            )),
+            executable: false,
+        }],
     },
     BuiltinPreloadedSkill {
         dir_name: "change-summary",
         source_url: "https://github.com/jackfly8/TopClaw/tree/main/skills/change-summary",
-        markdown: include_str!(concat!(
-            env!("CARGO_MANIFEST_DIR"),
-            "/skills/change-summary/SKILL.md"
-        )),
+        files: &[BuiltinPreloadedSkillFile {
+            relative_path: "SKILL.md",
+            contents: include_str!(concat!(
+                env!("CARGO_MANIFEST_DIR"),
+                "/skills/change-summary/SKILL.md"
+            )),
+            executable: false,
+        }],
     },
     BuiltinPreloadedSkill {
         dir_name: "safe-web-search",
         source_url: "https://github.com/jackfly8/TopClaw/tree/main/skills/safe-web-search",
-        markdown: include_str!(concat!(
-            env!("CARGO_MANIFEST_DIR"),
-            "/skills/safe-web-search/SKILL.md"
-        )),
+        files: &[BuiltinPreloadedSkillFile {
+            relative_path: "SKILL.md",
+            contents: include_str!(concat!(
+                env!("CARGO_MANIFEST_DIR"),
+                "/skills/safe-web-search/SKILL.md"
+            )),
+            executable: false,
+        }],
     },
 ];
 
@@ -1164,12 +1247,25 @@ fn ensure_builtin_preloaded_skills(skills_path: &Path) -> Result<()> {
 
         std::fs::create_dir_all(&skill_dir)
             .with_context(|| format!("failed to create {}", skill_dir.display()))?;
-        std::fs::write(skill_dir.join("SKILL.md"), builtin.markdown).with_context(|| {
-            format!(
-                "failed to write preloaded skill {}",
-                skill_dir.join("SKILL.md").display()
-            )
-        })?;
+        for file in builtin.files {
+            let dest = skill_dir.join(file.relative_path);
+            if let Some(parent) = dest.parent() {
+                std::fs::create_dir_all(parent)
+                    .with_context(|| format!("failed to create {}", parent.display()))?;
+            }
+            std::fs::write(&dest, file.contents)
+                .with_context(|| format!("failed to write preloaded skill {}", dest.display()))?;
+            #[cfg(unix)]
+            if file.executable {
+                let permissions = fs::Permissions::from_mode(0o755);
+                std::fs::set_permissions(&dest, permissions).with_context(|| {
+                    format!(
+                        "failed to mark preloaded skill file executable {}",
+                        dest.display()
+                    )
+                })?;
+            }
+        }
         let meta = serde_json::json!({
             "slug": builtin.dir_name,
             "version": "preloaded",
@@ -2109,6 +2205,20 @@ prompts = ["Do not preload me"]
         assert!(dir
             .path()
             .join("skills")
+            .join("skill-creator")
+            .join("scripts")
+            .join("init_skill.py")
+            .exists());
+        assert!(dir
+            .path()
+            .join("skills")
+            .join("skill-creator")
+            .join("references")
+            .join("workflows.md")
+            .exists());
+        assert!(dir
+            .path()
+            .join("skills")
             .join("local-file-analyzer")
             .join("SKILL.md")
             .exists());
@@ -2160,6 +2270,20 @@ prompts = ["Do not preload me"]
             .join("skills")
             .join("skill-creator")
             .join("SKILL.md")
+            .exists());
+        assert!(dir
+            .path()
+            .join("skills")
+            .join("skill-creator")
+            .join("scripts")
+            .join("package_skill.py")
+            .exists());
+        assert!(dir
+            .path()
+            .join("skills")
+            .join("skill-creator")
+            .join("references")
+            .join("output-patterns.md")
             .exists());
         assert!(dir
             .path()
