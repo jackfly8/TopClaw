@@ -1219,8 +1219,17 @@ impl SecurityPolicy {
             return false;
         }
 
-        // Block absolute paths when workspace_only is set
-        if self.workspace_only && expanded_path.is_absolute() {
+        // Block absolute paths when workspace_only is set, unless the path is
+        // explicitly headed toward an allowed root. Resolved-path validation
+        // still runs later, so this only preserves the documented contract for
+        // allowlisted absolute paths.
+        if self.workspace_only
+            && expanded_path.is_absolute()
+            && !self
+                .allowed_roots
+                .iter()
+                .any(|root| expanded_path.starts_with(root))
+        {
             return false;
         }
 
@@ -1882,6 +1891,19 @@ mod tests {
             ..SecurityPolicy::default()
         };
         assert!(p.is_path_allowed("/tmp/file.txt"));
+    }
+
+    #[test]
+    fn absolute_paths_allowed_when_matching_allowed_root() {
+        let allowed_root = std::env::temp_dir().join("topclaw-policy-allowed-root");
+        let p = SecurityPolicy {
+            allowed_roots: vec![allowed_root.clone()],
+            forbidden_paths: vec![],
+            ..SecurityPolicy::default()
+        };
+
+        assert!(p.is_path_allowed(&allowed_root.join("file.txt").display().to_string()));
+        assert!(!p.is_path_allowed("/var/tmp/file.txt"));
     }
 
     #[test]

@@ -325,6 +325,10 @@ async fn handle_socket(mut socket: WebSocket, state: AppState) {
         if content.is_empty() {
             continue;
         }
+        let max_history_messages = {
+            let config_guard = state.config.lock();
+            config_guard.agent.max_history_messages.max(1)
+        };
 
         if let Err(err) = lossless_context.record_raw_message(&ChatMessage::user(&content)) {
             let err = serde_json::json!({
@@ -335,7 +339,12 @@ async fn handle_socket(mut socket: WebSocket, state: AppState) {
             continue;
         }
         history = match lossless_context
-            .rebuild_active_history(state.provider.as_ref(), &state.model, &system_prompt, 50)
+            .rebuild_active_history(
+                state.provider.as_ref(),
+                &state.model,
+                &system_prompt,
+                max_history_messages,
+            )
             .await
         {
             Ok(history) => history,
@@ -415,22 +424,6 @@ async fn handle_socket(mut socket: WebSocket, state: AppState) {
                 let _ = lossless_context.record_raw_messages(&history[history_len_before_tools..]);
                 let safe_response =
                     finalize_ws_response(&response, &history, state.tools_registry_exec.as_ref());
-                let _ =
-                    lossless_context.record_raw_message(&ChatMessage::assistant(&safe_response));
-                history = lossless_context
-                    .rebuild_active_history(
-                        state.provider.as_ref(),
-                        &state.model,
-                        &system_prompt,
-                        50,
-                    )
-                    .await
-                    .unwrap_or_else(|_| {
-                        let mut fallback = history.clone();
-                        fallback.push(ChatMessage::assistant(&safe_response));
-                        fallback
-                    });
-
                 // Send the full response as a done message
                 let done = serde_json::json!({
                     "type": "done",
@@ -450,21 +443,6 @@ async fn handle_socket(mut socket: WebSocket, state: AppState) {
                 let _ = lossless_context.record_raw_message(&ChatMessage::assistant(
                     "[Task failed — not continuing this request]",
                 ));
-                history = lossless_context
-                    .rebuild_active_history(
-                        state.provider.as_ref(),
-                        &state.model,
-                        &system_prompt,
-                        50,
-                    )
-                    .await
-                    .unwrap_or_else(|_| {
-                        let mut fallback = history.clone();
-                        fallback.push(ChatMessage::assistant(
-                            "[Task failed — not continuing this request]",
-                        ));
-                        fallback
-                    });
                 let sanitized = crate::providers::sanitize_api_error(&e.to_string());
                 let err = serde_json::json!({
                     "type": "error",

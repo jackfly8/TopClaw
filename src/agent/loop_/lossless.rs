@@ -872,7 +872,7 @@ fn normalize_session_scope(value: &str) -> String {
 
 fn hash_session_key(value: &str) -> String {
     let digest = Sha256::digest(value.as_bytes());
-    hex::encode(digest)[..16].to_string()
+    hex::encode(digest)
 }
 
 fn escape_like(value: &str) -> String {
@@ -979,7 +979,7 @@ async fn summarize_with_fallback(
 
 #[cfg(test)]
 mod tests {
-    use super::LosslessContext;
+    use super::{inspect_store, search_store, LosslessContext};
     use crate::providers::{ChatMessage, Provider};
     use async_trait::async_trait;
     use tempfile::tempdir;
@@ -1063,5 +1063,79 @@ mod tests {
 
         assert_ne!(lcm.conversation_id, original_conversation);
         assert_eq!(lcm.raw_message_count().unwrap(), 1);
+    }
+
+    #[test]
+    fn for_session_reuses_binding_and_restores_next_ordinal() {
+        let temp = tempdir().unwrap();
+        let mut first =
+            LosslessContext::for_session(temp.path(), "channel", "sender-1", "system prompt")
+                .unwrap();
+        first
+            .record_raw_message(&ChatMessage::user("first user turn"))
+            .unwrap();
+        let conversation_id = first.conversation_id.clone();
+
+        let mut second =
+            LosslessContext::for_session(temp.path(), "channel", "sender-1", "system prompt")
+                .unwrap();
+        assert_eq!(second.conversation_id, conversation_id);
+        second
+            .record_raw_message(&ChatMessage::assistant("first assistant turn"))
+            .unwrap();
+
+        assert_eq!(second.raw_message_count().unwrap(), 3);
+    }
+
+    #[test]
+    fn for_session_uses_distinct_conversation_ids_for_distinct_session_keys() {
+        let temp = tempdir().unwrap();
+        let first =
+            LosslessContext::for_session(temp.path(), "channel", "sender-a", "system prompt")
+                .unwrap();
+        let second =
+            LosslessContext::for_session(temp.path(), "channel", "sender-b", "system prompt")
+                .unwrap();
+
+        assert_ne!(first.conversation_id, second.conversation_id);
+    }
+
+    #[test]
+    fn rollback_latest_raw_message_only_removes_matching_latest_turn() {
+        let temp = tempdir().unwrap();
+        let mut lcm =
+            LosslessContext::for_session(temp.path(), "channel", "sender-2", "system prompt")
+                .unwrap();
+        lcm.record_raw_message(&ChatMessage::user("first")).unwrap();
+        lcm.record_raw_message(&ChatMessage::assistant("reply"))
+            .unwrap();
+
+        assert!(!lcm.rollback_latest_raw_message("user", "first").unwrap());
+        assert!(lcm
+            .rollback_latest_raw_message("assistant", "reply")
+            .unwrap());
+        assert_eq!(lcm.raw_message_count().unwrap(), 2);
+    }
+
+    #[test]
+    fn inspect_and_search_store_include_session_metadata() {
+        let temp = tempdir().unwrap();
+        let mut lcm =
+            LosslessContext::for_session(temp.path(), "gateway_ws", "session-1", "system prompt")
+                .unwrap();
+        lcm.record_raw_message(&ChatMessage::user("search needle"))
+            .unwrap();
+        lcm.record_raw_message(&ChatMessage::assistant("reply"))
+            .unwrap();
+
+        let sessions = inspect_store(temp.path(), 10).unwrap();
+        assert_eq!(sessions.len(), 1);
+        assert_eq!(sessions[0].session_scope.as_deref(), Some("gateway_ws"));
+        assert_eq!(sessions[0].session_key.as_deref(), Some("session-1"));
+
+        let hits = search_store(temp.path(), "needle", 10, Some("gateway_ws"), None).unwrap();
+        assert_eq!(hits.len(), 1);
+        assert_eq!(hits[0].session_scope.as_deref(), Some("gateway_ws"));
+        assert!(hits[0].excerpt.contains("needle"));
     }
 }
