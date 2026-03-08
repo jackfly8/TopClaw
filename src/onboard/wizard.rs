@@ -7760,7 +7760,8 @@ mod tests {
 
     #[test]
     fn provider_next_step_uses_guided_setup_when_provider_is_missing() {
-        let config = Config::default();
+        let mut config = Config::default();
+        config.default_provider = None;
 
         assert_eq!(
             provider_next_step(&config),
