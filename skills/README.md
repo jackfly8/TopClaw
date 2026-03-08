@@ -5,7 +5,7 @@ This directory contains preloaded, transparent skill bundles that TopClaw copies
 Current preloaded skills:
 
 - `find-skills` (source: https://skills.sh/vercel-labs/skills/find-skills)
-- `skill-creator` (source: https://skills.sh/anthropics/skills/skill-creator)
+- `skill-creator` (source: https://clawhub.ai/chindden/skill-creator)
 - `local-file-analyzer` (source: https://github.com/jackfly8/TopClaw/tree/main/skills/local-file-analyzer)
 - `workspace-search` (source: https://github.com/jackfly8/TopClaw/tree/main/skills/workspace-search)
 - `code-explainer` (source: https://github.com/jackfly8/TopClaw/tree/main/skills/code-explainer)
