@@ -466,6 +466,25 @@ async fn run_quick_setup_with_home(
     force: bool,
     home: &Path,
 ) -> Result<Config> {
+    let (topclaw_dir, workspace_dir) = resolve_quick_setup_dirs_with_home(home);
+    let config_path = topclaw_dir.join("config.toml");
+
+    let has_existing_config = config_path.exists();
+    let has_quick_overrides = credential_override.is_some()
+        || provider.is_some()
+        || model_override.is_some()
+        || memory_backend.is_some();
+    let interactive_terminal = std::io::stdin().is_terminal() && std::io::stdout().is_terminal();
+
+    if should_redirect_existing_config_to_interactive_menu(
+        has_existing_config,
+        has_quick_overrides,
+        force,
+        interactive_terminal,
+    ) {
+        return run_wizard(false).await;
+    }
+
     println!("{}", style(BANNER).cyan().bold());
     println!(
         "  {}",
@@ -474,9 +493,6 @@ async fn run_quick_setup_with_home(
             .bold()
     );
     println!();
-
-    let (topclaw_dir, workspace_dir) = resolve_quick_setup_dirs_with_home(home);
-    let config_path = topclaw_dir.join("config.toml");
 
     ensure_onboard_overwrite_allowed(&config_path, force)?;
     fs::create_dir_all(&workspace_dir)
@@ -666,6 +682,15 @@ async fn run_quick_setup_with_home(
     println!();
 
     Ok(config)
+}
+
+fn should_redirect_existing_config_to_interactive_menu(
+    has_existing_config: bool,
+    has_quick_overrides: bool,
+    force: bool,
+    interactive_terminal: bool,
+) -> bool {
+    has_existing_config && !has_quick_overrides && !force && interactive_terminal
 }
 
 fn canonical_provider_name(provider_name: &str) -> &str {
@@ -2346,6 +2371,7 @@ async fn setup_provider_simple(
 ) -> Result<(String, String, String, Option<String>)> {
     let options = vec![
         ("openrouter", "OpenRouter"),
+        ("openai-codex", "OpenAI Codex"),
         ("openai", "OpenAI"),
         ("anthropic", "Anthropic"),
         ("gemini", "Google Gemini"),
@@ -6536,6 +6562,25 @@ mod tests {
         let config_raw = tokio::fs::read_to_string(config.config_path).await.unwrap();
         assert!(config_raw.contains("default_provider = \"openrouter\""));
         assert!(config_raw.contains("default_model = \"custom-model-fresh\""));
+    }
+
+    #[test]
+    fn quick_setup_redirects_existing_interactive_runs_without_overrides() {
+        assert!(should_redirect_existing_config_to_interactive_menu(
+            true, false, false, true
+        ));
+        assert!(!should_redirect_existing_config_to_interactive_menu(
+            true, true, false, true
+        ));
+        assert!(!should_redirect_existing_config_to_interactive_menu(
+            true, false, true, true
+        ));
+        assert!(!should_redirect_existing_config_to_interactive_menu(
+            true, false, false, false
+        ));
+        assert!(!should_redirect_existing_config_to_interactive_menu(
+            false, false, false, true
+        ));
     }
 
     #[tokio::test]
