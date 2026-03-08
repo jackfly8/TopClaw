@@ -254,8 +254,34 @@ Lưu ý:
 Lưu ý:
 
 - Khi `backend = "computer_use"`, agent ủy quyền hành động trình duyệt cho sidecar tại `computer_use.endpoint`.
+- Hợp đồng sidecar này được thiết kế theo hướng đa nền tảng: backend cho macOS, Windows và Linux có thể cùng dùng chung bề mặt hành động của TopClaw.
 - `allow_remote_endpoint = false` (mặc định) từ chối mọi endpoint không phải loopback để tránh lộ ra ngoài.
 - Dùng `window_allowlist` để giới hạn cửa sổ OS mà sidecar có thể tương tác.
+- Bề mặt hành động computer-use hiện gồm chuột/bàn phím/chụp màn hình ở cấp OS và cả các hành động điều khiển desktop như `window_list`, `window_focus`, `window_close`, `app_launch`, và `app_terminate`.
+
+Preset cho Linux:
+
+```toml
+[browser]
+enabled = true
+backend = "computer_use"
+allowed_domains = ["docs.topclaw.dev", "github.com"]
+session_name = "linux-desktop"
+
+[browser.computer_use]
+endpoint = "http://127.0.0.1:8788/v1/actions"
+timeout_ms = 15000
+allow_remote_endpoint = false
+window_allowlist = ["Visual Studio Code", "Firefox", "Chromium"]
+max_coordinate_x = 3840
+max_coordinate_y = 2160
+```
+
+Hãy chạy sidecar Linux cục bộ trước khi bật preset này:
+
+```bash
+cargo run --example computer_use_sidecar_linux
+```
 
 ## `[http_request]`
 

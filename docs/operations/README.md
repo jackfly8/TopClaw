@@ -8,6 +8,7 @@ Use this section once TopClaw is installed and you need to run, debug, or mainta
 |---|---|
 | Day-2 runtime operations | [../operations-runbook.md](../operations-runbook.md) |
 | Troubleshooting | [../troubleshooting.md](../troubleshooting.md) |
+| Computer-use sidecars | [computer-use-sidecar-runbook.md](computer-use-sidecar-runbook.md) |
 | Connectivity probes | [connectivity-probes-runbook.md](connectivity-probes-runbook.md) |
 | Release workflow | [../release-process.md](../release-process.md) |
 | Network deployment | [../network-deployment.md](../network-deployment.md) |

@@ -835,6 +835,67 @@ impl BrowserTool {
                     self.validate_output_path("path", path)?;
                 }
             }
+            "window_list" => {
+                if let Some(query) = params.get("query").and_then(Value::as_str) {
+                    if query.len() > 256 {
+                        anyhow::bail!("'query' for window_list exceeds maximum length (256 chars)");
+                    }
+                }
+            }
+            "window_focus" | "window_close" => {
+                let has_window_id = params
+                    .get("window_id")
+                    .and_then(Value::as_str)
+                    .is_some_and(|value| !value.trim().is_empty() && value.len() <= 128);
+                let has_window_title = params
+                    .get("window_title")
+                    .and_then(Value::as_str)
+                    .is_some_and(|value| !value.trim().is_empty() && value.len() <= 256);
+                let has_app = params
+                    .get("app")
+                    .and_then(Value::as_str)
+                    .is_some_and(|value| !value.trim().is_empty() && value.len() <= 256);
+                if !(has_window_id || has_window_title || has_app) {
+                    anyhow::bail!("'{action}' requires one of: window_id, window_title, or app");
+                }
+            }
+            "app_launch" => {
+                let app = params
+                    .get("app")
+                    .and_then(Value::as_str)
+                    .ok_or_else(|| anyhow::anyhow!("Missing 'app' for app_launch action"))?;
+                if app.trim().is_empty() || app.len() > 256 {
+                    anyhow::bail!("'app' for app_launch must be 1-256 chars");
+                }
+                if let Some(arguments) = params.get("args") {
+                    let args = arguments
+                        .as_array()
+                        .ok_or_else(|| anyhow::anyhow!("'args' for app_launch must be an array"))?;
+                    if args.len() > 32 {
+                        anyhow::bail!("'args' for app_launch exceeds maximum length (32 items)");
+                    }
+                    for arg in args {
+                        let value = arg.as_str().ok_or_else(|| {
+                            anyhow::anyhow!("all 'args' entries for app_launch must be strings")
+                        })?;
+                        if value.len() > 256 {
+                            anyhow::bail!(
+                                "an app_launch argument exceeds maximum length (256 chars)"
+                            );
+                        }
+                    }
+                }
+            }
+            "app_terminate" => {
+                let has_app = params
+                    .get("app")
+                    .and_then(Value::as_str)
+                    .is_some_and(|value| !value.trim().is_empty() && value.len() <= 256);
+                let has_pid = params.get("pid").and_then(Value::as_i64).is_some();
+                if !(has_app || has_pid) {
+                    anyhow::bail!("'app_terminate' requires either 'app' or 'pid'");
+                }
+            }
             _ => {}
         }
         Ok(())
@@ -877,6 +938,7 @@ impl BrowserTool {
                 "session_name": self.session_name,
                 "source": "topclaw.browser",
                 "version": env!("CARGO_PKG_VERSION"),
+                "platform": std::env::consts::OS,
             }
         });
 
@@ -1008,22 +1070,25 @@ impl Tool for BrowserTool {
         concat!(
             "Web/browser automation with pluggable backends (agent-browser, rust-native, computer_use). ",
             "Supports DOM actions plus optional OS-level actions (mouse_move, mouse_click, mouse_drag, ",
-            "key_type, key_press, screen_capture) through a computer-use sidecar. Use 'snapshot' to map ",
+            "key_type, key_press, screen_capture, window_list, window_focus, window_close, app_launch, app_terminate) ",
+            "through a computer-use sidecar. Use 'snapshot' to map ",
             "interactive elements to refs (@e1, @e2). Enforces browser.allowed_domains for open actions."
         )
     }
 
     fn parameters_schema(&self) -> Value {
         json!({
-            "type": "object",
-            "properties": {
-                "action": {
-                    "type": "string",
-                    "enum": ["open", "snapshot", "click", "fill", "type", "get_text",
-                             "get_title", "get_url", "screenshot", "wait", "press",
-                             "hover", "scroll", "is_visible", "close", "find",
-                             "mouse_move", "mouse_click", "mouse_drag", "key_type",
-                             "key_press", "screen_capture"],
+                    "type": "object",
+                    "properties": {
+                        "action": {
+                            "type": "string",
+                            "enum": ["open", "snapshot", "click", "fill", "type", "get_text",
+                                     "get_title", "get_url", "screenshot", "wait", "press",
+                                     "hover", "scroll", "is_visible", "close", "find",
+                                     "mouse_move", "mouse_click", "mouse_drag", "key_type",
+                                     "key_press", "screen_capture", "window_list",
+                                     "window_focus", "window_close", "app_launch",
+                                     "app_terminate"],
                     "description": "Browser action to perform (OS-level actions require backend=computer_use)"
                 },
                 "url": {
@@ -1103,6 +1168,33 @@ impl Tool for BrowserTool {
                 "path": {
                     "type": "string",
                     "description": "File path for screenshot"
+                },
+                "query": {
+                    "type": "string",
+                    "description": "For window_list: optional filter by app or title"
+                },
+                "window_id": {
+                    "type": "string",
+                    "description": "For window_focus/window_close: sidecar-specific window identifier"
+                },
+                "window_title": {
+                    "type": "string",
+                    "description": "For window_focus/window_close: window title match"
+                },
+                "app": {
+                    "type": "string",
+                    "description": "For window_focus/window_close/app_launch/app_terminate: application name, bundle id, or executable label"
+                },
+                "args": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    },
+                    "description": "For app_launch: optional application arguments passed verbatim to the sidecar"
+                },
+                "pid": {
+                    "type": "integer",
+                    "description": "For app_terminate: optional process ID"
                 },
                 "ms": {
                     "type": "integer",
@@ -2241,13 +2333,28 @@ fn is_supported_browser_action(action: &str) -> bool {
             | "key_type"
             | "key_press"
             | "screen_capture"
+            | "window_list"
+            | "window_focus"
+            | "window_close"
+            | "app_launch"
+            | "app_terminate"
     )
 }
 
 fn is_computer_use_only_action(action: &str) -> bool {
     matches!(
         action,
-        "mouse_move" | "mouse_click" | "mouse_drag" | "key_type" | "key_press" | "screen_capture"
+        "mouse_move"
+            | "mouse_click"
+            | "mouse_drag"
+            | "key_type"
+            | "key_press"
+            | "screen_capture"
+            | "window_list"
+            | "window_focus"
+            | "window_close"
+            | "app_launch"
+            | "app_terminate"
     )
 }
 
@@ -2741,6 +2848,51 @@ mod tests {
     }
 
     #[test]
+    fn computer_use_window_and_app_actions_validate_params() {
+        let security = Arc::new(SecurityPolicy::default());
+        let tool = BrowserTool::new_with_backend(
+            security,
+            vec!["example.com".into()],
+            None,
+            "computer_use".into(),
+            true,
+            "http://127.0.0.1:9515".into(),
+            None,
+            ComputerUseConfig::default(),
+        );
+
+        let window_focus_args = serde_json::json!({"window_title": "Chrome"});
+        assert!(tool
+            .validate_computer_use_action("window_focus", window_focus_args.as_object().unwrap())
+            .is_ok());
+        let missing_window_focus = serde_json::json!({});
+        assert!(tool
+            .validate_computer_use_action("window_focus", missing_window_focus.as_object().unwrap())
+            .is_err());
+
+        let app_launch_args = serde_json::json!({"app": "code", "args": ["--new-window"]});
+        assert!(tool
+            .validate_computer_use_action("app_launch", app_launch_args.as_object().unwrap())
+            .is_ok());
+        let bad_app_launch_args = serde_json::json!({"app": "", "args": ["ok"]});
+        assert!(tool
+            .validate_computer_use_action("app_launch", bad_app_launch_args.as_object().unwrap())
+            .is_err());
+
+        let app_terminate_args = serde_json::json!({"pid": 1234});
+        assert!(tool
+            .validate_computer_use_action("app_terminate", app_terminate_args.as_object().unwrap())
+            .is_ok());
+        let missing_app_terminate = serde_json::json!({});
+        assert!(tool
+            .validate_computer_use_action(
+                "app_terminate",
+                missing_app_terminate.as_object().unwrap()
+            )
+            .is_err());
+    }
+
+    #[test]
     fn browser_tool_name() {
         let security = Arc::new(SecurityPolicy::default());
         let tool = BrowserTool::new(security, vec!["example.com".into()], None);
@@ -2785,6 +2937,11 @@ mod tests {
         assert!(is_computer_use_only_action("key_type"));
         assert!(is_computer_use_only_action("key_press"));
         assert!(is_computer_use_only_action("screen_capture"));
+        assert!(is_computer_use_only_action("window_list"));
+        assert!(is_computer_use_only_action("window_focus"));
+        assert!(is_computer_use_only_action("window_close"));
+        assert!(is_computer_use_only_action("app_launch"));
+        assert!(is_computer_use_only_action("app_terminate"));
         assert!(!is_computer_use_only_action("open"));
         assert!(!is_computer_use_only_action("snapshot"));
     }
