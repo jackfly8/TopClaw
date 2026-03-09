@@ -673,7 +673,7 @@ pub(crate) async fn handle_auth_command(auth_command: AuthCommands, config: &Con
                             }
                             Err(e) => {
                                 println!(
-                                    "Device-code flow unavailable: {e}. Falling back to browser/paste flow."
+                                    "Device-code flow unavailable: {e}. Falling back to browser flow."
                                 );
                             }
                         }

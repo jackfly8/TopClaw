@@ -182,7 +182,7 @@ fn next_step_suggestions(config: &Config, results: &[DiagResult]) -> Vec<String>
             match provider_name.unwrap_or_default() {
                 "openai-codex" | "openai_codex" | "codex" => push_unique(
                     &mut suggestions,
-                    "topclaw auth login --provider openai-codex --device-code".to_string(),
+                    "topclaw auth login --provider openai-codex".to_string(),
                 ),
                 "anthropic" => push_unique(
                     &mut suggestions,
@@ -264,6 +264,11 @@ pub fn provider_supports_keyless_usage(provider: &str) -> bool {
         .into_iter()
         .find(|info| info.name == provider_name || info.aliases.contains(&provider_name))
         .is_some_and(|info| info.local)
+}
+
+fn provider_uses_oauth_without_api_key(provider: &str) -> bool {
+    let (provider_name, _) = crate::providers::parse_provider_profile(provider);
+    matches!(provider_name, "openai-codex" | "openai_codex" | "codex")
 }
 
 fn provider_env_var(provider: &str) -> &'static str {
@@ -615,15 +620,26 @@ fn check_config_semantics(config: &Config, items: &mut Vec<DiagItem>) {
         items.push(DiagItem::error(cat, "no default_provider configured"));
     }
 
-    // API key presence
-    if config.default_provider.as_deref() != Some("ollama") {
-        if config.api_key.is_some() {
-            items.push(DiagItem::ok(cat, "API key configured"));
-        } else {
-            items.push(DiagItem::warn(
-                cat,
-                "no api_key set (may rely on env vars or provider defaults)",
-            ));
+    // Provider auth readiness
+    if let Some(provider) = config.default_provider.as_deref() {
+        if provider_uses_oauth_without_api_key(provider) {
+            if crate::auth::has_saved_profile_for_provider(config, provider) {
+                items.push(DiagItem::ok(cat, "OAuth profile configured"));
+            } else {
+                items.push(DiagItem::warn(
+                    cat,
+                    "provider login not completed (run `topclaw auth login --provider openai-codex`)",
+                ));
+            }
+        } else if provider != "ollama" {
+            if config.api_key.is_some() {
+                items.push(DiagItem::ok(cat, "API key configured"));
+            } else {
+                items.push(DiagItem::warn(
+                    cat,
+                    "no api_key set (may rely on env vars or provider defaults)",
+                ));
+            }
         }
     }
 
@@ -1294,7 +1310,52 @@ mod tests {
         let suggestions = next_step_suggestions(&config, &results);
 
         assert!(suggestions
-            .contains(&"topclaw auth login --provider openai-codex --device-code".to_string()));
+            .contains(&"topclaw auth login --provider openai-codex".to_string()));
+    }
+
+    #[test]
+    fn diagnose_reports_oauth_profile_for_codex_without_api_key_warning() {
+        let temp = tempfile::tempdir().expect("tempdir");
+        let state_dir = temp.path();
+        std::fs::write(
+            state_dir.join("auth-profiles.json"),
+            r#"{
+                "active_profiles": {"openai-codex": "openai-codex:default"},
+                "profiles": {
+                    "openai-codex:default": {
+                        "provider": "openai-codex"
+                    }
+                }
+            }"#,
+        )
+        .expect("write auth profiles");
+
+        let mut config = Config::default();
+        config.default_provider = Some("openai-codex".into());
+        config.state_dir = Some(state_dir.to_string_lossy().to_string());
+
+        let results = diagnose(&config);
+
+        assert!(results.iter().any(|item| item.message == "OAuth profile configured"));
+        assert!(!results
+            .iter()
+            .any(|item| item.message == "no api_key set (may rely on env vars or provider defaults)"));
+    }
+
+    #[test]
+    fn diagnose_warns_when_codex_oauth_login_is_missing() {
+        let temp = tempfile::tempdir().expect("tempdir");
+
+        let mut config = Config::default();
+        config.default_provider = Some("openai-codex".into());
+        config.state_dir = Some(temp.path().to_string_lossy().to_string());
+
+        let results = diagnose(&config);
+
+        assert!(results.iter().any(|item| {
+            item.message
+                == "provider login not completed (run `topclaw auth login --provider openai-codex`)"
+        }));
     }
 
     #[test]
