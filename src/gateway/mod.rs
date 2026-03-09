@@ -31,9 +31,10 @@ use crate::util::truncate_with_ellipsis;
 use anyhow::{Context, Result};
 use axum::{
     body::Bytes,
-    extract::{ConnectInfo, Query, State},
+    extract::{ConnectInfo, Query, Request, State},
     http::{header, HeaderMap, StatusCode},
-    response::{IntoResponse, Json},
+    middleware::{self, Next},
+    response::{IntoResponse, Json, Response},
     routing::{delete, get, post, put},
     Router,
 };
@@ -274,6 +275,76 @@ pub(crate) fn client_key_from_request(
     peer_addr
         .map(|addr| addr.ip().to_string())
         .unwrap_or_else(|| "unknown".to_string())
+}
+
+pub(crate) fn gateway_auth_required_for_peer(
+    state: &AppState,
+    peer_addr: Option<SocketAddr>,
+    headers: &HeaderMap,
+) -> bool {
+    if state.pairing.require_pairing() {
+        return true;
+    }
+
+    let client_ip = if state.trust_forwarded_headers {
+        forwarded_client_ip(headers).or_else(|| peer_addr.map(|addr| addr.ip()))
+    } else {
+        peer_addr.map(|addr| addr.ip())
+    };
+
+    !client_ip.is_some_and(|ip| ip.is_loopback())
+}
+
+pub(crate) fn gateway_bearer_token(headers: &HeaderMap) -> Option<&str> {
+    headers
+        .get(header::AUTHORIZATION)
+        .and_then(|value| value.to_str().ok())
+        .and_then(|auth| auth.strip_prefix("Bearer "))
+        .map(str::trim)
+        .filter(|token| !token.is_empty())
+}
+
+pub(crate) fn gateway_bearer_authenticated(state: &AppState, headers: &HeaderMap) -> bool {
+    gateway_bearer_token(headers).is_some_and(|token| state.pairing.is_authenticated(token))
+}
+
+fn gateway_unauthorized_response(path: &str) -> Response {
+    if path.starts_with("/v1/") {
+        let err = serde_json::json!({
+            "error": {
+                "message": "Invalid API key. Pair first via POST /pair, then use Authorization: Bearer <token>",
+                "type": "invalid_request_error",
+                "code": "invalid_api_key"
+            }
+        });
+        return (StatusCode::UNAUTHORIZED, Json(err)).into_response();
+    }
+
+    (
+        StatusCode::UNAUTHORIZED,
+        Json(serde_json::json!({
+            "error": "Unauthorized — pair first via POST /pair, then send Authorization: Bearer <token>"
+        })),
+    )
+        .into_response()
+}
+
+async fn enforce_gateway_http_auth(
+    State(state): State<AppState>,
+    request: Request,
+    next: Next,
+) -> Response {
+    let peer_addr = request
+        .extensions()
+        .get::<ConnectInfo<SocketAddr>>()
+        .map(|connect| connect.0);
+    if gateway_auth_required_for_peer(&state, peer_addr, request.headers())
+        && !gateway_bearer_authenticated(&state, request.headers())
+    {
+        return gateway_unauthorized_response(request.uri().path());
+    }
+
+    next.run(request).await
 }
 
 fn normalize_max_keys(configured: usize, fallback: usize) -> usize {
@@ -693,11 +764,6 @@ pub async fn run_gateway(host: &str, port: u16, config: Config) -> Result<()> {
         event_tx,
     };
 
-    // Config PUT needs larger body limit (1MB)
-    let config_put_router = Router::new()
-        .route("/api/config", put(api::handle_api_config_put))
-        .layer(RequestBodyLimitLayer::new(1_048_576));
-
     // The OpenAI-compatible endpoints use a larger body limit (512KB) because
     // chat histories can be much bigger than the default 64KB webhook limit.
     // They get their own nested router with a separate body limit layer.
@@ -710,25 +776,15 @@ pub async fn run_gateway(host: &str, port: u16, config: Config) -> Result<()> {
             openai_compat::CHAT_COMPLETIONS_MAX_BODY_SIZE,
         ));
 
-    // Build router with middleware
-    let app = Router::new()
-        // ── Existing routes ──
-        .route("/health", get(handle_health))
-        .route("/metrics", get(handle_metrics))
-        .route("/pair", post(handle_pair))
-        .route("/webhook", post(handle_webhook))
+    // Config PUT needs larger body limit (1MB)
+    let config_put_router = Router::new()
+        .route("/api/config", put(api::handle_api_config_put))
+        .layer(RequestBodyLimitLayer::new(1_048_576));
+
+    let authenticated_router = Router::new()
         .route("/agent", post(handle_agent))
-        .route("/whatsapp", get(handle_whatsapp_verify))
-        .route("/whatsapp", post(handle_whatsapp_message))
-        .route("/linq", post(handle_linq_webhook))
-        .route("/wati", get(handle_wati_verify))
-        .route("/wati", post(handle_wati_webhook))
-        .route("/nextcloud-talk", post(handle_nextcloud_talk_webhook))
-        .route("/qq", post(handle_qq_webhook))
-        // ── OpenAI-compatible endpoints ──
         .route("/v1/models", get(openai_compat::handle_v1_models))
         .merge(openai_compat_routes)
-        // ── Web Dashboard API routes ──
         .route("/api/status", get(api::handle_api_status))
         .route("/api/config", get(api::handle_api_config_get))
         .route("/api/tools", get(api::handle_api_tools))
@@ -755,14 +811,32 @@ pub async fn run_gateway(host: &str, port: u16, config: Config) -> Result<()> {
         .route("/api/cli-tools", get(api::handle_api_cli_tools))
         .route("/api/health", get(api::handle_api_health))
         .route("/api/node-control", post(handle_node_control))
-        // ── SSE event stream ──
         .route("/api/events", get(sse::handle_sse_events))
+        .merge(config_put_router)
+        .route_layer(middleware::from_fn_with_state(
+            state.clone(),
+            enforce_gateway_http_auth,
+        ));
+
+    // Build router with middleware
+    let app = Router::new()
+        // ── Existing routes ──
+        .route("/health", get(handle_health))
+        .route("/metrics", get(handle_metrics))
+        .route("/pair", post(handle_pair))
+        .route("/webhook", post(handle_webhook))
+        .route("/whatsapp", get(handle_whatsapp_verify))
+        .route("/whatsapp", post(handle_whatsapp_message))
+        .route("/linq", post(handle_linq_webhook))
+        .route("/wati", get(handle_wati_verify))
+        .route("/wati", post(handle_wati_webhook))
+        .route("/nextcloud-talk", post(handle_nextcloud_talk_webhook))
+        .route("/qq", post(handle_qq_webhook))
+        .merge(authenticated_router)
         // ── WebSocket agent chat ──
         .route("/ws/chat", get(ws::handle_ws_chat))
         // ── Static assets (web dashboard) ──
         .route("/_app/{*path}", get(static_files::handle_static))
-        // ── Config PUT with larger body limit ──
-        .merge(config_put_router)
         .with_state(state)
         .layer(RequestBodyLimitLayer::new(MAX_BODY_SIZE))
         .layer(TimeoutLayer::with_status_code(
@@ -1906,6 +1980,7 @@ mod tests {
     use crate::memory::{Memory, MemoryCategory, MemoryEntry};
     use crate::providers::Provider;
     use async_trait::async_trait;
+    use axum::extract::Request;
     use axum::http::HeaderValue;
     use axum::response::IntoResponse;
     use http_body_util::BodyExt;
@@ -1916,6 +1991,38 @@ mod tests {
     fn generate_test_secret() -> String {
         let bytes: [u8; 32] = rand::random();
         hex::encode(bytes)
+    }
+
+    fn test_state() -> AppState {
+        AppState {
+            config: Arc::new(Mutex::new(Config::default())),
+            provider: Arc::new(MockProvider::default()),
+            model: "test-model".into(),
+            temperature: 0.0,
+            mem: Arc::new(MockMemory),
+            auto_save: false,
+            webhook_secret_hash: None,
+            pairing: Arc::new(PairingGuard::new(false, &[])),
+            trust_forwarded_headers: false,
+            rate_limiter: Arc::new(GatewayRateLimiter::new(100, 100, 100)),
+            idempotency_store: Arc::new(IdempotencyStore::new(Duration::from_secs(300), 1000)),
+            whatsapp: None,
+            whatsapp_app_secret: None,
+            linq: None,
+            linq_signing_secret: None,
+            nextcloud_talk: None,
+            nextcloud_talk_webhook_secret: None,
+            wati: None,
+            qq: None,
+            qq_webhook_enabled: false,
+            observer: Arc::new(crate::observability::NoopObserver),
+            tools_registry: Arc::new(Vec::new()),
+            tools_registry_exec: Arc::new(Vec::new()),
+            multimodal: crate::config::MultimodalConfig::default(),
+            max_tool_iterations: 10,
+            cost_tracker: None,
+            event_tx: tokio::sync::broadcast::channel(16).0,
+        }
     }
 
     #[test]
@@ -2226,6 +2333,70 @@ mod tests {
         assert!(store.record_if_new("req-1"));
         assert!(!store.record_if_new("req-1"));
         assert!(store.record_if_new("req-2"));
+    }
+
+    #[test]
+    fn gateway_auth_required_for_public_client_when_pairing_disabled() {
+        let state = AppState {
+            pairing: Arc::new(PairingGuard::new(false, &[])),
+            trust_forwarded_headers: false,
+            ..test_state()
+        };
+        let headers = HeaderMap::new();
+        let peer = SocketAddr::from(([203, 0, 113, 10], 30_300));
+        assert!(gateway_auth_required_for_peer(&state, Some(peer), &headers));
+    }
+
+    #[test]
+    fn gateway_auth_not_required_for_loopback_when_pairing_disabled() {
+        let state = AppState {
+            pairing: Arc::new(PairingGuard::new(false, &[])),
+            trust_forwarded_headers: false,
+            ..test_state()
+        };
+        let headers = HeaderMap::new();
+        let peer = SocketAddr::from(([127, 0, 0, 1], 30_300));
+        assert!(!gateway_auth_required_for_peer(
+            &state,
+            Some(peer),
+            &headers
+        ));
+    }
+
+    #[test]
+    fn gateway_auth_respects_trusted_forwarded_public_ip() {
+        let state = AppState {
+            pairing: Arc::new(PairingGuard::new(false, &[])),
+            trust_forwarded_headers: true,
+            ..test_state()
+        };
+        let mut headers = HeaderMap::new();
+        headers.insert("X-Forwarded-For", HeaderValue::from_static("198.51.100.7"));
+        let peer = SocketAddr::from(([127, 0, 0, 1], 30_300));
+        assert!(gateway_auth_required_for_peer(&state, Some(peer), &headers));
+    }
+
+    #[test]
+    fn gateway_http_auth_middleware_returns_openai_error_shape() {
+        let state = AppState {
+            pairing: Arc::new(PairingGuard::new(false, &[])),
+            trust_forwarded_headers: false,
+            ..test_state()
+        };
+        let mut request = Request::builder()
+            .uri("/v1/models")
+            .body(axum::body::Body::empty())
+            .expect("request");
+        request
+            .extensions_mut()
+            .insert(ConnectInfo(SocketAddr::from(([203, 0, 113, 10], 30_300))));
+        let response = gateway_unauthorized_response(request.uri().path());
+        assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
+        assert!(gateway_auth_required_for_peer(
+            &state,
+            Some(SocketAddr::from(([203, 0, 113, 10], 30_300))),
+            request.headers()
+        ));
     }
 
     #[test]

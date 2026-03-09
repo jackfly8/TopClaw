@@ -176,17 +176,24 @@ async fn open_system_default(url: &str) -> anyhow::Result<()> {
     #[cfg(target_os = "linux")]
     {
         // Try xdg-open first, then fallback to common commands
-        let commands = ["xdg-open", "gio open", "gnome-open", "kde-open"];
+        let commands: &[&[&str]] = &[
+            &["xdg-open"],
+            &["gio", "open"],
+            &["gnome-open"],
+            &["kde-open"],
+        ];
         let mut last_error = String::new();
 
         for cmd in commands {
-            match tokio::process::Command::new(cmd).arg(url).status().await {
+            let mut process = tokio::process::Command::new(cmd[0]);
+            process.args(&cmd[1..]).arg(url);
+            match process.status().await {
                 Ok(status) if status.success() => return Ok(()),
                 Ok(status) => {
-                    last_error = format!("{cmd} exited with status {status}");
+                    last_error = format!("{} exited with status {status}", cmd.join(" "));
                 }
                 Err(e) => {
-                    last_error = format!("{cmd} not runnable: {e}");
+                    last_error = format!("{} not runnable: {e}", cmd.join(" "));
                 }
             }
         }

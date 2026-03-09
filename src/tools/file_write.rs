@@ -1,4 +1,4 @@
-use super::path_resolution::{resolve_allowed_parent_and_target, resolve_tool_path_candidate};
+use super::path_resolution::resolve_allowed_parent_and_target;
 use super::traits::{Tool, ToolResult};
 use crate::security::SecurityPolicy;
 use async_trait::async_trait;
@@ -75,8 +75,6 @@ impl Tool for FileWriteTool {
             .ok_or_else(|| anyhow::anyhow!("Missing 'content' parameter"))?;
         let otp_code = args.get("otp_code").and_then(|v| v.as_str());
 
-        let full_path = resolve_tool_path_candidate(&self.security, path);
-
         if let Err(error) = self.security.enforce_sensitive_tool_operation(
             "file_write",
             crate::security::policy::ToolOperation::Act,
@@ -89,10 +87,6 @@ impl Tool for FileWriteTool {
             });
         }
 
-        if let Some(parent) = full_path.parent() {
-            tokio::fs::create_dir_all(parent).await?;
-        }
-
         let resolved_target = match resolve_allowed_parent_and_target(&self.security, path).await {
             Ok(path) => path,
             Err(error) => {
@@ -103,6 +97,10 @@ impl Tool for FileWriteTool {
                 });
             }
         };
+
+        if let Some(parent) = resolved_target.parent() {
+            tokio::fs::create_dir_all(parent).await?;
+        }
 
         // If the target already exists and is a symlink, refuse to follow it
         if let Ok(meta) = tokio::fs::symlink_metadata(&resolved_target).await {
