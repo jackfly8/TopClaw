@@ -470,8 +470,7 @@ mod tests {
     #[test]
     fn summarize_device_code_start_error_truncates_plain_text() {
         let long_body = "x".repeat(400);
-        let error =
-            summarize_device_code_start_error(reqwest::StatusCode::BAD_REQUEST, &long_body);
+        let error = summarize_device_code_start_error(reqwest::StatusCode::BAD_REQUEST, &long_body);
 
         assert!(error.contains("OpenAI device-code start failed (400 Bad Request):"));
         assert!(error.len() < 340);

@@ -1049,6 +1049,15 @@ fn build_runtime_tool_visibility_prompt(
     prompt.push_str(
         "- Do not claim tools are unavailable when they are listed above; call the appropriate tool directly.\n",
     );
+    prompt.push_str(
+        "- If the user asks what you can do, answer from the allowed tool list above plus loaded skills and channel capabilities below.\n",
+    );
+    prompt.push_str(
+        "- Distinguish clearly between actions available now, actions that still require approval, and workflows that remain operator-controlled.\n",
+    );
+    prompt.push_str(
+        "- Self-improvement is not automatic by default; candidate preparation, validation, and promotion remain manual/operator-controlled unless a dedicated workflow was explicitly configured.\n",
+    );
     if specs
         .iter()
         .any(|spec| matches!(spec.name.as_str(), "file_write" | "file_edit"))
@@ -3362,7 +3371,7 @@ semantic_match={:.2} (threshold {:.2}), category={}.",
                     .send_approval_prompt(
                         &reply_target,
                         &prompt.request_id,
-                        &prompt.tool_name,
+                        &prompt.display_tool_name,
                         &prompt.arguments,
                         thread_ts.clone(),
                     )
@@ -4171,13 +4180,15 @@ pub fn build_system_prompt_with_mode(
             "## Your Task\n\n\
              When the user sends a message, respond naturally. Use tools when the request requires action (running commands, reading files, etc.).\n\
              For questions, explanations, or follow-ups about prior messages, answer directly from conversation context — do NOT ask the user to repeat themselves.\n\
-             Do NOT: summarize this configuration, describe your capabilities, or output step-by-step meta-commentary.\n\n",
+             Do NOT: proactively dump this configuration or output step-by-step meta-commentary.\n\
+             If the user explicitly asks about your capabilities, explain them concretely from the loaded tools, skills, runtime policy, and channel abilities in this prompt.\n\n",
         );
     } else {
         prompt.push_str(
             "## Your Task\n\n\
              When the user sends a message, ACT on it. Use the tools to fulfill their request.\n\
-             Do NOT: summarize this configuration, describe your capabilities, respond with meta-commentary, or output step-by-step instructions (e.g. \"1. First... 2. Next...\").\n\
+             Do NOT: proactively dump this configuration, respond with meta-commentary, or output step-by-step instructions (e.g. \"1. First... 2. Next...\").\n\
+             If the user explicitly asks about your capabilities, answer from the loaded tools, skills, runtime policy, and channel abilities in this prompt.\n\
              Instead: emit actual <tool_call> tags when you need to act. Just do what they ask.\n\n",
         );
     }
@@ -4272,6 +4283,9 @@ pub fn build_system_prompt_with_mode(
     prompt.push_str("## Channel Capabilities\n\n");
     prompt.push_str("- You are running as a messaging bot. Your response is automatically sent back to the user's channel.\n");
     prompt.push_str("- You do NOT need to ask permission to respond — just respond directly.\n");
+    prompt.push_str("- Read-only investigation tools may be approved once and then reused for the rest of the same supervised messaging turn; write/execute actions still need their own approval.\n");
+    prompt.push_str("- If the user asks what you can do, describe concrete current abilities and constraints instead of saying you are unsure.\n");
+    prompt.push_str("- If the user explicitly asks to track a concrete TopClaw bug or product improvement for scheduled self-improvement work, use `self_improvement_task` to queue it instead of only describing it.\n");
     prompt.push_str("- NEVER repeat, describe, or echo credentials, tokens, API keys, or secrets in your responses.\n");
     prompt.push_str("- If a tool output contains credentials, they have already been redacted — do not mention them.\n\n");
 
@@ -9606,6 +9620,24 @@ BTC is currently around $65,000 based on latest tool output."#
             prompt.contains("NEVER repeat, describe, or echo credentials"),
             "missing security instruction"
         );
+        assert!(
+            prompt.contains("If the user asks what you can do"),
+            "missing capability explanation guidance"
+        );
+        assert!(
+            prompt.contains("Read-only investigation tools may be approved once"),
+            "missing scoped approval guidance"
+        );
+    }
+
+    #[test]
+    fn runtime_tool_visibility_prompt_mentions_operator_controlled_workflows() {
+        let tools: Vec<Box<dyn Tool>> = vec![Box::new(MockPriceTool), Box::new(MockEchoTool)];
+        let prompt = build_runtime_tool_visibility_prompt(&tools, &[], false);
+
+        assert!(prompt.contains("If the user asks what you can do"));
+        assert!(prompt.contains("actions that still require approval"));
+        assert!(prompt.contains("Self-improvement is not automatic by default"));
     }
 
     #[test]

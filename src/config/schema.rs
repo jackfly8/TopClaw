@@ -176,6 +176,10 @@ pub struct Config {
     #[serde(default)]
     pub cron: CronConfig,
 
+    /// Self-improvement automation configuration (`[self_improvement]`).
+    #[serde(default)]
+    pub self_improvement: SelfImprovementConfig,
+
     /// Goal loop configuration for autonomous long-term goal execution (`[goal_loop]`).
     #[serde(default)]
     pub goal_loop: GoalLoopConfig,
@@ -3194,6 +3198,52 @@ impl Default for CronConfig {
     }
 }
 
+// ── Self Improvement ────────────────────────────────────────────
+
+/// Configuration for queued, candidate-only self-improvement automation.
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+pub struct SelfImprovementConfig {
+    /// Enable scheduled self-improvement automation. Default: `false`.
+    #[serde(default)]
+    pub enabled: bool,
+    /// Absolute path to the stable TopClaw git checkout that seeds candidate worktrees.
+    #[serde(default)]
+    pub repository_path: Option<String>,
+    /// Poll interval in minutes for the scheduled self-improvement cron job. Default: `30`.
+    #[serde(default = "default_self_improvement_interval_minutes")]
+    pub interval_minutes: u32,
+    /// Push validated fixes to a remote branch automatically. Default: `true`.
+    #[serde(default = "default_true")]
+    pub auto_push_branch: bool,
+    /// Open a draft PR automatically after a successful push. Default: `true`.
+    #[serde(default = "default_true")]
+    pub auto_open_draft_pr: bool,
+    /// Prefix used for auto-generated user/task branches. Default: `users`.
+    #[serde(default = "default_self_improvement_branch_prefix")]
+    pub branch_prefix: String,
+}
+
+fn default_self_improvement_interval_minutes() -> u32 {
+    30
+}
+
+fn default_self_improvement_branch_prefix() -> String {
+    "users".to_string()
+}
+
+impl Default for SelfImprovementConfig {
+    fn default() -> Self {
+        Self {
+            enabled: false,
+            repository_path: None,
+            interval_minutes: default_self_improvement_interval_minutes(),
+            auto_push_branch: true,
+            auto_open_draft_pr: true,
+            branch_prefix: default_self_improvement_branch_prefix(),
+        }
+    }
+}
+
 // ── Tunnel ──────────────────────────────────────────────────────
 
 /// Tunnel configuration for exposing the gateway publicly (`[tunnel]` section).
@@ -3493,6 +3543,10 @@ fn default_draft_update_interval_ms() -> u64 {
     1000
 }
 
+fn default_telegram_stream_mode() -> StreamMode {
+    StreamMode::Partial
+}
+
 /// Group-chat reply trigger mode for channels that support mention gating.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(rename_all = "snake_case")]
@@ -3636,8 +3690,8 @@ pub struct TelegramConfig {
     pub bot_token: String,
     /// Allowed Telegram user IDs or usernames. Empty = deny all.
     pub allowed_users: Vec<String>,
-    /// Streaming mode for progressive response delivery via message edits.
-    #[serde(default)]
+    /// Streaming mode for progressive response delivery via native drafts or message edits.
+    #[serde(default = "default_telegram_stream_mode")]
     pub stream_mode: StreamMode,
     /// Minimum interval (ms) between draft message edits to avoid rate limits.
     #[serde(default = "default_draft_update_interval_ms")]
@@ -4829,6 +4883,7 @@ impl Default for Config {
             embedding_routes: Vec::new(),
             heartbeat: HeartbeatConfig::default(),
             cron: CronConfig::default(),
+            self_improvement: SelfImprovementConfig::default(),
             goal_loop: GoalLoopConfig::default(),
             channels_config: ChannelsConfig::default(),
             memory: MemoryConfig::default(),
@@ -7308,6 +7363,7 @@ default_temperature = 0.7
                 to: Some("123456".into()),
             },
             cron: CronConfig::default(),
+            self_improvement: SelfImprovementConfig::default(),
             goal_loop: GoalLoopConfig::default(),
             channels_config: ChannelsConfig {
                 cli: true,
@@ -7711,6 +7767,7 @@ tool_dispatcher = "xml"
             query_classification: QueryClassificationConfig::default(),
             heartbeat: HeartbeatConfig::default(),
             cron: CronConfig::default(),
+            self_improvement: SelfImprovementConfig::default(),
             goal_loop: GoalLoopConfig::default(),
             channels_config: ChannelsConfig::default(),
             memory: MemoryConfig::default(),
@@ -8063,10 +8120,10 @@ tool_dispatcher = "xml"
     }
 
     #[test]
-    async fn telegram_config_defaults_stream_off() {
+    async fn telegram_config_defaults_stream_partial() {
         let json = r#"{"bot_token":"tok","allowed_users":[]}"#;
         let parsed: TelegramConfig = serde_json::from_str(json).unwrap();
-        assert_eq!(parsed.stream_mode, StreamMode::Off);
+        assert_eq!(parsed.stream_mode, StreamMode::Partial);
         assert_eq!(parsed.draft_update_interval_ms, 1000);
         assert!(!parsed.interrupt_on_new_message);
         assert!(parsed.base_url.is_none());

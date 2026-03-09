@@ -121,8 +121,12 @@ pub async fn run_wizard(force: bool) -> Result<Config> {
     println!();
     println!("  {}", style("[2/3] Connect to an AI").cyan().bold());
     println!("  {}", style("─".repeat(40)).dim());
-    let (provider, api_key, model, provider_api_url) =
-        setup_provider_simple(&workspace_dir, &config_path, SecretsConfig::default().encrypt).await?;
+    let (provider, api_key, model, provider_api_url) = setup_provider_simple(
+        &workspace_dir,
+        &config_path,
+        SecretsConfig::default().encrypt,
+    )
+    .await?;
 
     // ── STEP 3: How to reach you (Channels) ──────────────────────────
     println!();
@@ -167,6 +171,7 @@ pub async fn run_wizard(force: bool) -> Result<Config> {
         embedding_routes: Vec::new(),
         heartbeat: HeartbeatConfig::default(),
         cron: crate::config::CronConfig::default(),
+        self_improvement: crate::config::SelfImprovementConfig::default(),
         goal_loop: crate::config::schema::GoalLoopConfig::default(),
         channels_config,
         memory: memory_config_defaults_for_backend("sqlite"),
@@ -310,7 +315,11 @@ async fn maybe_prompt_openai_codex_login(
         .parent()
         .map_or_else(|| PathBuf::from("."), PathBuf::from);
     let auth_service = crate::auth::AuthService::new(&state_dir, encrypt_secrets);
-    if auth_service.get_profile("openai-codex", None).await?.is_some() {
+    if auth_service
+        .get_profile("openai-codex", None)
+        .await?
+        .is_some()
+    {
         print_bullet("Existing OpenAI Codex OAuth profile detected. Skipping login.");
         return Ok(());
     }
@@ -321,9 +330,7 @@ async fn maybe_prompt_openai_codex_login(
         .interact()?;
 
     if !start_login {
-        print_bullet(
-            "Run `topclaw auth login --provider openai-codex` when you're ready.",
-        );
+        print_bullet("Run `topclaw auth login --provider openai-codex` when you're ready.");
         return Ok(());
     }
 
@@ -334,8 +341,14 @@ async fn maybe_prompt_openai_codex_login(
                 "  {} OpenAI device-code login started.",
                 style("✓").green().bold()
             );
-            print_bullet(&format!("Visit: {}", style(&device.verification_uri).cyan()));
-            print_bullet(&format!("Code:  {}", style(&device.user_code).yellow().bold()));
+            print_bullet(&format!(
+                "Visit: {}",
+                style(&device.verification_uri).cyan()
+            ));
+            print_bullet(&format!(
+                "Code:  {}",
+                style(&device.user_code).yellow().bold()
+            ));
             if let Some(uri_complete) = &device.verification_uri_complete {
                 print_bullet(&format!("Fast link: {}", style(uri_complete).cyan()));
             }
@@ -613,6 +626,7 @@ async fn run_quick_setup_with_home(
         embedding_routes: Vec::new(),
         heartbeat: HeartbeatConfig::default(),
         cron: crate::config::CronConfig::default(),
+        self_improvement: crate::config::SelfImprovementConfig::default(),
         goal_loop: crate::config::schema::GoalLoopConfig::default(),
         channels_config: ChannelsConfig::default(),
         memory: memory_config,
@@ -917,10 +931,7 @@ fn curated_models_for_provider(provider_name: &str) -> Vec<(String, String)> {
             ),
         ],
         "openai-codex" => vec![
-            (
-                "gpt-5.4".to_string(),
-                "GPT-5.4 (recommended)".to_string(),
-            ),
+            ("gpt-5.4".to_string(), "GPT-5.4 (recommended)".to_string()),
             (
                 "gpt-5-codex".to_string(),
                 "GPT-5 Codex (agentic coding)".to_string(),
@@ -2320,7 +2331,7 @@ fn setup_channels_simple() -> Result<ChannelsConfig> {
                 config.telegram = Some(TelegramConfig {
                     bot_token: token,
                     allowed_users,
-                    stream_mode: StreamMode::default(),
+                    stream_mode: StreamMode::Partial,
                     draft_update_interval_ms: 1000,
                     interrupt_on_new_message: false,
                     mention_only: false,
@@ -4280,7 +4291,7 @@ fn setup_channels() -> Result<ChannelsConfig> {
                 config.telegram = Some(TelegramConfig {
                     bot_token: token,
                     allowed_users,
-                    stream_mode: StreamMode::default(),
+                    stream_mode: StreamMode::Partial,
                     draft_update_interval_ms: 1000,
                     interrupt_on_new_message: false,
                     mention_only: false,
@@ -6430,7 +6441,9 @@ fn print_summary(config: &Config, service_outcome: &BackgroundServiceOutcome) {
                 println!(
                     "    {} {}:",
                     style(format!("{step}.")).cyan().bold(),
-                    style("Channels are already running in the background").white().bold()
+                    style("Channels are already running in the background")
+                        .white()
+                        .bold()
                 );
                 println!("       {}", style("topclaw service status").yellow());
                 println!();

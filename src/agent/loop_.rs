@@ -182,6 +182,7 @@ static TOOL_UNAVAILABLE_CLAIM_REGEX: LazyLock<Regex> = LazyLock::new(|| {
 pub(crate) struct NonCliApprovalPrompt {
     pub request_id: String,
     pub tool_name: String,
+    pub display_tool_name: String,
     pub arguments: serde_json::Value,
 }
 
@@ -209,6 +210,21 @@ fn truncate_tool_args_for_progress(name: &str, args: &serde_json::Value, max_len
     match hint {
         Some(s) => truncate_with_ellipsis(s, max_len),
         None => String::new(),
+    }
+}
+
+fn qualifies_for_non_cli_investigation_batch(tool_name: &str, args: &serde_json::Value) -> bool {
+    match tool_name {
+        // Planning is stateful but low-risk and commonly used to organize one
+        // investigation turn; avoid prompting for every create/update step.
+        "task_plan" => true,
+        "glob_search" | "content_search" | "lossless_search" | "file_read" | "memory_search"
+        | "memory_recall" => true,
+        "process" => matches!(
+            args.get("action").and_then(serde_json::Value::as_str),
+            Some("list" | "output")
+        ),
+        _ => false,
     }
 }
 
@@ -840,6 +856,7 @@ pub(crate) async fn run_tool_call_loop(
     let mut missing_tool_call_retry_prompt: Option<String> = None;
     let bypass_non_cli_approval_for_turn =
         approval.is_some_and(|mgr| channel_name != "cli" && mgr.consume_non_cli_allow_all_once());
+    let mut bypass_non_cli_investigation_batch_for_turn = false;
     if bypass_non_cli_approval_for_turn {
         runtime_trace::record_event(
             "approval_bypass_one_time_all_tools_consumed",
@@ -1394,10 +1411,38 @@ pub(crate) async fn run_tool_call_loop(
                         ApprovalResponse::Yes,
                         channel_name,
                     );
+                } else if bypass_non_cli_investigation_batch_for_turn
+                    && qualifies_for_non_cli_investigation_batch(&tool_name, &tool_args)
+                {
+                    mgr.record_decision(
+                        &tool_name,
+                        &tool_args,
+                        ApprovalResponse::Yes,
+                        channel_name,
+                    );
                 } else if mgr.needs_approval(&tool_name) {
                     let request = ApprovalRequest {
                         tool_name: tool_name.clone(),
                         arguments: tool_args.clone(),
+                    };
+                    let batched_non_cli_investigation = channel_name != "cli"
+                        && non_cli_approval_context.is_some()
+                        && qualifies_for_non_cli_investigation_batch(&tool_name, &tool_args);
+                    let approval_reason = if batched_non_cli_investigation {
+                        Some(
+                            "interactive approval required for low-risk investigation tools in this supervised non-cli turn"
+                                .to_string(),
+                        )
+                    } else {
+                        Some(
+                            "interactive approval required for supervised non-cli tool execution"
+                                .to_string(),
+                        )
+                    };
+                    let display_tool_name = if batched_non_cli_investigation {
+                        format!("{tool_name} (covers remaining read-only investigation tools in this turn)")
+                    } else {
+                        tool_name.clone()
                     };
 
                     let decision = if channel_name == "cli" {
@@ -1408,15 +1453,13 @@ pub(crate) async fn run_tool_call_loop(
                             &ctx.sender,
                             channel_name,
                             &ctx.reply_target,
-                            Some(
-                                "interactive approval required for supervised non-cli tool execution"
-                                    .to_string(),
-                            ),
+                            approval_reason,
                         );
 
                         let _ = ctx.prompt_tx.send(NonCliApprovalPrompt {
                             request_id: pending.request_id.clone(),
                             tool_name: tool_name.clone(),
+                            display_tool_name,
                             arguments: tool_args.clone(),
                         });
 
@@ -1432,6 +1475,10 @@ pub(crate) async fn run_tool_call_loop(
                     } else {
                         ApprovalResponse::No
                     };
+
+                    if batched_non_cli_investigation && decision != ApprovalResponse::No {
+                        bypass_non_cli_investigation_batch_for_turn = true;
+                    }
 
                     mgr.record_decision(&tool_name, &tool_args, decision, channel_name);
 
@@ -1794,7 +1841,10 @@ fn build_runtime_tool_availability_notice(tools_registry: &[Box<dyn Tool>]) -> S
         "\n## Runtime Tool Availability (Authoritative)\n\n\
          Use only these runtime-available tools for this turn.\n\
          Tools: {names}\n\
-         Do not claim tools are unavailable when they are listed here.\n"
+         Do not claim tools are unavailable when they are listed here.\n\
+         If the user asks about your abilities, answer from this tool list plus loaded skills and prompt context.\n\
+         Distinguish clearly between actions available now, actions that still require approval, and workflows that remain operator-controlled.\n\
+         Self-improvement is not automatic by default; candidate preparation, validation, and promotion remain operator-controlled unless the runtime explicitly says otherwise.\n"
     )
 }
 
@@ -3550,6 +3600,203 @@ mod tests {
             "shell tool should execute after consuming one-time allow-all token"
         );
         assert_eq!(approval_mgr.non_cli_allow_all_once_remaining(), 0);
+    }
+
+    #[tokio::test]
+    async fn run_tool_call_loop_batches_non_cli_readonly_investigation_approvals() {
+        let provider = ScriptedProvider::from_text_responses(vec![
+            r#"<tool_call>
+{"name":"task_plan","arguments":{"action":"create","value":"plan"}}
+</tool_call>"#,
+            r#"<tool_call>
+{"name":"glob_search","arguments":{"value":"src/**/*.rs"}}
+</tool_call>"#,
+            "done",
+        ]);
+
+        let task_plan_calls = Arc::new(AtomicUsize::new(0));
+        let glob_calls = Arc::new(AtomicUsize::new(0));
+        let tools_registry: Vec<Box<dyn Tool>> = vec![
+            Box::new(CountingTool::new("task_plan", Arc::clone(&task_plan_calls))),
+            Box::new(CountingTool::new("glob_search", Arc::clone(&glob_calls))),
+        ];
+
+        let approval_mgr = Arc::new(ApprovalManager::from_config(
+            &crate::config::AutonomyConfig::default(),
+        ));
+        let (prompt_tx, mut prompt_rx) =
+            tokio::sync::mpsc::unbounded_channel::<NonCliApprovalPrompt>();
+
+        let mut history = vec![
+            ChatMessage::system("test-system"),
+            ChatMessage::user("inspect the repo and tell me what you find"),
+        ];
+        let observer = NoopObserver;
+
+        let result_task = tokio::spawn({
+            let approval_mgr = Arc::clone(&approval_mgr);
+            async move {
+                run_tool_call_loop_with_non_cli_approval_context(
+                    &provider,
+                    &mut history,
+                    &tools_registry,
+                    &observer,
+                    "mock-provider",
+                    "mock-model",
+                    0.0,
+                    true,
+                    Some(approval_mgr.as_ref()),
+                    "telegram",
+                    Some(NonCliApprovalContext {
+                        sender: "alice".to_string(),
+                        reply_target: "chat-investigation".to_string(),
+                        prompt_tx,
+                    }),
+                    &crate::config::MultimodalConfig::default(),
+                    4,
+                    None,
+                    None,
+                    None,
+                    &[],
+                )
+                .await
+            }
+        });
+
+        let prompt = prompt_rx
+            .recv()
+            .await
+            .expect("first approval prompt should arrive");
+        assert_eq!(prompt.tool_name, "task_plan");
+        assert!(
+            prompt
+                .display_tool_name
+                .contains("covers remaining read-only investigation tools"),
+            "batched prompt should explain the widened read-only scope"
+        );
+        approval_mgr
+            .confirm_non_cli_pending_request(
+                &prompt.request_id,
+                "alice",
+                "telegram",
+                "chat-investigation",
+            )
+            .expect("pending approval should confirm");
+        approval_mgr.record_non_cli_pending_resolution(&prompt.request_id, ApprovalResponse::Yes);
+
+        let result = result_task
+            .await
+            .expect("tool loop task should complete")
+            .expect("tool loop should succeed");
+        assert_eq!(result, "done");
+        assert_eq!(task_plan_calls.load(Ordering::SeqCst), 1);
+        assert_eq!(glob_calls.load(Ordering::SeqCst), 1);
+        assert!(
+            prompt_rx.try_recv().is_err(),
+            "second read-only investigation tool should not require another prompt"
+        );
+    }
+
+    #[tokio::test]
+    async fn run_tool_call_loop_keeps_shell_separately_approved_after_batched_readonly_tools() {
+        let provider = ScriptedProvider::from_text_responses(vec![
+            r#"<tool_call>
+{"name":"task_plan","arguments":{"action":"create","value":"plan"}}
+</tool_call>"#,
+            r#"<tool_call>
+{"name":"shell","arguments":{"command":"echo hi","value":"echo hi"}}
+</tool_call>"#,
+            "done",
+        ]);
+
+        let task_plan_calls = Arc::new(AtomicUsize::new(0));
+        let shell_calls = Arc::new(AtomicUsize::new(0));
+        let tools_registry: Vec<Box<dyn Tool>> = vec![
+            Box::new(CountingTool::new("task_plan", Arc::clone(&task_plan_calls))),
+            Box::new(CountingTool::new("shell", Arc::clone(&shell_calls))),
+        ];
+
+        let approval_mgr = Arc::new(ApprovalManager::from_config(
+            &crate::config::AutonomyConfig::default(),
+        ));
+        let (prompt_tx, mut prompt_rx) =
+            tokio::sync::mpsc::unbounded_channel::<NonCliApprovalPrompt>();
+
+        let mut history = vec![
+            ChatMessage::system("test-system"),
+            ChatMessage::user("plan first, then run a shell command"),
+        ];
+        let observer = NoopObserver;
+
+        let result_task = tokio::spawn({
+            let approval_mgr = Arc::clone(&approval_mgr);
+            async move {
+                run_tool_call_loop_with_non_cli_approval_context(
+                    &provider,
+                    &mut history,
+                    &tools_registry,
+                    &observer,
+                    "mock-provider",
+                    "mock-model",
+                    0.0,
+                    true,
+                    Some(approval_mgr.as_ref()),
+                    "telegram",
+                    Some(NonCliApprovalContext {
+                        sender: "alice".to_string(),
+                        reply_target: "chat-shell".to_string(),
+                        prompt_tx,
+                    }),
+                    &crate::config::MultimodalConfig::default(),
+                    4,
+                    None,
+                    None,
+                    None,
+                    &[],
+                )
+                .await
+            }
+        });
+
+        let first_prompt = prompt_rx
+            .recv()
+            .await
+            .expect("readonly batch approval prompt should arrive");
+        approval_mgr
+            .confirm_non_cli_pending_request(
+                &first_prompt.request_id,
+                "alice",
+                "telegram",
+                "chat-shell",
+            )
+            .expect("first approval should confirm");
+        approval_mgr
+            .record_non_cli_pending_resolution(&first_prompt.request_id, ApprovalResponse::Yes);
+
+        let second_prompt = prompt_rx
+            .recv()
+            .await
+            .expect("shell should still require its own approval prompt");
+        assert_eq!(second_prompt.tool_name, "shell");
+        assert_eq!(second_prompt.display_tool_name, "shell");
+        approval_mgr
+            .confirm_non_cli_pending_request(
+                &second_prompt.request_id,
+                "alice",
+                "telegram",
+                "chat-shell",
+            )
+            .expect("shell approval should confirm");
+        approval_mgr
+            .record_non_cli_pending_resolution(&second_prompt.request_id, ApprovalResponse::Yes);
+
+        let result = result_task
+            .await
+            .expect("tool loop task should complete")
+            .expect("tool loop should succeed");
+        assert_eq!(result, "done");
+        assert_eq!(task_plan_calls.load(Ordering::SeqCst), 1);
+        assert_eq!(shell_calls.load(Ordering::SeqCst), 1);
     }
 
     #[tokio::test]

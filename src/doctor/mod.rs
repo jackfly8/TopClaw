@@ -177,7 +177,9 @@ fn next_step_suggestions(config: &Config, results: &[DiagResult]) -> Vec<String>
     if provider_valid {
         if config.api_key.is_none()
             && provider_name.is_some_and(|provider| !provider_supports_keyless_usage(provider))
-            && provider_name.is_some_and(|provider| !crate::auth::has_saved_profile_for_provider(config, provider))
+            && provider_name.is_some_and(|provider| {
+                !crate::auth::has_saved_profile_for_provider(config, provider)
+            })
         {
             match provider_name.unwrap_or_default() {
                 "openai-codex" | "openai_codex" | "codex" => push_unique(
@@ -1303,14 +1305,15 @@ mod tests {
 
     #[test]
     fn next_step_suggestions_recommend_provider_auth_for_known_provider() {
+        let temp = tempfile::tempdir().expect("tempdir");
         let mut config = Config::default();
         config.default_provider = Some("openai-codex".into());
+        config.config_path = temp.path().join("config.toml");
 
         let results = diagnose(&config);
         let suggestions = next_step_suggestions(&config, &results);
 
-        assert!(suggestions
-            .contains(&"topclaw auth login --provider openai-codex".to_string()));
+        assert!(suggestions.contains(&"topclaw auth login --provider openai-codex".to_string()));
     }
 
     #[test]
@@ -1332,14 +1335,16 @@ mod tests {
 
         let mut config = Config::default();
         config.default_provider = Some("openai-codex".into());
-        config.state_dir = Some(state_dir.to_string_lossy().to_string());
+        config.config_path = state_dir.join("config.toml");
 
         let results = diagnose(&config);
 
-        assert!(results.iter().any(|item| item.message == "OAuth profile configured"));
-        assert!(!results
+        assert!(results
             .iter()
-            .any(|item| item.message == "no api_key set (may rely on env vars or provider defaults)"));
+            .any(|item| item.message == "OAuth profile configured"));
+        assert!(!results.iter().any(
+            |item| item.message == "no api_key set (may rely on env vars or provider defaults)"
+        ));
     }
 
     #[test]
@@ -1348,7 +1353,7 @@ mod tests {
 
         let mut config = Config::default();
         config.default_provider = Some("openai-codex".into());
-        config.state_dir = Some(temp.path().to_string_lossy().to_string());
+        config.config_path = temp.path().join("config.toml");
 
         let results = diagnose(&config);
 
