@@ -24,4 +24,5 @@
 
 - 通常の常駐運用では、まず `topclaw service status` を確認します
 - onboarding がすでに service を導入・起動しているなら、追加で `topclaw daemon` を実行する必要はありません
+- `systemd --user`、`launchd`、Windows の管理ランタイムでは自動 service 化されやすく、OpenRC などでは手動で `topclaw service install` / `start` が必要な場合があります
 - `--prefer-prebuilt` でローカル変更が反映されない場合は `./bootstrap.sh --force-source-build` を使います

@@ -4,35 +4,20 @@ TopClaw is a Rust-based AI agent runtime for local and remote AI workflows.
 
 ## Quick Start
 
-### Ubuntu
-
-```bash
-git clone https://github.com/jackfly8/TopClaw.git
-cd TopClaw
-./bootstrap.sh --install-system-deps --install-rust --prefer-prebuilt
-topclaw status
-topclaw check
-topclaw agent -m "Hello, TopClaw!"
-```
-
-This path installs standard prerequisites, installs Rust when missing, prefers a prebuilt binary first, and starts onboarding automatically.
-
-### macOS (Apple Silicon)
-
-Install Apple developer tools first:
+If you are on macOS, install Apple developer tools first:
 
 ```bash
 xcode-select --install
 ```
 
-Clone and bootstrap TopClaw:
+Then use the same quick-start path on Linux or macOS:
 
 ```bash
 git clone https://github.com/jackfly8/TopClaw.git
 cd TopClaw
 ./bootstrap.sh --install-system-deps --install-rust --prefer-prebuilt
 topclaw status
-topclaw check
+topclaw status --diagnose
 topclaw agent -m "Hello, TopClaw!"
 ```
 
@@ -74,11 +59,18 @@ After onboarding, `topclaw status` should show whether the provider is ready, wh
 
 ## Fast Path
 
-If you already have an API key and want a minimal setup:
+If you already know which auth path you need:
+
+API key providers:
 
 ```bash
 topclaw onboard --api-key "sk-..." --provider openrouter
 ```
+
+OAuth or subscription providers:
+
+- choose the provider during interactive onboarding and follow the login prompt
+- if needed later, run the provider-specific auth command that `topclaw status` or onboarding shows you next
 
 ## First Commands
 

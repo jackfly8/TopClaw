@@ -11,7 +11,7 @@ Last verified: **March 9, 2026**.
 | `topclaw` command not found after install | [`topclaw` command not found after install](#topclaw-command-not-found-after-install) |
 | Onboarding finished but replies do not work | [Onboarding finished but TopClaw still does not reply](#onboarding-finished-but-topclaw-still-does-not-reply) |
 | Channels are configured but background runtime is not running | [Service installed but not running](#service-installed-but-not-running) |
-| Provider auth is still missing | [Pairing / auth failures on webhook](#pairing--auth-failures-on-webhook) |
+| Provider auth is still missing or expired | [Provider auth missing or expired](#provider-auth-missing-or-expired) |
 
 ## Installation / Bootstrap
 
@@ -197,6 +197,27 @@ Verify `~/.topclaw/config.toml`:
 - `[gateway].port` (default `42617`)
 - `allow_public_bind` only when intentionally exposing LAN/public interfaces
 
+### Provider auth missing or expired
+
+Checks:
+
+```bash
+topclaw status
+topclaw status --diagnose
+```
+
+What this usually means:
+
+- your provider still needs OAuth/subscription login
+- your API key was never set
+- your saved auth expired and needs to be refreshed
+
+Fix:
+
+1. Read the next-step auth command shown by `topclaw status --diagnose`.
+2. Complete the provider login flow or set the correct API key.
+3. Run `topclaw status` again to confirm the provider is ready.
+
 ### Pairing / auth failures on webhook
 
 Checks:
@@ -206,7 +227,7 @@ Checks:
 3. Re-run diagnostics:
 
 ```bash
-topclaw doctor
+topclaw status --diagnose
 ```
 
 ## Channel Issues

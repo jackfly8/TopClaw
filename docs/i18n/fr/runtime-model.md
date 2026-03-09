@@ -24,4 +24,5 @@ Source anglaise:
 
 - Pour l'exploitation normale, commencez par `topclaw service status`
 - Si l'onboarding a déjà installé et démarré le service, ne lancez pas `topclaw daemon` en parallèle
+- Les environnements `systemd --user`, `launchd` et le runtime géré sous Windows sont plus souvent auto-gérés; avec OpenRC et environnements similaires, `topclaw service install` / `start` peut rester manuel
 - Si `--prefer-prebuilt` n'utilise pas vos changements locaux, utilisez `./bootstrap.sh --force-source-build`

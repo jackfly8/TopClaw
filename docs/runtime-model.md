@@ -25,6 +25,15 @@ After onboarding saves your config:
 
 That means most users should not need to guess between `topclaw daemon` and `topclaw service start`.
 
+## Service Support By Environment
+
+| Environment | Background service expectation |
+|---|---|
+| Linux with `systemd --user` | auto-managed when onboarding configures supported background channels |
+| macOS with `launchd` | auto-managed when onboarding configures supported background channels |
+| Windows service wrapper / scheduled runtime | auto-managed when onboarding configures supported background channels |
+| OpenRC or other manual-only environments | manual setup may still be required |
+
 ## Which Command Should I Use?
 
 ### I just want to test the assistant right now
@@ -47,6 +56,8 @@ If it is not running yet:
 topclaw service install
 topclaw service start
 ```
+
+If you are on an environment with manual-only service support, onboarding may stop after writing config and tell you to run the service commands yourself.
 
 ### I want to debug startup problems in the foreground
 

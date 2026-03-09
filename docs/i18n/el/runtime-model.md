@@ -21,7 +21,16 @@
 - τα επιλεγμένα channels πρέπει να έχουν αποθηκευτεί στο `config.toml`
 - όταν η πλατφόρμα το υποστηρίζει, το onboarding προσπαθεί να εγκαταστήσει και να ξεκινήσει το service αυτόματα
 
-## Ποια εντολή χρειάζομαι;
+## Υποστήριξη Service ανά περιβάλλον
+
+| Περιβάλλον | Προσδοκία για background service |
+|---|---|
+| Linux με `systemd --user` | το onboarding συνήθως το διαχειρίζεται αυτόματα όταν υπάρχουν background channels |
+| macOS με `launchd` | το onboarding συνήθως το διαχειρίζεται αυτόματα όταν υπάρχουν background channels |
+| Διαχειριζόμενο Windows runtime | το onboarding συνήθως το διαχειρίζεται αυτόματα όταν υπάρχουν background channels |
+| OpenRC ή άλλο manual-only περιβάλλον | μπορεί να χρειαστεί χειροκίνητο `topclaw service install` και `topclaw service start` |
+
+## Επιλογή Εντολής
 
 ### Θέλω να δοκιμάσω γρήγορα τον assistant
 
@@ -41,6 +50,8 @@ topclaw service status
 topclaw service install
 topclaw service start
 ```
+
+Αν βρίσκεστε σε περιβάλλον με manual-only service support, το onboarding μπορεί να σταματήσει αφού γράψει το config και να σας πει να τρέξετε τις εντολές service μόνοι σας.
 
 ### Θέλω foreground debugging
 

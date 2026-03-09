@@ -24,3 +24,4 @@
 - よく使うエイリアスとして `topclaw init` / `chat` / `run` / `info` / `check` / `channels` / `skill` が利用できます。
 - `topclaw status --diagnose` は、先に要約を確認してから詳細診断へ進む推奨経路です。
 - 常駐チャネルは `topclaw service status` から確認します。`topclaw channel start` は主に foreground デバッグ向けです。詳しくは [runtime-model.md](runtime-model.md) を参照してください。
+- まず頻出コマンドだけを知りたい場合は、英語版原文の先頭にある “Most Common Commands” セクションを参照してください。

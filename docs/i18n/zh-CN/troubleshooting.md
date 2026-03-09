@@ -17,4 +17,5 @@
 - 错误码、日志字段与命令名保持英文。
 - 详细故障签名以英文原文为准。
 - onboarding 完成后如果“看起来配置好了但仍然不回复”，优先按英文原文中的顺序检查：`topclaw status` -> `topclaw status --diagnose` -> `topclaw service status` -> `topclaw channel doctor`。
+- provider 认证缺失或过期，应先查看英文原文中新增的 “Provider auth missing or expired” 小节，而不是直接跳到 webhook pairing。
 - 若不确定该启动 `daemon` 还是 `service`，先看 [runtime-model.md](runtime-model.md)。

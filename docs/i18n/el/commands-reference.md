@@ -33,6 +33,18 @@
 - `topclaw channels` -> `topclaw channel`
 - `topclaw skill` -> `topclaw skills`
 
+## Πιο Συνηθισμένες Εντολές
+
+| Αν θέλετε να... | Εντολή |
+|---|---|
+| δείτε αν το TopClaw είναι έτοιμο | `topclaw status` |
+| δείτε σύνοψη και μετά βαθύτερη διάγνωση | `topclaw status --diagnose` |
+| μιλήσετε απευθείας στο terminal | `topclaw agent` |
+| δοκιμάσετε γρήγορα ένα prompt | `topclaw agent -m "Hello, TopClaw!"` |
+| ελέγξετε το background runtime | `topclaw service status` |
+| εγκαταστήσετε/ξεκινήσετε χειροκίνητα το service | `topclaw service install`, `topclaw service start` |
+| ξανατρέξετε το onboarding | `topclaw onboard --interactive` |
+
 ---
 
 ## Ανάλυση Κύριων Εντολών
@@ -69,6 +81,11 @@
 Το `topclaw doctor` εμφανίζει πλέον και συγκεκριμένες εντολές επόμενου βήματος όταν εντοπίζει διορθώσιμα προβλήματα ρύθμισης, όπως έλλειψη provider, έλλειψη authentication, μη ρυθμισμένα channels ή απουσία φακέλου workspace.
 
 Το `topclaw check` είναι το σύντομο alias για την ίδια διαγνωστική ροή.
+
+Οδηγία για αρχάριους:
+
+- προτιμήστε `topclaw status --diagnose` όταν θέλετε πρώτα τη φυσιολογική σύνοψη
+- χρησιμοποιήστε `topclaw doctor` ή `topclaw check` όταν θέλετε να μπείτε κατευθείαν στα diagnostics
 
 ### 4.1 `status` (Κατάσταση)
 

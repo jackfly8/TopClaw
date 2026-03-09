@@ -24,4 +24,5 @@
 
 - 正常长期运行优先看 `topclaw service status`
 - 如果 onboarding 已自动安装并启动服务，不需要再额外运行 `topclaw daemon`
+- `systemd --user`、`launchd`、Windows 托管运行环境更可能自动完成服务接管；OpenRC 等环境仍可能需要手动执行 `topclaw service install` / `start`
 - 若 `--prefer-prebuilt` 未体现本地源码改动，请改用 `./bootstrap.sh --force-source-build`

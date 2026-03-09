@@ -14,6 +14,7 @@ Dành cho cài đặt lần đầu và làm quen nhanh.
 | Tình huống | Lệnh |
 |----------|---------|
 | Có API key, muốn cài nhanh nhất | `topclaw onboard --api-key sk-... --provider openrouter` |
+| Dùng provider OAuth hoặc subscription thay vì API key | Chạy `topclaw onboard --interactive` và làm theo bước đăng nhập |
 | Muốn được hướng dẫn từng bước | `topclaw onboard --interactive` |
 | Đã có config, chỉ cần sửa kênh | `topclaw onboard --channels-only` |
 | Chưa rõ nên dùng `agent`, `service` hay `daemon` | Xem [runtime-model.md](../runtime-model.md) |

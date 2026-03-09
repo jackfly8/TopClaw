@@ -11,6 +11,7 @@ Xác minh lần cuối: **2026-03-09**.
 | Cài xong nhưng không tìm thấy lệnh `topclaw` | [Không tìm thấy lệnh `topclaw` sau cài đặt](#không-tìm-thấy-lệnh-topclaw-sau-cài-đặt) |
 | Onboarding xong nhưng TopClaw vẫn không trả lời | [Onboarding xong nhưng TopClaw vẫn không phản hồi](#onboarding-xong-nhưng-topclaw-vẫn-không-phản-hồi) |
 | Channel đã cấu hình nhưng runtime nền không chạy | [Dịch vụ đã cài nhưng không chạy](#dịch-vụ-đã-cài-nhưng-không-chạy) |
+| Auth provider bị thiếu hoặc hết hạn | [Auth provider bị thiếu hoặc hết hạn](#auth-provider-bị-thiếu-hoặc-hết-hạn) |
 
 ## Cài đặt / Bootstrap
 
@@ -183,6 +184,27 @@ Xác minh `~/.topclaw/config.toml`:
 - `[gateway].host` (mặc định `127.0.0.1`)
 - `[gateway].port` (mặc định `3000`)
 - `allow_public_bind` chỉ bật khi cố ý mở truy cập LAN/public
+
+### Auth provider bị thiếu hoặc hết hạn
+
+Kiểm tra:
+
+```bash
+topclaw status
+topclaw status --diagnose
+```
+
+Thường có nghĩa là:
+
+- provider vẫn cần đăng nhập OAuth/subscription
+- API key chưa được thiết lập
+- auth đã lưu bị hết hạn và cần làm mới
+
+Khắc phục:
+
+1. Đọc chính xác lệnh auth tiếp theo mà `topclaw status --diagnose` gợi ý.
+2. Hoàn tất đăng nhập provider hoặc đặt đúng API key.
+3. Chạy lại `topclaw status` để xác nhận provider đã sẵn sàng.
 
 ### Lỗi ghép nối / xác thực webhook
 

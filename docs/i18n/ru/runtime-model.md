@@ -24,4 +24,5 @@
 
 - Для обычной постоянной работы сначала проверьте `topclaw service status`
 - Если onboarding уже установил и запустил service, не нужно параллельно запускать `topclaw daemon`
+- В средах с `systemd --user`, `launchd` и управляемым Windows runtime service чаще запускается автоматически; в OpenRC и похожих окружениях `topclaw service install` / `start` может понадобиться вручную
 - Если `--prefer-prebuilt` не показывает локальные изменения исходников, используйте `./bootstrap.sh --force-source-build`

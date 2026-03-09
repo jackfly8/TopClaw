@@ -24,3 +24,4 @@
 - 另外补充了更易懂的别名入口：`topclaw init`、`chat`、`run`、`info`、`check`、`channels`、`skill`。
 - `topclaw status --diagnose` 现在是推荐的“先看摘要，再看诊断”路径。
 - 常驻通道优先看 `topclaw service status`；`topclaw channel start` 更适合前台排障。参见 [runtime-model.md](runtime-model.md)。
+- 如果只是找最常用命令，先看英文原文顶部新增的 “Most Common Commands” 区块。

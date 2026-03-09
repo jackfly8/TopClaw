@@ -21,6 +21,7 @@ If you need to test the local checkout instead of the latest release asset, use 
 | Want bootstrap details and flags | [../one-click-bootstrap.md](../one-click-bootstrap.md) |
 | Unsure whether to use `agent`, `service`, or `daemon` | [../runtime-model.md](../runtime-model.md) |
 | Already have an API key | `topclaw onboard --api-key "sk-..." --provider openrouter` |
+| Need OAuth or subscription login instead of an API key | Use `topclaw onboard --interactive` and follow the provider login prompt |
 | Want interactive provider and channel setup | `topclaw onboard --interactive` |
 | Need Android/Termux instructions | [../android-setup.md](../android-setup.md) |
 | Need macOS update or uninstall steps | [macos-update-uninstall.md](macos-update-uninstall.md) |
@@ -35,6 +36,8 @@ topclaw status --diagnose
 topclaw service status
 topclaw agent -m "Hello, TopClaw!"
 ```
+
+`topclaw status --diagnose` is the recommended beginner check because it shows the normal status summary first and then the deeper diagnostics. `topclaw doctor` remains the direct diagnostics command underneath.
 
 ## What Success Looks Like
 

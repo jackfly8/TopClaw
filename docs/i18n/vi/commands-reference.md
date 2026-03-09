@@ -39,6 +39,18 @@ Bí danh thông dụng:
 - `topclaw channels` -> `topclaw channel`
 - `topclaw skill` -> `topclaw skills`
 
+## Các lệnh dùng nhiều nhất
+
+| Khi muốn... | Lệnh |
+|---|---|
+| xem TopClaw đã sẵn sàng chưa | `topclaw status` |
+| xem tóm tắt rồi chẩn đoán sâu hơn | `topclaw status --diagnose` |
+| nói chuyện trực tiếp trong terminal | `topclaw agent` |
+| thử nhanh một prompt | `topclaw agent -m "Hello, TopClaw!"` |
+| kiểm tra runtime nền cho channel | `topclaw service status` |
+| cài và khởi động service thủ công | `topclaw service install`, `topclaw service start` |
+| chạy lại onboarding | `topclaw onboard --interactive` |
+
 ## Nhóm lệnh
 
 ### `onboard`
@@ -134,6 +146,11 @@ Ghi chú:
 - `topclaw check`
 
 `topclaw doctor` hiện kết thúc bằng các lệnh bước tiếp theo cụ thể khi phát hiện các vấn đề thiết lập có thể xử lý ngay, như thiếu provider, thiếu xác thực, chưa cấu hình channel, hoặc thiếu thư mục workspace.
+
+Khuyến nghị cho người mới:
+
+- dùng `topclaw status --diagnose` nếu muốn xem tóm tắt bình thường trước
+- dùng `topclaw doctor` hoặc `topclaw check` nếu muốn vào thẳng phần chẩn đoán
 
 ### `status`
 

@@ -24,3 +24,4 @@ Source anglaise:
 - Des alias plus simples sont aussi visibles : `topclaw init`, `chat`, `run`, `info`, `check`, `channels`, `skill`.
 - `topclaw status --diagnose` devient le chemin recommandé pour voir d'abord le résumé puis le diagnostic détaillé.
 - Pour les canaux always-on, commencez par `topclaw service status`. `topclaw channel start` reste surtout un outil de debug au premier plan. Voir aussi [runtime-model.md](runtime-model.md).
+- Si vous cherchez seulement les commandes les plus fréquentes, commencez par le bloc “Most Common Commands” ajouté en tête de la source anglaise.

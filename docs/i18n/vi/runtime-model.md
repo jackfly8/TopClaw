@@ -21,6 +21,15 @@ Xác minh lần cuối: **2026-03-09**.
 - channel đã chọn đã được ghi vào `config.toml`
 - khi nền tảng hỗ trợ, onboarding sẽ cố gắng cài và khởi động service tự động cho các setup cần chạy nền
 
+## Hỗ trợ service theo môi trường
+
+| Môi trường | Kỳ vọng về service nền |
+|---|---|
+| Linux với `systemd --user` | onboarding thường tự quản lý nếu channel cần chạy nền |
+| macOS với `launchd` | onboarding thường tự quản lý nếu channel cần chạy nền |
+| Windows runtime được quản lý | onboarding thường tự quản lý nếu channel cần chạy nền |
+| OpenRC hoặc môi trường thủ công khác | có thể vẫn phải chạy `topclaw service install` và `topclaw service start` bằng tay |
+
 ## Tôi nên chạy lệnh nào?
 
 ### Chỉ muốn thử ngay
@@ -41,6 +50,8 @@ Nếu chưa chạy:
 topclaw service install
 topclaw service start
 ```
+
+Nếu bạn đang ở môi trường chỉ hỗ trợ service thủ công, onboarding có thể dừng sau khi ghi config và yêu cầu bạn tự chạy các lệnh service.
 
 ### Muốn gỡ lỗi ở foreground
 

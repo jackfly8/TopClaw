@@ -40,6 +40,20 @@ Common aliases:
 - `topclaw channels` -> `topclaw channel`
 - `topclaw skill` -> `topclaw skills`
 
+## Most Common Commands
+
+| If you want to... | Command |
+|---|---|
+| check whether TopClaw is ready | `topclaw status` |
+| get the summary plus deeper diagnostics | `topclaw status --diagnose` |
+| talk to TopClaw in this terminal | `topclaw agent` |
+| test one prompt quickly | `topclaw agent -m "Hello, TopClaw!"` |
+| check whether background channels are running | `topclaw service status` |
+| start the background service manually | `topclaw service install`, `topclaw service start` |
+| rerun onboarding | `topclaw onboard --interactive` |
+
+If you only need the common day-1/day-2 commands, the table above is the fastest path. The rest of this page covers the full CLI surface.
+
 ## Command Groups
 
 ### `onboard`
@@ -190,6 +204,11 @@ Runs a Rust integration test (`tests/gemini_model_availability.rs`) that verifie
 
 `topclaw check` is the shorter alias for the same diagnostics flow.
 
+Beginner guidance:
+
+- prefer `topclaw status --diagnose` when you want the normal summary first
+- use `topclaw doctor` or `topclaw check` when you want to jump straight into diagnostics
+
 ### `status`
 
 - `topclaw status`
@@ -213,6 +232,12 @@ Provider connectivity matrix CI/local helper:
 - `topclaw channel bind-telegram <IDENTITY>`
 - `topclaw channel add <type> <json>`
 - `topclaw channel remove <name>`
+
+If you only need the most common channel/runtime checks, start with:
+
+- `topclaw service status`
+- `topclaw channel doctor`
+- `topclaw channel start` only for deliberate foreground/manual troubleshooting
 
 Runtime in-chat commands while channel server is running:
 

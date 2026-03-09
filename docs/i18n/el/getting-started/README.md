@@ -18,6 +18,7 @@
 | Σενάριο Χρήσης | Εντολή CLI |
 |:---|:---|
 | Διαθέτω API Key και επιθυμώ άμεση ρύθμιση | `topclaw onboard --api-key sk-... --provider openrouter` |
+| Χρειάζομαι OAuth ή subscription login αντί για API key | Εκτελέστε `topclaw onboard --interactive` και ακολουθήστε το prompt σύνδεσης |
 | Επιθυμώ διαδραστική καθοδήγηση (Step-by-step) | `topclaw onboard --interactive` |
 | Επιθυμώ μόνο τη ρύθμιση καναλιών επικοινωνίας | `topclaw onboard --channels-only` |
 | Επιθυμώ πλήρη αντικατάσταση υπαρχουσών ρυθμίσεων | `topclaw onboard --force` |

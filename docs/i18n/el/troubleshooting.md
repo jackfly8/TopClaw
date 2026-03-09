@@ -11,6 +11,7 @@
 | Δεν βρίσκεται η εντολή `topclaw` μετά την εγκατάσταση | [Η εντολή `topclaw` δεν βρίσκεται μετά την εγκατάσταση](#η-εντολή-topclaw-δεν-βρίσκεται-μετά-την-εγκατάσταση) |
 | Το onboarding τελείωσε αλλά το TopClaw δεν απαντά | [Το onboarding τελείωσε αλλά το TopClaw δεν απαντά](#το-onboarding-τελείωσε-αλλά-το-topclaw-δεν-απαντά) |
 | Τα channels έχουν ρυθμιστεί αλλά το background runtime δεν τρέχει | [Η υπηρεσία δεν εκκινεί](#η-υπηρεσία-δεν-εκκινεί) |
+| Το provider auth λείπει ή έχει λήξει | [Το provider auth λείπει ή έχει λήξει](#το-provider-auth-λείπει-ή-έχει-λήξει) |
 
 ---
 
@@ -83,6 +84,27 @@ topclaw doctor
 Ελέγξτε τις ρυθμίσεις στο `~/.topclaw/config.toml`:
 - `[gateway].host` (Προεπιλογή: `127.0.0.1`)
 - `[gateway].port` (Προεπιλογή: `42617`)
+
+### Το provider auth λείπει ή έχει λήξει
+
+Έλεγχοι:
+
+```bash
+topclaw status
+topclaw status --diagnose
+```
+
+Συνήθως σημαίνει ότι:
+
+- ο provider χρειάζεται ακόμη OAuth/subscription login
+- το API key δεν έχει οριστεί
+- το αποθηκευμένο auth έχει λήξει και χρειάζεται ανανέωση
+
+Διόρθωση:
+
+1. Διαβάστε την ακριβή επόμενη εντολή auth που εμφανίζει το `topclaw status --diagnose`.
+2. Ολοκληρώστε το login του provider ή ορίστε το σωστό API key.
+3. Εκτελέστε ξανά `topclaw status` για να επιβεβαιώσετε ότι ο provider είναι έτοιμος.
 
 ### Το onboarding τελείωσε αλλά το TopClaw δεν απαντά
 
