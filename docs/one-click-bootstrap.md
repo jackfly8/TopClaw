@@ -2,7 +2,7 @@
 
 This page defines the fastest supported path to install and initialize TopClaw.
 
-Last verified: **March 7, 2026**.
+Last verified: **March 9, 2026**.
 
 ## Safe update
 
@@ -59,6 +59,11 @@ What this recommended path does:
 2. installs Rust when missing
 3. tries a prebuilt binary first
 4. falls back to source build only if no compatible release asset exists
+
+Important:
+
+- `--prefer-prebuilt` may install the latest released TopClaw binary instead of building the exact checkout in your current repository
+- use `--force-source-build` when you need to validate local code changes
 
 ### Resource preflight and pre-built flow
 

@@ -12,6 +12,7 @@
 |---|---|
 | Cài đặt và chạy nhanh | [docs/i18n/vi/README.md](README.md) / [../../../README.md](../../../README.md) |
 | Cài đặt bằng một lệnh | [one-click-bootstrap.md](one-click-bootstrap.md) |
+| Hiểu nên dùng `agent`, `service` hay `daemon` | [runtime-model.md](runtime-model.md) |
 | Cài đặt trên Android (Termux/ADB) | [android-setup.md](android-setup.md) |
 | Tìm lệnh theo tác vụ | [commands-reference.md](commands-reference.md) |
 | Kiểm tra giá trị mặc định và khóa cấu hình | [config-reference.md](config-reference.md) |
@@ -31,6 +32,7 @@
 
 - Cài đặt lần đầu hoặc khởi động nhanh → [getting-started/README.md](getting-started/README.md)
 - Cần tra cứu lệnh CLI / khóa cấu hình → [reference/README.md](reference/README.md)
+- Chưa rõ lệnh runtime nào cần dùng → [runtime-model.md](runtime-model.md)
 - Cần vận hành / triển khai sản phẩm → [operations/README.md](operations/README.md)
 - Gặp lỗi hoặc hồi quy → [troubleshooting.md](troubleshooting.md)
 - Tìm hiểu bảo mật và lộ trình → [security/README.md](security/README.md)

@@ -16,3 +16,6 @@
 
 - コマンド名・設定キーは英語のまま保持します。
 - 本番手順の最終定義は英語版原文を優先します。
+- onboarding がすでに service を導入・起動している場合は、まず `topclaw service status` を確認し、`topclaw daemon` を重ねて起動しません。
+- 要約から診断へ進む標準経路として `topclaw status --diagnose` を使います。
+- `agent` / `service` / `daemon` / `channel start` の使い分けは [runtime-model.md](runtime-model.md) を参照します。

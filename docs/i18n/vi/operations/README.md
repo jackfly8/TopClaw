@@ -5,6 +5,7 @@ Dành cho operator vận hành TopClaw liên tục hoặc trên production.
 ## Vận hành cốt lõi
 
 - Sổ tay Day-2: [../operations-runbook.md](../operations-runbook.md)
+- Chọn đúng runtime mode trước: [../runtime-model.md](../runtime-model.md)
 - Runbook heartbeat: [heartbeat-runbook.md](heartbeat-runbook.md)
 - Runbook sidecar computer-use: [computer-use-sidecar-runbook.md](computer-use-sidecar-runbook.md)
 - Runbook probe kết nối provider trong CI: [connectivity-probes-runbook.md](connectivity-probes-runbook.md)
@@ -15,7 +16,7 @@ Dành cho operator vận hành TopClaw liên tục hoặc trên production.
 
 ## Luồng thường gặp
 
-1. Xác thực runtime (`status`, `doctor`, `channel doctor`)
+1. Xác thực runtime (`status`, `status --diagnose`, `channel doctor`)
 2. Áp dụng từng thay đổi config một lần
 3. Khởi động lại service/daemon
 4. Xác minh tình trạng channel và gateway

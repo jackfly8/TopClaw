@@ -8,8 +8,9 @@ Localized hubs: [简体中文](i18n/zh-CN/README.md) · [日本語](i18n/ja/READ
 
 1. Install and first run: [../README.md](../README.md)
 2. Guided setup and bootstrap details: [getting-started/README.md](getting-started/README.md)
-3. Command and config lookup: [reference/README.md](reference/README.md)
-4. Runtime operations and troubleshooting: [operations/README.md](operations/README.md)
+3. Understand runtime modes (`agent` vs `service` vs `daemon`): [runtime-model.md](runtime-model.md)
+4. Command and config lookup: [reference/README.md](reference/README.md)
+5. Runtime operations and troubleshooting: [operations/README.md](operations/README.md)
 
 ## Common Tasks
 
@@ -17,11 +18,13 @@ Localized hubs: [简体中文](i18n/zh-CN/README.md) · [日本語](i18n/ja/READ
 |---|---|
 | Install TopClaw on Linux or macOS | [../README.md](../README.md) |
 | Use the bootstrap scripts | [one-click-bootstrap.md](one-click-bootstrap.md) |
+| Understand which runtime command to use | [runtime-model.md](runtime-model.md) |
 | Find the right CLI command | [commands-reference.md](commands-reference.md) |
 | Check config keys and defaults | [config-reference.md](config-reference.md) |
 | Set up providers | [providers-reference.md](providers-reference.md) |
 | Set up channels | [channels-reference.md](channels-reference.md) |
 | Troubleshoot onboarding or runtime issues | [troubleshooting.md](troubleshooting.md) |
+| Onboarding finished but nothing replies | [troubleshooting.md#onboarding-finished-but-topclaw-still-does-not-reply](troubleshooting.md#onboarding-finished-but-topclaw-still-does-not-reply) |
 | Run TopClaw in persistent environments | [operations-runbook.md](operations-runbook.md) |
 | Work on security topics | [security/README.md](security/README.md) |
 | Work on hardware/peripherals | [hardware/README.md](hardware/README.md) |

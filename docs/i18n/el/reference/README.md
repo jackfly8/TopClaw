@@ -7,6 +7,7 @@
 ## 1. Βασικές Αναφορές
 
 - **Commands Reference**: [../commands-reference.md](../commands-reference.md)
+- **Runtime Model**: [../runtime-model.md](../runtime-model.md)
 - **Providers & API Keys**: [../providers-reference.md](../providers-reference.md)
 - **Channels & Allowlists**: [../channels-reference.md](../channels-reference.md)
 - **Configuration Reference**: [../config-reference.md](../config-reference.md)

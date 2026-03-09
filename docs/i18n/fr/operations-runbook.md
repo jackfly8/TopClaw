@@ -16,3 +16,6 @@ Source anglaise:
 
 - Les commandes et clés système restent en anglais.
 - Les exigences d'exploitation finales sont définies en anglais.
+- Si l'onboarding a déjà installé et démarré le service, commencez par `topclaw service status` et n'exécutez pas `topclaw daemon` en parallèle.
+- Pour le chemin "résumé puis diagnostic", utilisez `topclaw status --diagnose`.
+- La différence entre `agent`, `service`, `daemon` et `channel start` est résumée dans [runtime-model.md](runtime-model.md).

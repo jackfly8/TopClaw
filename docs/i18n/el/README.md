@@ -12,6 +12,7 @@
 |---|---|
 | Γρήγορη εγκατάσταση και εκτέλεση | [README.md (Πρώτα βήματα)](../README.md#quick-start) |
 | Αυτόματη προετοιμασία (Bootstrap) με μία εντολή | [one-click-bootstrap.md](one-click-bootstrap.md) |
+| Να καταλάβω πότε χρειάζομαι `agent`, `service` ή `daemon` | [runtime-model.md](runtime-model.md) |
 | Αναφορά εντολών ανά εργασία | [commands-reference.md](commands-reference.md) |
 | Έλεγχος προεπιλογών και παραμέτρων ρύθμισης | [config-reference.md](config-reference.md) |
 | Διαμόρφωση προσαρμοσμένων παρόχων και άκρων (endpoints) | [custom-providers.md](custom-providers.md) |
@@ -29,6 +30,7 @@
 ## Οδηγός Γρήγορης Επιλογής
 
 - Εγκατάσταση και πρώτα βήματα → [getting-started/README.md](getting-started/README.md)
+- Μοντέλο runtime και επιλογή εντολών → [runtime-model.md](runtime-model.md)
 - Τεχνική αναφορά CLI και παραμέτρων → [reference/README.md](reference/README.md)
 - Λειτουργία και διαχείριση υπηρεσιών → [operations/README.md](operations/README.md)
 - Αντιμετώπιση σφαλμάτων και προβλημάτων → [troubleshooting.md](troubleshooting.md)

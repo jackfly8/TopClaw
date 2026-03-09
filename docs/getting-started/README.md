@@ -7,8 +7,11 @@ Use this section for first install, onboarding, and first-run validation.
 1. Run the main quick start: [../../README.md](../../README.md)
 2. Run `./bootstrap.sh --install-system-deps --install-rust --prefer-prebuilt`
 3. Let bootstrap install prerequisites, prefer a prebuilt binary, and launch onboarding
-4. Validate with `topclaw status`
-5. Send a test prompt with `topclaw agent -m "Hello!"`
+4. Validate readiness with `topclaw status`
+5. Run deeper checks with `topclaw status --diagnose`
+6. Send a test prompt with `topclaw agent -m "Hello, TopClaw!"`
+
+If you need to test the local checkout instead of the latest release asset, use `./bootstrap.sh --force-source-build`.
 
 ## Setup Paths
 
@@ -16,6 +19,7 @@ Use this section for first install, onboarding, and first-run validation.
 |---|---|
 | New user on Linux or macOS | [../../README.md](../../README.md) |
 | Want bootstrap details and flags | [../one-click-bootstrap.md](../one-click-bootstrap.md) |
+| Unsure whether to use `agent`, `service`, or `daemon` | [../runtime-model.md](../runtime-model.md) |
 | Already have an API key | `topclaw onboard --api-key "sk-..." --provider openrouter` |
 | Want interactive provider and channel setup | `topclaw onboard --interactive` |
 | Need Android/Termux instructions | [../android-setup.md](../android-setup.md) |
@@ -27,9 +31,19 @@ After setup, the fastest checks are:
 
 ```bash
 topclaw status
-topclaw doctor
-topclaw agent -m "Hello!"
+topclaw status --diagnose
+topclaw service status
+topclaw agent -m "Hello, TopClaw!"
 ```
+
+## What Success Looks Like
+
+After onboarding, you should have:
+
+- a ready provider or a single explicit auth command to run next
+- a selected default model
+- configured channels saved into `config.toml`
+- a background service already running when your chosen channels require one and your platform supports automatic setup
 
 ## Next
 

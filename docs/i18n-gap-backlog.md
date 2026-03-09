@@ -2,7 +2,7 @@
 
 This file tracks localization parity gaps and closure state.
 
-Last updated: **2026-02-24**.
+Last updated: **2026-03-09**.
 
 ## Baseline Definition
 
@@ -36,6 +36,12 @@ Completed in this PR stream:
 ## Remaining Gaps (Baseline Scope)
 
 - None. Top-level baseline gaps are closed for all supported locales.
+
+## Baseline Update (2026-03-09)
+
+- Added `runtime-model.md` to the top-level English docs baseline.
+- Synced bridge/localized runtime-model pages across `zh-CN`, `ja`, `ru`, `fr`, `vi`, and `el`.
+- Refreshed related localized bridge notes for bootstrap, commands, operations, and troubleshooting.
 
 ## Optional Next Depth
 

@@ -21,4 +21,6 @@ Source anglaise:
 
 - `topclaw gateway` prend en charge `--new-pairing` pour effacer les tokens appairés et générer un nouveau code d'appairage.
 - `topclaw update` permet maintenant de vérifier puis d'installer plus clairement la dernière release. Le flux recommandé est `topclaw update --check` -> `topclaw update` -> `topclaw service restart` si le service tourne en arrière-plan.
-- Des alias plus simples sont aussi visibles : `topclaw init`, `chat`, `run`, `info`, `channels`, `skill`.
+- Des alias plus simples sont aussi visibles : `topclaw init`, `chat`, `run`, `info`, `check`, `channels`, `skill`.
+- `topclaw status --diagnose` devient le chemin recommandé pour voir d'abord le résumé puis le diagnostic détaillé.
+- Pour les canaux always-on, commencez par `topclaw service status`. `topclaw channel start` reste surtout un outil de debug au premier plan. Voir aussi [runtime-model.md](runtime-model.md).

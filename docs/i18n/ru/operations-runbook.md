@@ -16,3 +16,6 @@
 
 - Команды и системные ключи остаются на английском.
 - Финальные эксплуатационные требования — в английском оригинале.
+- Если onboarding уже установил и запустил service, сначала проверьте `topclaw service status` и не поднимайте параллельно `topclaw daemon`.
+- Для пути "сначала summary, потом диагностика" используйте `topclaw status --diagnose`.
+- Различия между `agent`, `service`, `daemon` и `channel start` собраны в [runtime-model.md](runtime-model.md).

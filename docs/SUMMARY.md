@@ -22,6 +22,7 @@ This file is the canonical table of contents for the documentation system.
 ### 1) Getting Started
 
 - [getting-started/README.md](getting-started/README.md)
+- [runtime-model.md](runtime-model.md)
 - [getting-started/macos-update-uninstall.md](getting-started/macos-update-uninstall.md)
 - [one-click-bootstrap.md](one-click-bootstrap.md)
 - [docker-setup.md](docker-setup.md)

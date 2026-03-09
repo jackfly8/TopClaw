@@ -2,7 +2,7 @@
 
 Tài liệu này dành cho các operator chịu trách nhiệm duy trì tính sẵn sàng, tình trạng bảo mật và xử lý sự cố.
 
-Cập nhật lần cuối: **2026-02-18**.
+Cập nhật lần cuối: **2026-03-09**.
 
 ## Phạm vi
 
@@ -19,13 +19,21 @@ Nếu đây là lần cài đặt đầu tiên, hãy bắt đầu từ [one-clic
 
 | Chế độ | Lệnh | Khi nào dùng |
 |---|---|---|
+| Chat trực tiếp trong terminal | `topclaw agent` | thử nhanh và gửi prompt một lần |
 | Foreground runtime | `topclaw daemon` | gỡ lỗi cục bộ, phiên ngắn |
 | Foreground gateway only | `topclaw gateway` | kiểm thử webhook endpoint |
 | User service | `topclaw service install && topclaw service start` | runtime được quản lý liên tục bởi operator |
+| Foreground channel thủ công | `topclaw channel start` | khắc phục sự cố nâng cao |
 
 ## Service luôn chạy nền
 
 Hãy dùng service mode khi TopClaw cần chạy liên tục trong nền ngay cả khi bạn đóng terminal.
+
+Nếu onboarding đã tự cài và khởi động service, đừng chạy thêm `topclaw daemon` song song. Hãy bắt đầu bằng:
+
+```bash
+topclaw service status
+```
 
 Cài đặt và khởi động:
 
@@ -54,6 +62,7 @@ topclaw service stop
 
 ```bash
 topclaw status
+topclaw status --diagnose
 ```
 
 1. Kiểm tra chẩn đoán:
@@ -105,7 +114,7 @@ journalctl --user -u topclaw.service -f
 
 ```bash
 topclaw status
-topclaw doctor
+topclaw status --diagnose
 topclaw channel doctor
 ```
 

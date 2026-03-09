@@ -16,3 +16,5 @@ Source anglaise:
 
 - Les codes d'erreur, clés de logs et commandes restent en anglais.
 - Les signatures de panne détaillées sont définies en anglais.
+- Si l'onboarding est terminé mais que TopClaw ne répond toujours pas, vérifiez dans cet ordre : `topclaw status` -> `topclaw status --diagnose` -> `topclaw service status` -> `topclaw channel doctor`.
+- Si vous hésitez entre `daemon` et `service`, lisez d'abord [runtime-model.md](runtime-model.md).

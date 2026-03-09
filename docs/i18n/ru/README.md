@@ -34,6 +34,7 @@
 ## Категории
 
 - Начало работы: [../../getting-started/README.md](../../getting-started/README.md)
+- Модель рантайма: [runtime-model.md](runtime-model.md)
 - Справочники: [../../reference/README.md](../../reference/README.md)
 - Операции и деплой: [../../operations/README.md](../../operations/README.md)
 - Безопасность: [../../security/README.md](../../security/README.md)

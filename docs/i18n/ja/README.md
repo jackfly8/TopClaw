@@ -34,6 +34,7 @@
 ## カテゴリ
 
 - はじめに: [../../getting-started/README.md](../../getting-started/README.md)
+- ランタイムモデル: [runtime-model.md](runtime-model.md)
 - リファレンス: [../../reference/README.md](../../reference/README.md)
 - 運用とデプロイ: [../../operations/README.md](../../operations/README.md)
 - セキュリティ: [../../security/README.md](../../security/README.md)

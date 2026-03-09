@@ -2,7 +2,7 @@
 
 This document defines the localization structure for TopClaw docs and tracks current coverage.
 
-Last refreshed: **February 24, 2026**.
+Last refreshed: **March 9, 2026**.
 
 Execution guide: [i18n-guide.md](i18n-guide.md)
 Gap backlog: [i18n-gap-backlog.md](i18n-gap-backlog.md)
@@ -31,7 +31,7 @@ Use these i18n paths:
 
 ## Top-Level Parity Snapshot
 
-Baseline on 2026-02-24 uses 40 top-level English docs (`docs/*.md`, locale root variants excluded).
+Baseline on 2026-03-09 uses 41 top-level English docs (`docs/*.md`, locale root variants excluded).
 
 | Locale | Missing top-level parity count |
 |---|---:|
@@ -48,10 +48,10 @@ As of 2026-02-24:
 
 | Locale | Enhanced bridge pages | Notes |
 |---|---:|---|
-| `zh-CN` | 33 | Bridge pages include topic positioning + source section map + execution hints |
-| `ja` | 33 | Bridge pages include topic positioning + source section map + execution hints |
-| `ru` | 33 | Bridge pages include topic positioning + source section map + execution hints |
-| `fr` | 33 | Bridge pages include topic positioning + source section map + execution hints |
+| `zh-CN` | 34 | Bridge pages include topic positioning + source section map + execution hints |
+| `ja` | 34 | Bridge pages include topic positioning + source section map + execution hints |
+| `ru` | 34 | Bridge pages include topic positioning + source section map + execution hints |
+| `fr` | 34 | Bridge pages include topic positioning + source section map + execution hints |
 | `vi` | N/A | Existing localization style kept as full localized tree |
 | `el` | N/A | Existing localization style kept as full localized tree |
 

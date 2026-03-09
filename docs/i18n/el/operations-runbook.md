@@ -2,7 +2,7 @@
 
 Αυτό το εγχειρίδιο προορίζεται για τους διαχειριστές του συστήματος που είναι υπεύθυνοι για τη διαθεσιμότητα, την ασφάλεια και την απόκριση σε περιστατικά.
 
-Τελευταία επαλήθευση: **18 Φεβρουαρίου 2026**.
+Τελευταία επαλήθευση: **9 Μαρτίου 2026**.
 
 ## Πεδίο Εφαρμογής
 
@@ -18,13 +18,17 @@
 
 | Λειτουργία | Εντολή | Χρήση |
 |:---|:---|:---|
+| Άμεση συνομιλία στο terminal | `topclaw agent` | γρήγορα tests και one-off prompts |
 | Προσκήνιο (Foreground) | `topclaw daemon` | Τοπική αποσφαλμάτωση και δοκιμές. |
 | Πύλη (Gateway) | `topclaw gateway` | Έλεγχος τελικών σημείων (endpoints) webhook. |
 | Υπηρεσία Συστήματος | `topclaw service install && topclaw service start` | Μόνιμη εκτέλεση υπό τη διαχείριση του συστήματος. |
+| Χειροκίνητο foreground channel runtime | `topclaw channel start` | Προχωρημένο troubleshooting |
 
 ## Πάντα Ενεργή Υπηρεσία
 
 Χρησιμοποιήστε το service mode όταν θέλετε το TopClaw να παραμένει ενεργό στο παρασκήνιο συνεχώς.
+
+Αν το onboarding έχει ήδη εγκαταστήσει και ξεκινήσει την υπηρεσία, ξεκινήστε από το `topclaw service status` και μην τρέχετε παράλληλα `topclaw daemon`.
 
 Εγκατάσταση και εκκίνηση:
 
@@ -52,6 +56,7 @@ topclaw service stop
 1. **Επικύρωση Ρυθμίσεων**:
    ```bash
    topclaw status
+   topclaw status --diagnose
    ```
 2. **Διαγνωστικός Έλεγχος**:
    ```bash
@@ -95,7 +100,7 @@ topclaw service stop
 1. **Ανάλυση Κατάστασης**:
    ```bash
    topclaw status
-   topclaw doctor
+   topclaw status --diagnose
    topclaw channel doctor
    ```
 2. **Έλεγχος Υπηρεσίας**:

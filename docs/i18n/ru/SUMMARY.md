@@ -15,6 +15,7 @@
 ## Разделы
 
 - Начало: [../../getting-started/README.md](../../getting-started/README.md)
+- Модель рантайма: [runtime-model.md](runtime-model.md)
 - Справочники: [../../reference/README.md](../../reference/README.md)
 - Операции: [../../operations/README.md](../../operations/README.md)
 - Безопасность: [../../security/README.md](../../security/README.md)

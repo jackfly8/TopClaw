@@ -7,6 +7,7 @@ Use this section once TopClaw is installed and you need to run, debug, or mainta
 | Need | Read this |
 |---|---|
 | Day-2 runtime operations | [../operations-runbook.md](../operations-runbook.md) |
+| Choose the right runtime mode first | [../runtime-model.md](../runtime-model.md) |
 | Heartbeat scheduling | [heartbeat-runbook.md](heartbeat-runbook.md) |
 | Troubleshooting | [../troubleshooting.md](../troubleshooting.md) |
 | Computer-use sidecars | [computer-use-sidecar-runbook.md](computer-use-sidecar-runbook.md) |
@@ -17,7 +18,7 @@ Use this section once TopClaw is installed and you need to run, debug, or mainta
 
 ## Recommended Workflow
 
-1. Check current state with `topclaw status` and `topclaw doctor`
+1. Check current state with `topclaw status` and `topclaw status --diagnose`
 2. Change one config area at a time
 3. Restart the relevant process
 4. Verify provider, channel, and gateway health

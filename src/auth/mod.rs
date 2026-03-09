@@ -10,6 +10,7 @@ use crate::auth::profiles::{
 };
 use crate::config::Config;
 use anyhow::Result;
+use serde_json::Value;
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex, OnceLock};
@@ -380,6 +381,45 @@ pub fn state_dir_from_config(config: &Config) -> PathBuf {
         .config_path
         .parent()
         .map_or_else(|| PathBuf::from("."), PathBuf::from)
+}
+
+pub fn has_saved_profile_for_provider(config: &Config, provider: &str) -> bool {
+    has_saved_profile_in_state_dir(&state_dir_from_config(config), provider)
+}
+
+pub fn has_saved_profile_in_state_dir(state_dir: &Path, provider: &str) -> bool {
+    let Ok(provider) = normalize_provider(provider) else {
+        return false;
+    };
+
+    let path = state_dir.join("auth-profiles.json");
+    let Ok(raw) = std::fs::read(&path) else {
+        return false;
+    };
+    if raw.is_empty() {
+        return false;
+    }
+
+    let Ok(parsed) = serde_json::from_slice::<Value>(&raw) else {
+        return false;
+    };
+
+    if parsed
+        .get("active_profiles")
+        .and_then(Value::as_object)
+        .is_some_and(|active| active.contains_key(&provider))
+    {
+        return true;
+    }
+
+    parsed
+        .get("profiles")
+        .and_then(Value::as_object)
+        .is_some_and(|profiles| {
+            profiles.values().any(|profile| {
+                profile.get("provider").and_then(Value::as_str) == Some(provider.as_str())
+            })
+        })
 }
 
 pub fn default_profile_id(provider: &str) -> String {

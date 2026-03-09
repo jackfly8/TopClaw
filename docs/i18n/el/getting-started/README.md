@@ -8,7 +8,8 @@
 
 1. **Γενική Παρουσίαση**: Ανατρέξτε στο κεντρικό [README.md](../README.md).
 2. **Ταχεία Εγκατάσταση**: Χρησιμοποιήστε τον [Οδηγό ενός κλικ](../one-click-bootstrap.md).
-3. **Αναφορά Εντολών**: Δείτε το [Commands Reference](../commands-reference.md).
+3. **Μοντέλο Runtime**: Δείτε το [runtime-model.md](../runtime-model.md).
+4. **Αναφορά Εντολών**: Δείτε το [Commands Reference](../commands-reference.md).
 
 ---
 
@@ -20,6 +21,7 @@
 | Επιθυμώ διαδραστική καθοδήγηση (Step-by-step) | `topclaw onboard --interactive` |
 | Επιθυμώ μόνο τη ρύθμιση καναλιών επικοινωνίας | `topclaw onboard --channels-only` |
 | Επιθυμώ πλήρη αντικατάσταση υπαρχουσών ρυθμίσεων | `topclaw onboard --force` |
+| Δεν είναι σαφές αν χρειάζομαι `agent`, `service` ή `daemon` | Δείτε το [runtime-model.md](../runtime-model.md) |
 
 ---
 
@@ -27,7 +29,7 @@
 
 - **Ασφάλεια Ρυθμίσεων**: Το σύστημα απαιτεί επιβεβαίωση για την τροποποίηση υπαρχουσών ρυθμίσεων (εκτός αν χρησιμοποιηθεί το `--force`).
 - **Cloud Providers**: Μοντέλα όπως το Ollama Cloud απαιτούν τον ορισμό των `api_url` και `api_key`.
-- **Έλεγχος Υγείας**: Μετά την εγκατάσταση, εκτελέστε τις εντολές `topclaw status` και `topclaw doctor` για την επαλήθευση της σωστής λειτουργίας.
+- **Έλεγχος Υγείας**: Μετά την εγκατάσταση, εκτελέστε τις εντολές `topclaw status` και `topclaw status --diagnose` για την επαλήθευση της σωστής λειτουργίας.
 
 ---
 

@@ -28,6 +28,7 @@
 ### 1) Προετοιμασία και Εγκατάσταση
 
 - [getting-started/README.md](getting-started/README.md)
+- [runtime-model.md](runtime-model.md)
 - [one-click-bootstrap.md](one-click-bootstrap.md)
 - [android-setup.md](android-setup.md)
 - [getting-started/macos-update-uninstall.md](getting-started/macos-update-uninstall.md)

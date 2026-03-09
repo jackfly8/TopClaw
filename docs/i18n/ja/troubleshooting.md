@@ -16,3 +16,5 @@
 
 - エラーコード・ログキー・コマンド名は英語のまま保持します。
 - 詳細な障害シグネチャは英語版原文を優先します。
+- onboarding 完了後に「設定は終わったのに応答しない」場合は、英語版原文の順で `topclaw status` -> `topclaw status --diagnose` -> `topclaw service status` -> `topclaw channel doctor` を確認します。
+- `daemon` と `service` のどちらを使うべきか迷ったら、先に [runtime-model.md](runtime-model.md) を確認します。

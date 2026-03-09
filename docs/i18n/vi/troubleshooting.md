@@ -2,7 +2,15 @@
 
 Các lỗi thường gặp khi cài đặt và chạy, kèm cách khắc phục.
 
-Xác minh lần cuối: **2026-02-20**.
+Xác minh lần cuối: **2026-03-09**.
+
+## Kiểm tra nhanh
+
+| Nếu gặp tình huống này | Hãy bắt đầu ở đây |
+|---|---|
+| Cài xong nhưng không tìm thấy lệnh `topclaw` | [Không tìm thấy lệnh `topclaw` sau cài đặt](#không-tìm-thấy-lệnh-topclaw-sau-cài-đặt) |
+| Onboarding xong nhưng TopClaw vẫn không trả lời | [Onboarding xong nhưng TopClaw vẫn không phản hồi](#onboarding-xong-nhưng-topclaw-vẫn-không-phản-hồi) |
+| Channel đã cấu hình nhưng runtime nền không chạy | [Dịch vụ đã cài nhưng không chạy](#dịch-vụ-đã-cài-nhưng-không-chạy) |
 
 ## Cài đặt / Bootstrap
 
@@ -134,6 +142,31 @@ which topclaw
 
 Thêm vào shell profile nếu cần giữ lâu dài.
 
+### Onboarding xong nhưng TopClaw vẫn không phản hồi
+
+Kiểm tra theo đúng thứ tự sau:
+
+```bash
+topclaw status
+topclaw status --diagnose
+topclaw service status
+topclaw channel doctor
+```
+
+Hãy chú ý:
+
+- provider chưa auth xong
+- service chưa cài hoặc chưa chạy
+- channel token / allowlist còn thiếu
+- nền tảng của bạn cần thiết lập service thủ công
+
+Nếu `topclaw service status` cho biết chưa có runtime nền:
+
+```bash
+topclaw service install
+topclaw service start
+```
+
 ## Runtime / Gateway
 
 ### Không kết nối được gateway
@@ -185,6 +218,8 @@ topclaw channel doctor
 ```
 
 Sau đó xác minh thông tin xác thực và trường allowlist cho từng kênh trong config.
+
+Nếu channel đã cấu hình đúng nhưng vẫn không phản hồi, hãy xác nhận có runtime đang chạy. Với vận hành bình thường, ưu tiên `topclaw service status` hơn `topclaw channel start`.
 
 ## Chế độ dịch vụ
 

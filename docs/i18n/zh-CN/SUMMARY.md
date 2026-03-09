@@ -15,6 +15,7 @@
 ## 分类
 
 - 入门：[../../getting-started/README.md](../../getting-started/README.md)
+- 运行模式说明：[runtime-model.md](runtime-model.md)
 - 参考：[../../reference/README.md](../../reference/README.md)
 - 运维：[../../operations/README.md](../../operations/README.md)
 - 安全：[../../security/README.md](../../security/README.md)

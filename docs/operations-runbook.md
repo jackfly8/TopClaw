@@ -2,7 +2,7 @@
 
 This runbook is for operators who maintain availability, security posture, and incident response.
 
-Last verified: **February 18, 2026**.
+Last verified: **March 9, 2026**.
 
 ## Scope
 
@@ -19,13 +19,21 @@ For first-time installation, start from [one-click-bootstrap.md](one-click-boots
 
 | Mode | Command | When to use |
 |---|---|---|
-| Foreground runtime | `topclaw daemon` | local debugging, short-lived sessions |
+| Interactive terminal chat | `topclaw agent` | quick local prompts and smoke tests |
+| Foreground runtime | `topclaw daemon` | local debugging, short-lived sessions, startup tracing |
 | Foreground gateway only | `topclaw gateway` | webhook endpoint testing |
-| User service | `topclaw service install && topclaw service start` | persistent operator-managed runtime |
+| User service | `topclaw service install && topclaw service start` | persistent operator-managed runtime for background channels |
+| Manual channel runtime | `topclaw channel start` | advanced/manual foreground troubleshooting |
 
 ## Always-On Service
 
 Use the service mode when TopClaw should stay active in the background across terminal sessions.
+
+If onboarding already installed and started the service, do not run `topclaw daemon` as well. Start by checking the existing service state:
+
+```bash
+topclaw service status
+```
 
 Install and start it:
 
@@ -54,6 +62,7 @@ topclaw service stop
 
 ```bash
 topclaw status
+topclaw status --diagnose
 ```
 
 2. Verify diagnostics:
@@ -68,6 +77,8 @@ topclaw channel doctor
 ```bash
 topclaw daemon
 ```
+
+Use this only when you want the runtime attached to the terminal for debugging. For normal always-on operation, prefer the user service instead.
 
 4. For persistent user session service:
 
@@ -105,7 +116,7 @@ journalctl --user -u topclaw.service -f
 
 ```bash
 topclaw status
-topclaw doctor
+topclaw status --diagnose
 topclaw channel doctor
 ```
 

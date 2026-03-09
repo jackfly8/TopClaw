@@ -34,6 +34,7 @@
 ## 按分类浏览
 
 - 快速入门：[../../getting-started/README.md](../../getting-started/README.md)
+- 运行模式说明：[runtime-model.md](runtime-model.md)
 - 参考手册：[../../reference/README.md](../../reference/README.md)
 - 运维与部署：[../../operations/README.md](../../operations/README.md)
 - 安全文档：[../../security/README.md](../../security/README.md)

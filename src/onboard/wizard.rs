@@ -217,22 +217,10 @@ pub async fn run_wizard(force: bool) -> Result<Config> {
     };
     scaffold_workspace(&workspace_dir, &project_ctx).await?;
 
+    let service_outcome = ensure_background_service_for_channels(&config)?;
+
     // ── Final summary ────────────────────────────────────────────
-    print_summary(&config);
-
-    // ── Offer to launch channels immediately ─────────────────────
-    let has_channels = has_launchable_channels(&config.channels_config);
-
-    if has_channels && config.api_key.is_some() {
-        println!();
-        println!(
-            "  {} {}",
-            style("⚡").cyan(),
-            style("Starting channel server...").white().bold()
-        );
-        println!();
-        std::env::set_var("TOPCLAW_AUTOSTART_CHANNELS", "1");
-    }
+    print_summary(&config, &service_outcome);
 
     Ok(config)
 }
@@ -254,6 +242,7 @@ pub async fn run_channels_repair_wizard() -> Result<Config> {
     config.channels_config = setup_channels()?;
     config.save().await?;
     persist_workspace_selection(&config.config_path).await?;
+    let service_outcome = ensure_background_service_for_channels(&config)?;
 
     println!();
     println!(
@@ -261,30 +250,7 @@ pub async fn run_channels_repair_wizard() -> Result<Config> {
         style("✓").green().bold(),
         style(config.config_path.display()).green()
     );
-
-    let has_channels = has_launchable_channels(&config.channels_config);
-
-    if has_channels && config.api_key.is_some() {
-        let launch: bool = Confirm::new()
-            .with_prompt(format!(
-                "  {} Launch channels now? (connected channels → AI → reply)",
-                style("🚀").cyan()
-            ))
-            .default(true)
-            .interact()?;
-
-        if launch {
-            println!();
-            println!(
-                "  {} {}",
-                style("⚡").cyan(),
-                style("Starting channel server...").white().bold()
-            );
-            println!();
-            // Signal to main.rs to call start_channels after wizard returns
-            std::env::set_var("TOPCLAW_AUTOSTART_CHANNELS", "1");
-        }
-    }
+    print_service_outcome(&service_outcome);
 
     Ok(config)
 }
@@ -319,35 +285,14 @@ async fn run_provider_update_wizard(workspace_dir: &Path, config_path: &Path) ->
 
     config.save().await?;
     persist_workspace_selection(&config.config_path).await?;
+    let service_outcome = ensure_background_service_for_channels(&config)?;
 
     println!(
         "  {} Provider settings updated at {}",
         style("✓").green().bold(),
         style(config.config_path.display()).green()
     );
-    print_summary(&config);
-
-    let has_channels = has_launchable_channels(&config.channels_config);
-    if has_channels && config.api_key.is_some() {
-        let launch: bool = Confirm::new()
-            .with_prompt(format!(
-                "  {} Launch channels now? (connected channels → AI → reply)",
-                style("🚀").cyan()
-            ))
-            .default(true)
-            .interact()?;
-
-        if launch {
-            println!();
-            println!(
-                "  {} {}",
-                style("⚡").cyan(),
-                style("Starting channel server...").white().bold()
-            );
-            println!();
-            std::env::set_var("TOPCLAW_AUTOSTART_CHANNELS", "1");
-        }
-    }
+    print_summary(&config, &service_outcome);
 
     Ok(config)
 }
@@ -442,6 +387,58 @@ fn apply_provider_update(
     } else {
         Some(api_key)
     };
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+enum BackgroundServiceOutcome {
+    NotNeeded,
+    Started,
+    ManualRequired(String),
+}
+
+fn ensure_background_service_for_channels(config: &Config) -> Result<BackgroundServiceOutcome> {
+    if !has_launchable_channels(&config.channels_config) {
+        return Ok(BackgroundServiceOutcome::NotNeeded);
+    }
+
+    if cfg!(target_os = "linux") {
+        match crate::service::InitSystem::Auto.resolve() {
+            Ok(crate::service::InitSystem::Openrc) => {
+                return Ok(BackgroundServiceOutcome::ManualRequired(
+                    "OpenRC requires manual service setup. Run `sudo topclaw service install` once, then `sudo topclaw service start`.".to_string(),
+                ));
+            }
+            Ok(_) => {}
+            Err(error) => {
+                return Ok(BackgroundServiceOutcome::ManualRequired(format!(
+                    "Could not auto-detect a supported background service manager ({}). Run `topclaw daemon` manually or use `topclaw service install` / `topclaw service start` if supported.",
+                    error
+                )));
+            }
+        }
+    }
+
+    let install = crate::ServiceCommands::Install;
+    if let Err(error) =
+        crate::service::handle_command(&install, config, crate::service::InitSystem::Auto)
+    {
+        return Ok(BackgroundServiceOutcome::ManualRequired(format!(
+            "Automatic service installation failed ({}). Run `topclaw service install` and `topclaw service start` manually.",
+            error
+        )));
+    }
+
+    let restart = crate::ServiceCommands::Restart;
+    if let Err(error) =
+        crate::service::handle_command(&restart, config, crate::service::InitSystem::Auto)
+    {
+        return Ok(BackgroundServiceOutcome::ManualRequired(format!(
+            "Service was installed, but automatic start failed ({}). Run `topclaw service start` manually.",
+            error
+        )));
+    }
+
+    Ok(BackgroundServiceOutcome::Started)
 }
 
 // ── Quick setup (zero prompts) ───────────────────────────────────
@@ -6186,8 +6183,33 @@ async fn scaffold_workspace(workspace_dir: &Path, ctx: &ProjectContext) -> Resul
 // ── Final summary ────────────────────────────────────────────────
 
 #[allow(clippy::too_many_lines)]
-fn print_summary(config: &Config) {
+fn print_service_outcome(service_outcome: &BackgroundServiceOutcome) {
+    match service_outcome {
+        BackgroundServiceOutcome::NotNeeded => {}
+        BackgroundServiceOutcome::Started => {
+            println!(
+                "  {} Background service: {}",
+                style("✓").green().bold(),
+                style("installed and running").green()
+            );
+        }
+        BackgroundServiceOutcome::ManualRequired(message) => {
+            println!(
+                "  {} Background service: {}",
+                style("!").yellow().bold(),
+                style("manual action needed").yellow()
+            );
+            print_bullet(message);
+        }
+    }
+}
+
+fn print_summary(config: &Config, service_outcome: &BackgroundServiceOutcome) {
     let has_channels = has_launchable_channels(&config.channels_config);
+    let has_saved_auth_profile = config
+        .default_provider
+        .as_deref()
+        .is_some_and(|provider| crate::auth::has_saved_profile_for_provider(config, provider));
 
     println!();
     println!(
@@ -6248,7 +6270,9 @@ fn print_summary(config: &Config) {
     println!(
         "    {} API Key:       {}",
         style("🔑").cyan(),
-        if config.api_key.is_some() {
+        if has_saved_auth_profile {
+            style("OAuth profile configured").green().to_string()
+        } else if config.api_key.is_some() {
             style("configured").green().to_string()
         } else {
             style("not set (set via env var or config)")
@@ -6327,6 +6351,22 @@ fn print_summary(config: &Config) {
         }
     );
 
+    if has_launchable_channels(&config.channels_config) {
+        println!(
+            "    {} Background:    {}",
+            style("🔄").cyan(),
+            match service_outcome {
+                BackgroundServiceOutcome::Started => {
+                    style("service installed and running").green().to_string()
+                }
+                BackgroundServiceOutcome::ManualRequired(_) => {
+                    style("manual service step required").yellow().to_string()
+                }
+                BackgroundServiceOutcome::NotNeeded => "not required".to_string(),
+            }
+        );
+    }
+
     println!();
     println!("  {}", style("Next steps:").white().bold());
     println!();
@@ -6384,16 +6424,31 @@ fn print_summary(config: &Config) {
         step += 1;
     }
 
-    // If channels are configured, show channel start as the primary next step
     if has_channels {
-        println!(
-            "    {} {} (connected channels → AI → reply):",
-            style(format!("{step}.")).cyan().bold(),
-            style("Launch your channels").white().bold()
-        );
-        println!("       {}", style("topclaw channel start").yellow());
-        println!();
-        step += 1;
+        match service_outcome {
+            BackgroundServiceOutcome::Started => {
+                println!(
+                    "    {} {}:",
+                    style(format!("{step}.")).cyan().bold(),
+                    style("Channels are already running in the background").white().bold()
+                );
+                println!("       {}", style("topclaw service status").yellow());
+                println!();
+                step += 1;
+            }
+            BackgroundServiceOutcome::ManualRequired(message) => {
+                println!(
+                    "    {} {}:",
+                    style(format!("{step}.")).cyan().bold(),
+                    style("Finish background service setup").white().bold()
+                );
+                println!("       {}", style("topclaw service status").yellow());
+                print_bullet(message);
+                println!();
+                step += 1;
+            }
+            BackgroundServiceOutcome::NotNeeded => {}
+        }
     } else {
         println!(
             "    {} Add channels later with the guided wizard:",
@@ -6463,7 +6518,12 @@ fn provider_next_step(config: &Config) -> Option<ProviderNextStep> {
         return Some(ProviderNextStep::GuidedSetup);
     }
 
-    if config.api_key.is_none() && !provider_supports_keyless_local_usage(provider) {
+    let has_saved_auth_profile = crate::auth::has_saved_profile_for_provider(config, provider);
+
+    if config.api_key.is_none()
+        && !has_saved_auth_profile
+        && !provider_supports_keyless_local_usage(provider)
+    {
         if provider == "openai-codex" {
             return Some(ProviderNextStep::OpenAiCodexAuth);
         }

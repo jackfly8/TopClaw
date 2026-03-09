@@ -2,7 +2,7 @@
 
 Αυτός ο οδηγός περιλαμβάνει το πλήρες σύνολο των εντολών που είναι διαθέσιμες στη διεπαφή γραμμής εντολών (CLI) του TopClaw.
 
-Τελευταία ενημέρωση: 8 Μαρτίου 2026.
+Τελευταία ενημέρωση: 9 Μαρτίου 2026.
 
 ## Σύνοψη Εντολών
 
@@ -29,6 +29,7 @@
 - `topclaw chat` -> `topclaw agent`
 - `topclaw run` -> `topclaw daemon`
 - `topclaw info` -> `topclaw status`
+- `topclaw check` -> `topclaw doctor`
 - `topclaw channels` -> `topclaw channel`
 - `topclaw skill` -> `topclaw skills`
 
@@ -67,11 +68,16 @@
 
 Το `topclaw doctor` εμφανίζει πλέον και συγκεκριμένες εντολές επόμενου βήματος όταν εντοπίζει διορθώσιμα προβλήματα ρύθμισης, όπως έλλειψη provider, έλλειψη authentication, μη ρυθμισμένα channels ή απουσία φακέλου workspace.
 
+Το `topclaw check` είναι το σύντομο alias για την ίδια διαγνωστική ροή.
+
 ### 4.1 `status` (Κατάσταση)
 
 - `topclaw status`
+- `topclaw status --diagnose`
 
-Το `topclaw status` εμφανίζει τη συνοπτική εικόνα του config/runtime και πλέον προτείνει επίσης εντολές επόμενου βήματος για σημαντικά κενά ρύθμισης, χρησιμοποιώντας την ίδια λογική προτάσεων με το `topclaw doctor`.
+Το `topclaw status` εμφανίζει τη συνοπτική εικόνα readiness του config/runtime.
+
+Το `topclaw status --diagnose` εμφανίζει πρώτα την ίδια σύνοψη και στη συνέχεια το βαθύτερο report του `doctor`.
 
 ### 5. `update` (Ασφαλής Αναβάθμιση)
 
@@ -125,3 +131,5 @@ curl -fsSL https://raw.githubusercontent.com/jackfly8/TopClaw/main/scripts/insta
 Για αναλυτικές πληροφορίες σχετικά με τις παραμέτρους κάθε εντολής, χρησιμοποιήστε το flag `--help`:
 `topclaw <command> --help`
 (π.χ. `topclaw onboard --help`)
+
+Για always-on channels, προτιμήστε `topclaw service ...`. Το `topclaw channel start` είναι κυρίως για foreground debugging. Δείτε και [runtime-model.md](runtime-model.md).

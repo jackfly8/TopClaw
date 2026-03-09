@@ -91,24 +91,7 @@ pub fn diagnose(config: &Config) -> Vec<DiagResult> {
 /// Run diagnostics and print human-readable report to stdout.
 pub fn run(config: &Config) -> Result<()> {
     let results = diagnose(config);
-
-    // Print report
-    println!("🩺 TopClaw Doctor (enhanced)");
-    println!();
-
-    let mut current_cat = "";
-    for item in &results {
-        if item.category != current_cat {
-            current_cat = &item.category;
-            println!("  [{current_cat}]");
-        }
-        let icon = match item.severity {
-            Severity::Ok => "✅",
-            Severity::Warn => "⚠️ ",
-            Severity::Error => "❌",
-        };
-        println!("    {} {}", icon, item.message);
-    }
+    print_report(&results);
 
     let errors = results
         .iter()
@@ -133,6 +116,26 @@ pub fn run(config: &Config) -> Result<()> {
     print_next_step_suggestions(config, &results);
 
     Ok(())
+}
+
+pub fn print_report(results: &[DiagResult]) {
+    // Print report
+    println!("🩺 TopClaw Doctor (enhanced)");
+    println!();
+
+    let mut current_cat = "";
+    for item in results {
+        if item.category != current_cat {
+            current_cat = &item.category;
+            println!("  [{current_cat}]");
+        }
+        let icon = match item.severity {
+            Severity::Ok => "✅",
+            Severity::Warn => "⚠️ ",
+            Severity::Error => "❌",
+        };
+        println!("    {} {}", icon, item.message);
+    }
 }
 
 pub fn print_next_step_suggestions(config: &Config, results: &[DiagResult]) {
@@ -174,6 +177,7 @@ fn next_step_suggestions(config: &Config, results: &[DiagResult]) -> Vec<String>
     if provider_valid {
         if config.api_key.is_none()
             && provider_name.is_some_and(|provider| !provider_supports_keyless_usage(provider))
+            && provider_name.is_some_and(|provider| !crate::auth::has_saved_profile_for_provider(config, provider))
         {
             match provider_name.unwrap_or_default() {
                 "openai-codex" | "openai_codex" | "codex" => push_unique(
@@ -231,6 +235,19 @@ fn next_step_suggestions(config: &Config, results: &[DiagResult]) -> Vec<String>
         );
     }
 
+    let channels_configured = config.channels_config.channels().iter().any(|(_, ok)| *ok);
+    let daemon_unhealthy = results.iter().any(|item| {
+        item.category == "daemon"
+            && item.severity == Severity::Error
+            && (item.message.starts_with("state file not found:")
+                || item.message.starts_with("heartbeat stale"))
+    });
+
+    if channels_configured && daemon_unhealthy {
+        push_unique(&mut suggestions, "topclaw service status".to_string());
+        push_unique(&mut suggestions, "topclaw service start".to_string());
+    }
+
     suggestions
 }
 
@@ -240,7 +257,7 @@ fn push_unique(items: &mut Vec<String>, command: String) {
     }
 }
 
-fn provider_supports_keyless_usage(provider: &str) -> bool {
+pub fn provider_supports_keyless_usage(provider: &str) -> bool {
     let (provider_name, _) = crate::providers::parse_provider_profile(provider);
 
     crate::providers::list_providers()

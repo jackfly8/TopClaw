@@ -7,6 +7,7 @@
 ## 1. Βασικές Λειτουργίες και Εγχειρίδια
 
 - **Operations Runbook (Day-2)**: [../operations-runbook.md](../operations-runbook.md)
+- **Επιλογή Runtime Mode**: [../runtime-model.md](../runtime-model.md)
 - **Heartbeat Runbook**: [heartbeat-runbook.md](heartbeat-runbook.md)
 - **Runbook Probes Συνδεσιμότητας Παρόχων στο CI**: [connectivity-probes-runbook.md](connectivity-probes-runbook.md)
 - **Διαδικασία Έκδοσης (Release Process)**: [../release-process.md](../release-process.md)
@@ -18,7 +19,7 @@
 
 ## 2. Τυπική Ροή Εργασιών Συντήρησης
 
-1. **Επαλήθευση Περιβάλλοντος**: Χρήση των εντολών `status`, `doctor` και `channel doctor`.
+1. **Επαλήθευση Περιβάλλοντος**: Χρήση των εντολών `status`, `status --diagnose` και `channel doctor`.
 2. **Διαχείριση Ρυθμίσεων**: Εφαρμογή μεμονωμένων αλλαγών στο αρχείο παραμέτρων (Config).
 3. **Επανεκκίνηση Υπηρεσιών**: Ανανέωση των daemons για την εφαρμογή των αλλαγών.
 4. **Έλεγχος Υγείας (Health Check)**: Επιβεβαίωση της σωστής λειτουργίας καναλιών και πύλης.

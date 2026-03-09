@@ -5,6 +5,7 @@ Tra cứu lệnh, provider, channel, config và tích hợp.
 ## Tham chiếu cốt lõi
 
 - Lệnh theo workflow: [../commands-reference.md](../commands-reference.md)
+- Chọn đúng lệnh runtime: [../runtime-model.md](../runtime-model.md)
 - ID provider / alias / biến môi trường: [../providers-reference.md](../providers-reference.md)
 - Thiết lập channel + allowlist: [../channels-reference.md](../channels-reference.md)
 - Giá trị mặc định và khóa config: [../config-reference.md](../config-reference.md)

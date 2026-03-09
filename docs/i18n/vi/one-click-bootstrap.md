@@ -2,7 +2,7 @@
 
 Cách cài đặt và khởi tạo TopClaw nhanh nhất.
 
-Xác minh lần cuối: **2026-03-07**.
+Xác minh lần cuối: **2026-03-09**.
 
 ## Cập nhật an toàn
 
@@ -92,6 +92,7 @@ Lưu ý:
 - `--prefer-prebuilt` thử tải binary dựng sẵn trước, nếu không có thì build từ nguồn.
 - `--prebuilt-only` tắt phương án build từ nguồn.
 - `--force-source-build` tắt hoàn toàn phương án binary dựng sẵn.
+- `--prefer-prebuilt` có thể cài binary của bản phát hành mới nhất thay vì build chính checkout hiện tại; dùng `./bootstrap.sh --force-source-build` khi cần kiểm tra thay đổi mã nguồn cục bộ.
 
 ## Cách B: Lệnh từ xa một dòng
 

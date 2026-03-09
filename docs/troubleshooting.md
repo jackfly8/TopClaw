@@ -2,7 +2,16 @@
 
 This guide focuses on common setup/runtime failures and fast resolution paths.
 
-Last verified: **February 20, 2026**.
+Last verified: **March 9, 2026**.
+
+## Quick Triage
+
+| If this happened | Start here |
+|---|---|
+| `topclaw` command not found after install | [`topclaw` command not found after install](#topclaw-command-not-found-after-install) |
+| Onboarding finished but replies do not work | [Onboarding finished but TopClaw still does not reply](#onboarding-finished-but-topclaw-still-does-not-reply) |
+| Channels are configured but background runtime is not running | [Service installed but not running](#service-installed-but-not-running) |
+| Provider auth is still missing | [Pairing / auth failures on webhook](#pairing--auth-failures-on-webhook) |
 
 ## Installation / Bootstrap
 
@@ -140,6 +149,37 @@ which topclaw
 
 Persist in your shell profile if needed.
 
+### Onboarding finished but TopClaw still does not reply
+
+Check in this order:
+
+```bash
+topclaw status
+topclaw status --diagnose
+topclaw service status
+topclaw channel doctor
+```
+
+What to look for:
+
+- provider auth still missing
+- service not installed or not running
+- channel credentials or allowlists still incomplete
+- onboarding completed on a platform where service setup is manual
+
+If `topclaw service status` reports that nothing is running yet:
+
+```bash
+topclaw service install
+topclaw service start
+```
+
+If you want to debug startup in the foreground instead:
+
+```bash
+topclaw daemon
+```
+
 ## Runtime / Gateway
 
 ### Gateway unreachable
@@ -192,6 +232,8 @@ topclaw channel doctor
 
 Then verify channel-specific credentials + allowlist fields in config.
 
+If the channel is configured correctly but still does not reply, confirm that a runtime is actually active. For normal use, prefer `topclaw service status` over `topclaw channel start`.
+
 ## Service Mode
 
 To keep TopClaw running in the background all the time:
@@ -229,6 +271,8 @@ Linux logs:
 ```bash
 journalctl --user -u topclaw.service -f
 ```
+
+If onboarding just finished and you are unsure which command to use next, read [runtime-model.md](runtime-model.md) before starting `daemon` or `channel start` manually.
 
 ## Legacy Installer Compatibility
 

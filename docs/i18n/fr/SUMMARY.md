@@ -15,6 +15,7 @@ Dernière mise à jour : **24 février 2026**.
 ## Catégories
 
 - Démarrage : [../../getting-started/README.md](../../getting-started/README.md)
+- Modèle de runtime : [runtime-model.md](runtime-model.md)
 - Référence : [../../reference/README.md](../../reference/README.md)
 - Opérations : [../../operations/README.md](../../operations/README.md)
 - Sécurité : [../../security/README.md](../../security/README.md)

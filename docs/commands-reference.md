@@ -2,7 +2,7 @@
 
 This reference is derived from the current CLI surface (`topclaw --help`).
 
-Last verified: **March 8, 2026**.
+Last verified: **March 9, 2026**.
 
 ## Top-Level Commands
 
@@ -36,6 +36,7 @@ Common aliases:
 - `topclaw chat` -> `topclaw agent`
 - `topclaw run` -> `topclaw daemon`
 - `topclaw info` -> `topclaw status`
+- `topclaw check` -> `topclaw doctor`
 - `topclaw channels` -> `topclaw channel`
 - `topclaw skill` -> `topclaw skills`
 
@@ -104,6 +105,8 @@ Notes:
 - `topclaw service restart`
 - `topclaw service status`
 - `topclaw service uninstall`
+
+Use `service` for normal always-on channel operation. If onboarding already installed and started the service for you, begin with `topclaw service status` instead of reinstalling it.
 
 ### `update`
 
@@ -178,17 +181,23 @@ Runs a Rust integration test (`tests/gemini_model_availability.rs`) that verifie
 ### `doctor`
 
 - `topclaw doctor`
+- `topclaw check`
 - `topclaw doctor models [--provider <ID>] [--use-cache]`
 - `topclaw doctor traces [--limit <N>] [--event <TYPE>] [--contains <TEXT>]`
 - `topclaw doctor traces --id <TRACE_ID>`
 
 `topclaw doctor` now ends with concrete next-step commands when it detects actionable setup issues, such as missing provider configuration, missing auth, missing channels, or a missing workspace directory.
 
+`topclaw check` is the shorter alias for the same diagnostics flow.
+
 ### `status`
 
 - `topclaw status`
+- `topclaw status --diagnose`
 
-`topclaw status` prints the current config/runtime summary and now also shows next-step commands for important gaps that still need attention, using the same suggestion logic as `topclaw doctor`.
+`topclaw status` prints the current config/runtime summary and readiness signals.
+
+`topclaw status --diagnose` prints the same summary first, then the deeper `doctor` report and next-step commands.
 
 Provider connectivity matrix CI/local helper:
 
@@ -238,6 +247,10 @@ Startup behavior for multiple channels:
 - `topclaw channel start` starts all configured channels in one process.
 - If one channel fails initialization, other channels continue to start.
 - If all configured channels fail initialization, startup exits with an error.
+
+Normal runtime guidance:
+- prefer `topclaw service ...` for always-on background channels
+- use `topclaw channel start` when you explicitly want a manual foreground channel process
 
 Channel runtime also watches `config.toml` and hot-applies updates to:
 - `default_provider`

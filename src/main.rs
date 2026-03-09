@@ -46,6 +46,32 @@ fn parse_temperature(s: &str) -> std::result::Result<f64, String> {
     Ok(t)
 }
 
+fn provider_ready(config: &Config) -> bool {
+    config
+        .default_provider
+        .as_deref()
+        .filter(|provider| !provider.trim().is_empty())
+        .is_some_and(|provider| {
+            config.api_key.is_some()
+                || auth::has_saved_profile_for_provider(config, provider)
+                || doctor::provider_supports_keyless_usage(provider)
+        })
+}
+
+fn channels_configured(config: &Config) -> bool {
+    config.channels_config.channels().iter().any(|(_, ok)| *ok)
+}
+
+fn daemon_ready(diag_results: &[doctor::DiagResult]) -> bool {
+    !diag_results.iter().any(|item| {
+        item.category == "daemon"
+            && item.severity == doctor::Severity::Error
+            && (item.message.starts_with("state file not found:")
+                || item.message.starts_with("heartbeat stale")
+                || item.message.starts_with("invalid daemon timestamp:"))
+    })
+}
+
 mod agent;
 mod approval;
 mod auth;
@@ -138,8 +164,9 @@ Start here:
   topclaw daemon                   # always-on runtime
 
 Most common tasks:
-  topclaw status                   # see current config and runtime summary
-  topclaw doctor                   # run diagnostics
+  topclaw status                   # quick readiness summary
+  topclaw status --diagnose        # include full diagnostic report
+  topclaw check                    # run diagnostics
   topclaw update --check           # check for a new release
   topclaw update                   # install latest release
   topclaw service restart          # restart background service after update
@@ -339,6 +366,7 @@ Examples:
     },
 
     /// Run diagnostics and health checks
+    #[command(visible_alias = "check")]
     Doctor {
         #[command(subcommand)]
         doctor_command: Option<DoctorCommands>,
@@ -346,7 +374,11 @@ Examples:
 
     /// Show current status and configuration summary
     #[command(visible_alias = "info")]
-    Status,
+    Status {
+        /// Include the full diagnostic report after the status summary
+        #[arg(long)]
+        diagnose: bool,
+    },
 
     /// Update TopClaw to the latest release
     #[command(long_about = "\
@@ -981,10 +1013,7 @@ async fn main() -> Result<()> {
             ))
             .await
         }?;
-        // Auto-start channels if user said yes during wizard
-        if std::env::var("TOPCLAW_AUTOSTART_CHANNELS").as_deref() == Ok("1") {
-            Box::pin(channels::start_channels(config)).await?;
-        }
+        let _ = config;
         return Ok(());
     }
 
@@ -1098,13 +1127,55 @@ async fn main() -> Result<()> {
             daemon::run(config, host, port).await
         }
 
-        Commands::Status => {
+        Commands::Status { diagnose } => {
             let diag_results = doctor::diagnose(&config);
+            let provider_ready = provider_ready(&config);
+            let channels_configured = channels_configured(&config);
+            let daemon_ready = daemon_ready(&diag_results);
+            let overall_ready = provider_ready && (!channels_configured || daemon_ready);
             println!("🦀 TopClaw Status");
             println!();
             println!("Version:     {}", env!("CARGO_PKG_VERSION"));
             println!("Workspace:   {}", config.workspace_dir.display());
             println!("Config:      {}", config.config_path.display());
+            println!();
+            println!("Readiness:");
+            println!(
+                "  Provider:   {}",
+                if provider_ready {
+                    "✅ ready"
+                } else {
+                    "⚠️  auth or API key needed"
+                }
+            );
+            println!(
+                "  Channels:   {}",
+                if channels_configured {
+                    "✅ configured"
+                } else {
+                    "ℹ️  CLI only"
+                }
+            );
+            println!(
+                "  Runtime:    {}",
+                if channels_configured {
+                    if daemon_ready {
+                        "✅ background runtime looks healthy"
+                    } else {
+                        "⚠️  channels configured but background runtime is not healthy"
+                    }
+                } else {
+                    "ℹ️  background runtime not required"
+                }
+            );
+            println!(
+                "  Overall:    {}",
+                if overall_ready {
+                    "✅ ready"
+                } else {
+                    "⚠️  action needed"
+                }
+            );
             println!();
             println!(
                 "🤖 Provider:      {}",
@@ -1190,6 +1261,10 @@ async fn main() -> Result<()> {
             );
             println!("  Boards:    {}", config.peripherals.boards.len());
 
+            if diagnose {
+                println!();
+                doctor::print_report(&diag_results);
+            }
             doctor::print_next_step_suggestions(&config, &diag_results);
 
             Ok(())
@@ -1515,8 +1590,29 @@ mod tests {
         let cli = Cli::try_parse_from(["topclaw", "info"]).expect("info alias should parse");
 
         match cli.command {
-            Commands::Status => {}
+            Commands::Status { diagnose } => assert!(!diagnose),
             other => panic!("expected status command, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn status_cli_accepts_diagnose_flag() {
+        let cli =
+            Cli::try_parse_from(["topclaw", "status", "--diagnose"]).expect("status should parse");
+
+        match cli.command {
+            Commands::Status { diagnose } => assert!(diagnose),
+            other => panic!("expected status command, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn doctor_cli_accepts_check_alias() {
+        let cli = Cli::try_parse_from(["topclaw", "check"]).expect("check alias should parse");
+
+        match cli.command {
+            Commands::Doctor { .. } => {}
+            other => panic!("expected doctor command, got {other:?}"),
         }
     }
 

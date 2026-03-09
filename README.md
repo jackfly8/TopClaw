@@ -11,7 +11,8 @@ git clone https://github.com/jackfly8/TopClaw.git
 cd TopClaw
 ./bootstrap.sh --install-system-deps --install-rust --prefer-prebuilt
 topclaw status
-topclaw agent -m "Hello!"
+topclaw check
+topclaw agent -m "Hello, TopClaw!"
 ```
 
 This path installs standard prerequisites, installs Rust when missing, prefers a prebuilt binary first, and starts onboarding automatically.
@@ -31,10 +32,13 @@ git clone https://github.com/jackfly8/TopClaw.git
 cd TopClaw
 ./bootstrap.sh --install-system-deps --install-rust --prefer-prebuilt
 topclaw status
-topclaw agent -m "Hello!"
+topclaw check
+topclaw agent -m "Hello, TopClaw!"
 ```
 
 This path installs standard prerequisites, installs Rust when missing, prefers a prebuilt binary first, and starts onboarding automatically.
+
+If you need to test the local checkout instead of the latest release asset, use `./bootstrap.sh --force-source-build`.
 
 ## What Bootstrap Does
 
@@ -51,14 +55,22 @@ What those flags do:
 3. try a prebuilt `topclaw` binary first, then fall back to source build if needed
 4. start the onboarding wizard
 
+Important:
+
+- `--prefer-prebuilt` may install the latest released TopClaw binary, not the exact code in your checkout
+- use `--force-source-build` when you need to validate local source changes
+
 During onboarding, the default path is now:
 
 - choose your AI provider
-- enter the provider API key if needed
+- authenticate or enter the provider API key if needed
 - choose a channel such as Telegram or Discord
 - enter the channel token and allowed user info
+- let onboarding try to start the background service automatically when your selected channels need one
 
 Everything else can be changed later in `config.toml`.
+
+After onboarding, `topclaw status` should show whether the provider is ready, whether channels are configured, and whether any manual action is still required.
 
 ## Fast Path
 
@@ -74,24 +86,37 @@ After onboarding, these are the most useful first commands:
 
 ```bash
 topclaw status
-topclaw agent -m "Hello!"
-topclaw gateway
+topclaw status --diagnose
+topclaw agent -m "Hello, TopClaw!"
 ```
+
+Use `topclaw gateway` only when you are intentionally testing the HTTP/webhook surface.
+
+## Runtime Modes
+
+TopClaw has a few different runtime commands:
+
+- `topclaw agent`: talk to TopClaw directly in this terminal
+- `topclaw service ...`: keep configured channels running in the background
+- `topclaw daemon`: run the full runtime in the foreground for debugging
+- `topclaw gateway`: run only the HTTP/webhook gateway
+
+For the full explanation, see [`docs/runtime-model.md`](docs/runtime-model.md).
 
 ## Run In Background
 
-To keep TopClaw running all the time as a background service:
+If onboarding configured background channels on a supported platform, it now tries to install and start the service automatically.
+
+To confirm that background runtime is healthy:
 
 ```bash
-topclaw service install
-topclaw service start
 topclaw service status
 ```
 
-To restart the service after a config change or channel issue:
+If the service still needs manual setup:
 
 ```bash
-topclaw service stop
+topclaw service install
 topclaw service start
 ```
 
@@ -103,16 +128,16 @@ topclaw service stop
 
 ## Uninstall
 
-To remove the TopClaw binary and service artifacts:
+To remove the TopClaw binary but keep your `~/.topclaw` data:
 
 ```bash
-./topclaw_uninstall.sh
+topclaw uninstall
 ```
 
 To remove TopClaw completely, including `~/.topclaw` config, logs, auth profiles, and workspace data:
 
 ```bash
-./topclaw_uninstall.sh --purge
+topclaw uninstall --purge
 ```
 
 ## Documentation Map

@@ -30,6 +30,7 @@
 ## 操作建议
 
 - 对于已有安装，推荐的安全更新顺序是：先运行 `topclaw update --check`，再运行 `topclaw update`，如果 TopClaw 以后台服务方式运行，再执行 `topclaw service restart`。
+- `--prefer-prebuilt` 可能安装最新 release 二进制，而不是当前 checkout 的源码构建；验证本地代码改动时请使用 `./bootstrap.sh --force-source-build`。
 - 先通读原文目录，再聚焦与你当前变更直接相关的小节。
 - 命令名、配置键、API 路径和代码标识保持英文。
 - 发生语义歧义或行为冲突时，以英文原文为准。

@@ -7,6 +7,7 @@ Use this section when you need exact command names, config keys, provider IDs, o
 | Need | Read this |
 |---|---|
 | CLI commands | [../commands-reference.md](../commands-reference.md) |
+| Runtime command choice (`agent` vs `service` vs `daemon`) | [../runtime-model.md](../runtime-model.md) |
 | Provider IDs, aliases, and env vars | [../providers-reference.md](../providers-reference.md) |
 | Channel setup and allowlists | [../channels-reference.md](../channels-reference.md) |
 | Config keys and defaults | [../config-reference.md](../config-reference.md) |

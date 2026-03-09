@@ -15,6 +15,7 @@
 ### 1) Bắt đầu
 
 - [getting-started/README.md](getting-started/README.md)
+- [runtime-model.md](runtime-model.md)
 - [one-click-bootstrap.md](one-click-bootstrap.md)
 - [android-setup.md](android-setup.md)
 
