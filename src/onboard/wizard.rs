@@ -322,7 +322,7 @@ async fn maybe_prompt_openai_codex_login(
 
     if !start_login {
         print_bullet(
-            "Run `topclaw auth login --provider openai-codex --device-code` when you're ready.",
+            "Run `topclaw auth login --provider openai-codex` when you're ready.",
         );
         return Ok(());
     }
@@ -364,7 +364,7 @@ async fn maybe_prompt_openai_codex_login(
                 style(error.to_string()).yellow()
             ));
             print_bullet(
-                "Run `topclaw auth login --provider openai-codex --device-code` after onboarding.",
+                "Finish onboarding, then run `topclaw auth login --provider openai-codex` to use the browser login flow.",
             );
         }
     }
@@ -2505,7 +2505,7 @@ async fn setup_provider_simple(
     let api_key = if provider_uses_oauth_without_api_key(provider_name) {
         print_bullet("OpenAI Codex uses ChatGPT OAuth, not an API key.");
         print_bullet(
-            "Run `topclaw auth login --provider openai-codex --device-code` after onboarding.",
+            "TopClaw can start OAuth during onboarding, or you can run `topclaw auth login --provider openai-codex` later.",
         );
         String::new()
     } else if provider_supports_keyless_local_usage(provider_name) {
@@ -2876,7 +2876,7 @@ async fn setup_provider(
     } else if canonical_provider_name(provider_name) == "openai-codex" {
         print_bullet("OpenAI Codex uses ChatGPT OAuth, not an API key.");
         print_bullet(
-            "Run `topclaw auth login --provider openai-codex --device-code` after onboarding.",
+            "TopClaw can start OAuth during onboarding, or you can run `topclaw auth login --provider openai-codex` later.",
         );
         print_bullet("TopClaw will save the provider and model now, then use OAuth after login.");
         String::new()
@@ -3231,7 +3231,7 @@ async fn prompt_for_default_model(
         } else if provider_uses_oauth_without_api_key(provider_name) {
             print_bullet("OpenAI Codex onboarding uses OAuth, so using the curated model list.");
             print_bullet(
-                "Run `topclaw auth login --provider openai-codex --device-code` after onboarding.",
+                "If login is still pending, run `topclaw auth login --provider openai-codex` later.",
             );
         } else {
             print_bullet("No API key detected, so using curated model list.");
@@ -6389,7 +6389,7 @@ fn print_summary(config: &Config, service_outcome: &BackgroundServiceOutcome) {
                 );
                 println!(
                     "       {}",
-                    style("topclaw auth login --provider openai-codex --device-code").yellow()
+                    style("topclaw auth login --provider openai-codex").yellow()
                 );
             }
             ProviderNextStep::AnthropicAuth => {

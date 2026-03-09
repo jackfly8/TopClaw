@@ -144,7 +144,7 @@ pub async fn start_device_code_flow(client: &Client) -> Result<DeviceCodeStart> 
     if !response.status().is_success() {
         let status = response.status();
         let body = response.text().await.unwrap_or_default();
-        anyhow::bail!("OpenAI device-code start failed ({status}): {body}");
+        anyhow::bail!("{}", summarize_device_code_start_error(status, &body));
     }
 
     let parsed: DeviceCodeResponse = response
@@ -161,6 +161,37 @@ pub async fn start_device_code_flow(client: &Client) -> Result<DeviceCodeStart> 
         interval: parsed.interval.unwrap_or(5).max(1),
         message: parsed.message,
     })
+}
+
+fn summarize_device_code_start_error(status: reqwest::StatusCode, body: &str) -> String {
+    if looks_like_browser_challenge(body) {
+        return format!(
+            "OpenAI device-code start failed ({status}): auth.openai.com returned a browser challenge page instead of a device-code response"
+        );
+    }
+
+    let compact_body = body.split_whitespace().collect::<Vec<_>>().join(" ");
+    let truncated_body = if compact_body.len() > 240 {
+        format!("{}...", &compact_body[..240])
+    } else {
+        compact_body
+    };
+
+    if truncated_body.is_empty() {
+        format!("OpenAI device-code start failed ({status})")
+    } else {
+        format!("OpenAI device-code start failed ({status}): {truncated_body}")
+    }
+}
+
+fn looks_like_browser_challenge(body: &str) -> bool {
+    let lower = body.to_ascii_lowercase();
+    lower.contains("<!doctype html")
+        || lower.contains("<html")
+        || lower.contains("just a moment")
+        || lower.contains("enable javascript and cookies to continue")
+        || lower.contains("cf_chl")
+        || lower.contains("cloudflare")
 }
 
 pub async fn poll_device_code_tokens(
@@ -423,5 +454,26 @@ mod tests {
 
         let account = extract_account_id_from_jwt(&token);
         assert_eq!(account.as_deref(), Some("acct_123"));
+    }
+
+    #[test]
+    fn summarize_device_code_start_error_hides_browser_challenge_html() {
+        let error = summarize_device_code_start_error(
+            reqwest::StatusCode::FORBIDDEN,
+            "<!DOCTYPE html><html><title>Just a moment...</title><body>cf_chl</body></html>",
+        );
+
+        assert!(error.contains("browser challenge page"));
+        assert!(!error.contains("<html>"));
+    }
+
+    #[test]
+    fn summarize_device_code_start_error_truncates_plain_text() {
+        let long_body = "x".repeat(400);
+        let error =
+            summarize_device_code_start_error(reqwest::StatusCode::BAD_REQUEST, &long_body);
+
+        assert!(error.contains("OpenAI device-code start failed (400 Bad Request):"));
+        assert!(error.len() < 340);
     }
 }
