@@ -2320,7 +2320,7 @@ fn setup_channels_simple() -> Result<ChannelsConfig> {
                 config.telegram = Some(TelegramConfig {
                     bot_token: token,
                     allowed_users,
-                    stream_mode: StreamMode::default(),
+                    stream_mode: StreamMode::Partial,
                     draft_update_interval_ms: 1000,
                     interrupt_on_new_message: false,
                     mention_only: false,
@@ -4280,7 +4280,7 @@ fn setup_channels() -> Result<ChannelsConfig> {
                 config.telegram = Some(TelegramConfig {
                     bot_token: token,
                     allowed_users,
-                    stream_mode: StreamMode::default(),
+                    stream_mode: StreamMode::Partial,
                     draft_update_interval_ms: 1000,
                     interrupt_on_new_message: false,
                     mention_only: false,

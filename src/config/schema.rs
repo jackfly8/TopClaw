@@ -3493,6 +3493,10 @@ fn default_draft_update_interval_ms() -> u64 {
     1000
 }
 
+fn default_telegram_stream_mode() -> StreamMode {
+    StreamMode::Partial
+}
+
 /// Group-chat reply trigger mode for channels that support mention gating.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(rename_all = "snake_case")]
@@ -3636,8 +3640,8 @@ pub struct TelegramConfig {
     pub bot_token: String,
     /// Allowed Telegram user IDs or usernames. Empty = deny all.
     pub allowed_users: Vec<String>,
-    /// Streaming mode for progressive response delivery via message edits.
-    #[serde(default)]
+    /// Streaming mode for progressive response delivery via native drafts or message edits.
+    #[serde(default = "default_telegram_stream_mode")]
     pub stream_mode: StreamMode,
     /// Minimum interval (ms) between draft message edits to avoid rate limits.
     #[serde(default = "default_draft_update_interval_ms")]
@@ -8063,10 +8067,10 @@ tool_dispatcher = "xml"
     }
 
     #[test]
-    async fn telegram_config_defaults_stream_off() {
+    async fn telegram_config_defaults_stream_partial() {
         let json = r#"{"bot_token":"tok","allowed_users":[]}"#;
         let parsed: TelegramConfig = serde_json::from_str(json).unwrap();
-        assert_eq!(parsed.stream_mode, StreamMode::Off);
+        assert_eq!(parsed.stream_mode, StreamMode::Partial);
         assert_eq!(parsed.draft_update_interval_ms, 1000);
         assert!(!parsed.interrupt_on_new_message);
         assert!(parsed.base_url.is_none());
