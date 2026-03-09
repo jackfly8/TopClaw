@@ -47,19 +47,24 @@ pub(super) async fn resolve_allowed_parent_and_target(
     }
 
     let candidate = resolve_tool_path_candidate(security, raw_path);
-    let parent = candidate
+    let mut parent = candidate
         .parent()
         .ok_or_else(|| "Invalid path: missing parent directory".to_string())?;
-    let resolved_parent = tokio::fs::canonicalize(parent)
-        .await
-        .map_err(|e| format_path_resolution_error(raw_path, e))?;
+    let resolved_parent = loop {
+        match tokio::fs::canonicalize(parent).await {
+            Ok(resolved) => break resolved,
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
+                parent = parent.parent().ok_or_else(|| {
+                    format!("Failed to resolve file path: no existing parent for {raw_path}")
+                })?;
+            }
+            Err(error) => return Err(format_path_resolution_error(raw_path, error)),
+        }
+    };
 
     if !security.is_resolved_path_allowed(&resolved_parent) {
         return Err(security.resolved_path_violation_message(&resolved_parent));
     }
 
-    let file_name = candidate
-        .file_name()
-        .ok_or_else(|| "Invalid path: missing file name".to_string())?;
-    Ok(resolved_parent.join(file_name))
+    Ok(candidate)
 }

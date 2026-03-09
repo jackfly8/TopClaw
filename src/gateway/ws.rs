@@ -18,12 +18,13 @@ use crate::providers::ChatMessage;
 use axum::{
     extract::{
         ws::{Message, WebSocket},
-        State, WebSocketUpgrade,
+        ConnectInfo, State, WebSocketUpgrade,
     },
     http::{header, HeaderMap},
     response::IntoResponse,
 };
 use serde_json::json;
+use std::net::SocketAddr;
 use uuid::Uuid;
 
 const EMPTY_WS_RESPONSE_FALLBACK: &str =
@@ -236,11 +237,12 @@ async fn emit_ws_delta_event(socket: &mut WebSocket, event: WsDeltaEvent) {
 /// GET /ws/chat — WebSocket upgrade for agent chat
 pub async fn handle_ws_chat(
     State(state): State<AppState>,
+    ConnectInfo(peer_addr): ConnectInfo<SocketAddr>,
     headers: HeaderMap,
     ws: WebSocketUpgrade,
 ) -> impl IntoResponse {
     // Auth via Authorization header or websocket protocol token.
-    if state.pairing.require_pairing() {
+    if super::gateway_auth_required_for_peer(&state, Some(peer_addr), &headers) {
         let token = extract_ws_bearer_token(&headers).unwrap_or_default();
         if !state.pairing.is_authenticated(&token) {
             return (

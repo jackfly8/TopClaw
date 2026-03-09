@@ -3,6 +3,7 @@
 //! Downloads and installs the latest release from GitHub.
 
 use anyhow::{bail, Context, Result};
+use sha2::{Digest, Sha256};
 use std::env;
 use std::fs;
 use std::io;
@@ -12,6 +13,7 @@ use std::process::Command;
 /// GitHub repository for releases
 const GITHUB_REPO: &str = "jackfly8/TopClaw";
 const GITHUB_API_RELEASES: &str = "https://api.github.com/repos/jackfly8/TopClaw/releases/latest";
+const RELEASE_CHECKSUMS_ASSET: &str = "SHA256SUMS";
 
 /// Release information from GitHub API
 #[derive(Debug, serde::Deserialize)]
@@ -109,8 +111,88 @@ fn find_asset_for_platform(release: &Release) -> Result<&Asset> {
         })
 }
 
+fn find_checksums_asset(release: &Release) -> Result<&Asset> {
+    release
+        .assets
+        .iter()
+        .find(|asset| asset.name == RELEASE_CHECKSUMS_ASSET)
+        .with_context(|| {
+            format!("Release is missing required checksum asset '{RELEASE_CHECKSUMS_ASSET}'")
+        })
+}
+
+async fn download_text_asset(asset: &Asset) -> Result<String> {
+    let client = reqwest::Client::builder()
+        .user_agent(format!("topclaw/{}", current_version()))
+        .build()
+        .context("Failed to create HTTP client")?;
+
+    let response = client
+        .get(&asset.browser_download_url)
+        .send()
+        .await
+        .with_context(|| format!("Failed to download {}", asset.name))?;
+
+    if !response.status().is_success() {
+        bail!(
+            "Download failed for {} with status: {}",
+            asset.name,
+            response.status()
+        );
+    }
+
+    response
+        .text()
+        .await
+        .with_context(|| format!("Failed to read {}", asset.name))
+}
+
+fn parse_expected_sha256(checksums: &str, asset_name: &str) -> Result<String> {
+    for line in checksums.lines() {
+        let trimmed = line.trim();
+        if trimmed.is_empty() || trimmed.starts_with('#') {
+            continue;
+        }
+
+        let mut parts = trimmed.split_whitespace();
+        let Some(digest) = parts.next() else {
+            continue;
+        };
+        let Some(name) = parts.next() else {
+            continue;
+        };
+        let normalized_name = name.trim_start_matches('*');
+        if normalized_name == asset_name {
+            anyhow::ensure!(
+                digest.len() == 64 && digest.chars().all(|ch| ch.is_ascii_hexdigit()),
+                "Invalid SHA256 digest for {asset_name} in {RELEASE_CHECKSUMS_ASSET}"
+            );
+            return Ok(digest.to_ascii_lowercase());
+        }
+    }
+
+    bail!(
+        "Checksum for {} not found in {}",
+        asset_name,
+        RELEASE_CHECKSUMS_ASSET
+    )
+}
+
+fn verify_archive_sha256(
+    archive_bytes: &[u8],
+    expected_sha256: &str,
+    asset_name: &str,
+) -> Result<()> {
+    let actual = hex::encode(Sha256::digest(archive_bytes));
+    anyhow::ensure!(
+        actual == expected_sha256,
+        "Checksum verification failed for {asset_name}"
+    );
+    Ok(())
+}
+
 /// Download and extract the binary from the release archive
-async fn download_binary(asset: &Asset, temp_dir: &Path) -> Result<PathBuf> {
+async fn download_binary(asset: &Asset, expected_sha256: &str, temp_dir: &Path) -> Result<PathBuf> {
     let client = reqwest::Client::builder()
         .user_agent(format!("topclaw/{}", current_version()))
         .build()
@@ -133,6 +215,8 @@ async fn download_binary(asset: &Asset, temp_dir: &Path) -> Result<PathBuf> {
         .bytes()
         .await
         .context("Failed to read download content")?;
+
+    verify_archive_sha256(&archive_bytes, expected_sha256, &asset.name)?;
 
     fs::write(&archive_path, &archive_bytes).context("Failed to write archive to temp file")?;
 
@@ -334,13 +418,16 @@ pub async fn self_update(force: bool, check_only: bool) -> Result<()> {
 
     // Find the appropriate asset
     let asset = find_asset_for_platform(&release)?;
+    let checksums_asset = find_checksums_asset(&release)?;
+    let checksums = download_text_asset(checksums_asset).await?;
+    let expected_sha256 = parse_expected_sha256(&checksums, &asset.name)?;
     println!("Downloading: {}", asset.name);
 
     // Create temp directory
     let temp_dir = tempfile::tempdir().context("Failed to create temp directory")?;
 
     // Download and extract
-    let new_binary = download_binary(asset, temp_dir.path()).await?;
+    let new_binary = download_binary(asset, &expected_sha256, temp_dir.path()).await?;
 
     println!("Installing update...");
 
@@ -358,4 +445,43 @@ pub async fn self_update(force: bool, check_only: bool) -> Result<()> {
     println!("Restart TopClaw to use the new version.");
 
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn parse_expected_sha256_finds_asset_digest() {
+        let checksums = "\
+0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef  topclaw-x86_64-unknown-linux-gnu.tar.gz
+fedcba9876543210fedcba9876543210fedcba9876543210fedcba9876543210  SHA256SUMS
+";
+        let digest = parse_expected_sha256(checksums, "topclaw-x86_64-unknown-linux-gnu.tar.gz")
+            .expect("digest should parse");
+        assert_eq!(
+            digest,
+            "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
+        );
+    }
+
+    #[test]
+    fn verify_archive_sha256_rejects_mismatch() {
+        let err = verify_archive_sha256(b"topclaw", &"0".repeat(64), "topclaw.tar.gz")
+            .expect_err("mismatch should fail");
+        assert!(err.to_string().contains("Checksum verification failed"));
+    }
+
+    #[test]
+    fn find_checksums_asset_requires_release_checksums() {
+        let release = Release {
+            tag_name: "v0.1.2".to_string(),
+            assets: vec![Asset {
+                name: "topclaw-x86_64-unknown-linux-gnu.tar.gz".to_string(),
+                browser_download_url: "https://example.com/archive".to_string(),
+            }],
+        };
+        let err = find_checksums_asset(&release).expect_err("missing checksums should fail");
+        assert!(err.to_string().contains(RELEASE_CHECKSUMS_ASSET));
+    }
 }

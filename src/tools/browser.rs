@@ -5,6 +5,7 @@
 //! `--features browser-native` and selected through config.
 //! Computer-use (OS-level) actions are supported via an optional sidecar endpoint.
 
+use super::path_resolution::resolve_allowed_parent_and_target;
 use super::traits::{Tool, ToolResult};
 use crate::security::SecurityPolicy;
 use anyhow::Context;
@@ -13,7 +14,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use std::io::ErrorKind;
 use std::net::ToSocketAddrs;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 use std::process::Stdio;
 use std::sync::Arc;
 use std::time::Duration;
@@ -727,31 +728,14 @@ impl BrowserTool {
     ) -> anyhow::Result<PathBuf> {
         let trimmed = path.trim();
         self.validate_output_path(key, trimmed)?;
-
-        tokio::fs::create_dir_all(&self.security.workspace_dir).await?;
-        let workspace_root = tokio::fs::canonicalize(&self.security.workspace_dir)
+        let output_path = resolve_allowed_parent_and_target(&self.security, trimmed)
             .await
-            .unwrap_or_else(|_| self.security.workspace_dir.clone());
-
-        let raw_path = Path::new(trimmed);
-        let output_path = if raw_path.is_absolute() {
-            raw_path.to_path_buf()
-        } else {
-            workspace_root.join(raw_path)
-        };
+            .map_err(anyhow::Error::msg)?;
 
         let parent = output_path
             .parent()
             .ok_or_else(|| anyhow::anyhow!("'{key}' path has no parent directory"))?;
         tokio::fs::create_dir_all(parent).await?;
-        let resolved_parent = tokio::fs::canonicalize(parent).await?;
-        if !self.security.is_resolved_path_allowed(&resolved_parent) {
-            anyhow::bail!(
-                "{}",
-                self.security
-                    .resolved_path_violation_message(&resolved_parent)
-            );
-        }
 
         match tokio::fs::symlink_metadata(&output_path).await {
             Ok(meta) => {
@@ -2532,6 +2516,7 @@ fn host_matches_allowlist(host: &str, allowed: &[String]) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::path::Path;
 
     #[cfg(unix)]
     fn symlink_dir(src: &Path, dst: &Path) {
