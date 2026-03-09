@@ -158,12 +158,8 @@ Extensions and setup:
   topclaw integrations info <name>
 
 Full uninstall:
-  topclaw uninstall
-  topclaw uninstall --purge
-
-Legacy script:
-  ./topclaw_uninstall.sh
-  ./topclaw_uninstall.sh --purge")]
+  topclaw uninstall              # remove the installed binary, keep ~/.topclaw data
+  topclaw uninstall --purge      # remove the binary and erase ~/.topclaw data too")]
 struct Cli {
     #[arg(long, global = true)]
     config_dir: Option<String>,
