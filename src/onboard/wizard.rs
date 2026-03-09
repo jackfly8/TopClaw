@@ -122,7 +122,7 @@ pub async fn run_wizard(force: bool) -> Result<Config> {
     println!("  {}", style("[2/3] Connect to an AI").cyan().bold());
     println!("  {}", style("─".repeat(40)).dim());
     let (provider, api_key, model, provider_api_url) =
-        setup_provider_simple(&workspace_dir).await?;
+        setup_provider_simple(&workspace_dir, &config_path, SecretsConfig::default().encrypt).await?;
 
     // ── STEP 3: How to reach you (Channels) ──────────────────────────
     println!();
@@ -313,7 +313,8 @@ async fn run_provider_update_wizard(workspace_dir: &Path, config_path: &Path) ->
     config.config_path = config_path.to_path_buf();
 
     print_step(1, 1, "AI Provider & API Key");
-    let (provider, api_key, model, provider_api_url) = setup_provider_simple(workspace_dir).await?;
+    let (provider, api_key, model, provider_api_url) =
+        setup_provider_simple(workspace_dir, config_path, config.secrets.encrypt).await?;
     apply_provider_update(&mut config, provider, api_key, model, provider_api_url);
 
     config.save().await?;
@@ -349,6 +350,81 @@ async fn run_provider_update_wizard(workspace_dir: &Path, config_path: &Path) ->
     }
 
     Ok(config)
+}
+
+async fn maybe_prompt_openai_codex_login(
+    provider_name: &str,
+    config_path: &Path,
+    encrypt_secrets: bool,
+) -> Result<()> {
+    if canonical_provider_name(provider_name) != "openai-codex" {
+        return Ok(());
+    }
+
+    let state_dir = config_path
+        .parent()
+        .map_or_else(|| PathBuf::from("."), PathBuf::from);
+    let auth_service = crate::auth::AuthService::new(&state_dir, encrypt_secrets);
+    if auth_service.get_profile("openai-codex", None).await?.is_some() {
+        print_bullet("Existing OpenAI Codex OAuth profile detected. Skipping login.");
+        return Ok(());
+    }
+
+    let start_login = Confirm::new()
+        .with_prompt("  Start OpenAI Codex login now?")
+        .default(true)
+        .interact()?;
+
+    if !start_login {
+        print_bullet(
+            "Run `topclaw auth login --provider openai-codex --device-code` when you're ready.",
+        );
+        return Ok(());
+    }
+
+    let client = reqwest::Client::new();
+    match crate::auth::openai_oauth::start_device_code_flow(&client).await {
+        Ok(device) => {
+            println!(
+                "  {} OpenAI device-code login started.",
+                style("✓").green().bold()
+            );
+            print_bullet(&format!("Visit: {}", style(&device.verification_uri).cyan()));
+            print_bullet(&format!("Code:  {}", style(&device.user_code).yellow().bold()));
+            if let Some(uri_complete) = &device.verification_uri_complete {
+                print_bullet(&format!("Fast link: {}", style(uri_complete).cyan()));
+            }
+            if let Some(message) = &device.message {
+                print_bullet(message);
+            }
+
+            let token_set =
+                crate::auth::openai_oauth::poll_device_code_tokens(&client, &device).await?;
+            let account_id =
+                crate::auth::openai_oauth::extract_account_id_from_jwt(&token_set.access_token);
+
+            auth_service
+                .store_openai_tokens("default", token_set, account_id, true)
+                .await?;
+
+            println!(
+                "  {} OpenAI Codex login saved to profile {}",
+                style("✓").green().bold(),
+                style("default").green()
+            );
+        }
+        Err(error) => {
+            print_bullet(&format!(
+                "OpenAI Codex device-code login could not start ({}).",
+                style(error.to_string()).yellow()
+            ));
+            print_bullet(
+                "Run `topclaw auth login --provider openai-codex --device-code` after onboarding.",
+            );
+        }
+    }
+
+    Ok(())
 }
 
 fn apply_provider_update(
@@ -751,7 +827,7 @@ fn default_model_for_provider(provider: &str) -> String {
     match canonical_provider_name(provider) {
         "anthropic" => "claude-sonnet-4-5-20250929".into(),
         "openai" => "gpt-5.2".into(),
-        "openai-codex" => "gpt-5-codex".into(),
+        "openai-codex" => "gpt-5.4".into(),
         "venice" => "zai-org-glm-5".into(),
         "groq" => "llama-3.3-70b-versatile".into(),
         "mistral" => "mistral-large-latest".into(),
@@ -845,8 +921,12 @@ fn curated_models_for_provider(provider_name: &str) -> Vec<(String, String)> {
         ],
         "openai-codex" => vec![
             (
+                "gpt-5.4".to_string(),
+                "GPT-5.4 (recommended)".to_string(),
+            ),
+            (
                 "gpt-5-codex".to_string(),
-                "GPT-5 Codex (recommended)".to_string(),
+                "GPT-5 Codex (agentic coding)".to_string(),
             ),
             (
                 "gpt-5.2-codex".to_string(),
@@ -2375,6 +2455,8 @@ async fn setup_workspace() -> Result<(PathBuf, PathBuf)> {
 
 async fn setup_provider_simple(
     workspace_dir: &Path,
+    config_path: &Path,
+    encrypt_secrets: bool,
 ) -> Result<(String, String, String, Option<String>)> {
     let options = vec![
         ("openrouter", "OpenRouter"),
@@ -2398,7 +2480,7 @@ async fn setup_provider_simple(
 
     let choice = options[provider_idx].0;
     if choice == "advanced" {
-        return setup_provider(workspace_dir).await;
+        return setup_provider(workspace_dir, config_path, encrypt_secrets).await;
     }
 
     if choice == "custom" {
@@ -2460,11 +2542,17 @@ async fn setup_provider_simple(
         style(&model).green()
     );
 
+    maybe_prompt_openai_codex_login(provider_name, config_path, encrypt_secrets).await?;
+
     Ok((provider_name.to_string(), api_key, model, provider_api_url))
 }
 
 #[allow(clippy::too_many_lines)]
-async fn setup_provider(workspace_dir: &Path) -> Result<(String, String, String, Option<String>)> {
+async fn setup_provider(
+    workspace_dir: &Path,
+    config_path: &Path,
+    encrypt_secrets: bool,
+) -> Result<(String, String, String, Option<String>)> {
     // ── Tier selection ──
     let tiers = vec![
         "⭐ Recommended (OpenRouter, Venice, Anthropic, OpenAI, Gemini)",
@@ -2595,6 +2683,7 @@ async fn setup_provider(workspace_dir: &Path) -> Result<(String, String, String,
             style(&model).green()
         );
 
+        maybe_prompt_openai_codex_login(&provider_name, config_path, encrypt_secrets).await?;
         return Ok((provider_name, api_key, model, None));
     }
 
@@ -3016,6 +3105,7 @@ async fn setup_provider(workspace_dir: &Path) -> Result<(String, String, String,
         style(&model).green()
     );
 
+    maybe_prompt_openai_codex_login(provider_name, config_path, encrypt_secrets).await?;
     Ok((provider_name.to_string(), api_key, model, provider_api_url))
 }
 
@@ -7174,7 +7264,7 @@ mod tests {
             "anthropic/claude-sonnet-4.6"
         );
         assert_eq!(default_model_for_provider("openai"), "gpt-5.2");
-        assert_eq!(default_model_for_provider("openai-codex"), "gpt-5-codex");
+        assert_eq!(default_model_for_provider("openai-codex"), "gpt-5.4");
         assert_eq!(
             default_model_for_provider("anthropic"),
             "claude-sonnet-4-5-20250929"
@@ -7275,6 +7365,7 @@ mod tests {
             .map(|(id, _)| id)
             .collect();
 
+        assert!(ids.contains(&"gpt-5.4".to_string()));
         assert!(ids.contains(&"gpt-5-codex".to_string()));
         assert!(ids.contains(&"gpt-5.2-codex".to_string()));
     }

@@ -144,7 +144,7 @@ pub fn print_next_step_suggestions(config: &Config, results: &[DiagResult]) {
     println!();
     println!("  Next step commands:");
     for command in suggestions {
-        println!("    - {command}");
+        println!("    {command}");
     }
 }
 
