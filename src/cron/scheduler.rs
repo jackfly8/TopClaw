@@ -451,10 +451,7 @@ async fn run_job_command_with_timeout(
     }
 
     if let Err(reason) = security.validate_command_execution(&effective_command, approved) {
-        return (
-            false,
-            format!("blocked by security policy: {reason}"),
-        );
+        return (false, format!("blocked by security policy: {reason}"));
     }
 
     if !security.record_action() {

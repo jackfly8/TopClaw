@@ -221,7 +221,10 @@ mod tests {
         std::fs::create_dir_all(&config.workspace_dir).unwrap();
         let cfg = Arc::new(config);
         let job = cron::add_job(&cfg, "*/5 * * * *", "echo run-now").unwrap();
-        let tool = CronRunTool::new(cfg.clone(), test_security_with(&cfg, AutonomyLevel::ReadOnly));
+        let tool = CronRunTool::new(
+            cfg.clone(),
+            test_security_with(&cfg, AutonomyLevel::ReadOnly),
+        );
 
         let result = tool.execute(json!({ "job_id": job.id })).await.unwrap();
         assert!(!result.success);
@@ -240,8 +243,8 @@ mod tests {
         config.autonomy.allowed_commands = vec!["touch".into()];
         std::fs::create_dir_all(&config.workspace_dir).unwrap();
         let cfg = Arc::new(config);
-        let job = cron::add_job_approved(&cfg, "*/5 * * * *", "touch cron-run-approval", true)
-            .unwrap();
+        let job =
+            cron::add_job_approved(&cfg, "*/5 * * * *", "touch cron-run-approval", true).unwrap();
         let tool = CronRunTool::new(cfg.clone(), test_security(&cfg));
 
         let denied = tool.execute(json!({ "job_id": job.id })).await.unwrap();

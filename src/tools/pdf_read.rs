@@ -330,27 +330,15 @@ mod tests {
 
         let r1 = tool.execute(json!({"path": "a.pdf"})).await.unwrap();
         assert!(!r1.success);
-        assert!(r1
-            .error
-            .as_deref()
-            .unwrap_or("")
-            .contains("File not found"));
+        assert!(r1.error.as_deref().unwrap_or("").contains("File not found"));
 
         let r2 = tool.execute(json!({"path": "b.pdf"})).await.unwrap();
         assert!(!r2.success);
-        assert!(r2
-            .error
-            .as_deref()
-            .unwrap_or("")
-            .contains("File not found"));
+        assert!(r2.error.as_deref().unwrap_or("").contains("File not found"));
 
         let r3 = tool.execute(json!({"path": "c.pdf"})).await.unwrap();
         assert!(!r3.success);
-        assert!(r3
-            .error
-            .as_deref()
-            .unwrap_or("")
-            .contains("File not found"));
+        assert!(r3.error.as_deref().unwrap_or("").contains("File not found"));
     }
 
     #[cfg(unix)]
