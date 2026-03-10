@@ -264,9 +264,9 @@ All contributors (human or agent) must follow the same collaboration flow:
 
 ### 6.1B Assignee-First Gate (Required)
 
-- For any GitHub issue or PR selected for active handling, the first action is to ensure `@chumyin` is an assignee.
-- This is additive ownership: keep existing assignees and add `@chumyin` if missing.
-- Do not start triage/review/implementation/merge work before assignee assignment is confirmed.
+- For any GitHub issue or PR selected for active handling, follow the current repository assignment policy from GitHub settings and active maintainer ownership.
+- Do not add unrelated assignees from stale templates or copied automation defaults.
+- Do not start triage/review/implementation/merge work before required assignee/owner routing is confirmed when the repository policy requires it.
 - Queue safety rule: assign only the currently active target; do not pre-assign future queued targets.
 
 ### 6.2 Worktree Workflow (Required for All Task Streams)

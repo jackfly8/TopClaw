@@ -76,7 +76,7 @@ Notes:
    - `test`
    - `flake-probe` (single-retry telemetry; optional block via `CI_BLOCK_ON_FLAKE_SUSPECTED`)
    - `docs-quality`
-7. If root license files (`LICENSE-APACHE`, `LICENSE-MIT`) changed, `license-file-owner-guard` allows only PR author `willsarg`.
+7. If root license files (`LICENSE-APACHE`, `LICENSE-MIT`) changed, `license-file-owner-guard` allows only PR author `jackfly8`.
 8. `lint-feedback` posts actionable comment if lint/docs gates fail.
 9. `CI Required Gate` aggregates results to final pass/fail.
 10. Maintainer merges PR once checks and review policy are satisfied.
@@ -260,6 +260,6 @@ flowchart TD
 ## Quick Troubleshooting
 
 1. Unexpected skipped jobs: inspect `scripts/ci/detect_change_scope.sh` outputs.
-2. CI/CD-change PR blocked: verify `@chumyin` approved review is present.
+2. CI/CD-change PR blocked: verify an approving review from `@jackfly8` or a login in `WORKFLOW_OWNER_LOGINS` is present.
 3. Fork PR appears stalled: check whether Actions run approval is pending.
 4. Docker not published: confirm a `v*` tag was pushed to the intended commit.

@@ -5,7 +5,7 @@ name: CI/CD with Security Hardening
 # 2) PRs into `main` are promotion PRs from `dev` (or explicit hotfix override).
 # 3) Full CI/CD runs on merge/direct push to `main` and manual dispatch only.
 # 3a) Main/manual build triggers are restricted to maintainers:
-#     `theonlyhennygod`, `jordanthejet`.
+#     `jackfly8`.
 # 4) release published: run publish path on every release.
 # Cost policy: no daily auto-release and no heavy PR-triggered release pipeline.
 on:
@@ -47,7 +47,7 @@ jobs:
                   actor="${GITHUB_ACTOR}"
                   actor_lc="$(echo "${actor}" | tr '[:upper:]' '[:lower:]')"
                   event="${GITHUB_EVENT_NAME}"
-                  allowed_humans_lc="theonlyhennygod,jordanthejet"
+                  allowed_humans_lc="jackfly8"
                   allowed_bot="github-actions[bot]"
                   run_pipeline="true"
 

@@ -536,7 +536,7 @@ Recommended scope keys in commit titles:
 - Require passing `CI Required Gate` and `Security Required Gate` before merge.
 - Require docs quality checks when docs are touched.
 - Require exactly 1 maintainer approval before merge.
-- Maintainer approver set: `@theonlyhennygod`, `@JordanTheJet`, `@chumyin`.
+- Maintainer approver set: `@jackfly8`.
 - No self-approval (GitHub enforced).
 - Require CODEOWNERS review for protected paths.
 - Merge only when the PR has no conflicts with the target branch.

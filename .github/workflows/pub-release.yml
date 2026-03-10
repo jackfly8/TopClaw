@@ -155,7 +155,7 @@ jobs:
                     --release-ref "${{ steps.vars.outputs.release_ref }}" \
                     --release-tag "${{ steps.vars.outputs.release_tag }}" \
                     --publish-release "${{ steps.vars.outputs.publish_release }}" \
-                    --authorized-actors "${{ vars.RELEASE_AUTHORIZED_ACTORS || format('{0},theonlyhennygod,JordanTheJet', github.repository_owner) }},github-actions[bot]" \
+                    --authorized-actors "${{ vars.RELEASE_AUTHORIZED_ACTORS || github.repository_owner }},github-actions[bot]" \
                     --authorized-tagger-emails "${{ vars.RELEASE_AUTHORIZED_TAGGER_EMAILS || '' }}" \
                     --require-annotated-tag true \
                     --output-json artifacts/release-trigger-guard.json \

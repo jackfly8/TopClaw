@@ -47,7 +47,7 @@ jobs:
                   set -euo pipefail
                   actor="${GITHUB_ACTOR}"
                   actor_lc="$(echo "${actor}" | tr '[:upper:]' '[:lower:]')"
-                  allowed_actors_lc="theonlyhennygod,jordanthejet"
+                  allowed_actors_lc="jackfly8"
                   if [[ ",${allowed_actors_lc}," != *",${actor_lc},"* ]]; then
                     echo "::error::Only maintainer actors (${allowed_actors_lc}) can trigger main release tagging. Actor: ${actor}"
                     exit 1
