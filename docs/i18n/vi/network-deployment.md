@@ -60,14 +60,14 @@ allowed_users = []
 
 [gateway]
 host = "127.0.0.1"
-port = 3000
+port = 42617
 allow_public_bind = false
 ```
 
 ### 2.4 Chạy Daemon (chỉ cục bộ)
 
 ```bash
-topclaw daemon --host 127.0.0.1 --port 3000
+topclaw daemon --host 127.0.0.1 --port 42617
 ```
 
 - Gateway bind vào `127.0.0.1` — không tiếp cận được từ máy khác
@@ -85,12 +85,12 @@ topclaw daemon --host 127.0.0.1 --port 3000
 ```toml
 [gateway]
 host = "0.0.0.0"
-port = 3000
+port = 42617
 allow_public_bind = true
 ```
 
 ```bash
-topclaw daemon --host 0.0.0.0 --port 3000
+topclaw daemon --host 0.0.0.0 --port 42617
 ```
 
 **Bảo mật:** `allow_public_bind = true` phơi bày gateway với mạng nội bộ của bạn. Chỉ dùng trên mạng LAN tin cậy.
@@ -101,7 +101,7 @@ Nếu bạn cần **public URL** (ví dụ: webhook WhatsApp, client bên ngoài
 
 1. Chạy gateway trên localhost:
    ```bash
-   topclaw daemon --host 127.0.0.1 --port 3000
+   topclaw daemon --host 127.0.0.1 --port 42617
    ```
 
 2. Khởi động tunnel:
@@ -178,13 +178,13 @@ provider = "ngrok"
 
 Hoặc chạy ngrok thủ công:
 ```bash
-ngrok http 3000
+ngrok http 42617
 # Use the HTTPS URL for your webhook
 ```
 
 ### 5.3 Cloudflare Tunnel
 
-Cấu hình Cloudflare Tunnel để forward đến `127.0.0.1:3000`, sau đó đặt webhook URL của bạn về hostname công khai của tunnel.
+Cấu hình Cloudflare Tunnel để forward đến `127.0.0.1:42617`, sau đó đặt webhook URL của bạn về hostname công khai của tunnel.
 
 ---
 
@@ -192,7 +192,7 @@ Cấu hình Cloudflare Tunnel để forward đến `127.0.0.1:3000`, sau đó đ
 
 - [ ] Build với `--features hardware` (và `peripheral-rpi` nếu dùng native GPIO)
 - [ ] Cấu hình `[peripherals]` và `[channels_config.telegram]`
-- [ ] Chạy `topclaw daemon --host 127.0.0.1 --port 3000` (Telegram hoạt động không cần 0.0.0.0)
+- [ ] Chạy `topclaw daemon --host 127.0.0.1 --port 42617` (Telegram hoạt động không cần 0.0.0.0)
 - [ ] Để truy cập LAN: `--host 0.0.0.0` + `allow_public_bind = true` trong config
 - [ ] Để dùng webhook: dùng Tailscale, ngrok hoặc Cloudflare tunnel
 

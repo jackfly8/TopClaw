@@ -113,7 +113,7 @@ baud = 115200
 ## Phase 4: Chạy và Kiểm thử
 
 ```bash
-topclaw daemon --host 127.0.0.1 --port 3000
+topclaw daemon --host 127.0.0.1 --port 42617
 ```
 
 Hoặc dùng agent trực tiếp:

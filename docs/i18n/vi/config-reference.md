@@ -362,7 +362,7 @@ Ví dụ:
 ```toml
 [gateway]
 host = "127.0.0.1"
-port = 3000
+port = 42617
 require_pairing = true
 allow_public_bind = false
 trust_forwarded_headers = true
