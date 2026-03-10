@@ -58,8 +58,8 @@ Check-name stability rule:
 
 Verification commands:
 
-- `gh run list --repo topway-ai/TopClaw --workflow feature-matrix.yml --limit 3`
-- `gh run view <run_id> --repo topway-ai/TopClaw --json jobs --jq '.jobs[].name'`
+- `gh run list --repo topway-ai/topclaw --workflow feature-matrix.yml --limit 3`
+- `gh run view <run_id> --repo topway-ai/topclaw --json jobs --jq '.jobs[].name'`
 
 ## Failure Triage
 

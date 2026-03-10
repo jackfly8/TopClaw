@@ -9,7 +9,7 @@ Options:
     --mode brief|full   Output mode (default: full)
                         brief: billable minutes/hours table only
                         full:  detailed breakdown with per-run list
-    --repo OWNER/NAME   Repository (default: topway-ai/TopClaw)
+    --repo OWNER/NAME   Repository (default: topway-ai/topclaw)
     -h, --help          Show this help message
 """
 
@@ -38,8 +38,8 @@ def parse_args():
     )
     parser.add_argument(
         "--repo",
-        default="topway-ai/TopClaw",
-        help="Repository in OWNER/NAME format (default: topway-ai/TopClaw)",
+        default="topway-ai/topclaw",
+        help="Repository in OWNER/NAME format (default: topway-ai/topclaw)",
     )
     return parser.parse_args()
 

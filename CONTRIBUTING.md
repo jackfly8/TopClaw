@@ -6,7 +6,7 @@ Thanks for your interest in contributing to TopClaw! This guide will help you ge
 
 Welcome — contributions of all sizes are valued. If this is your first contribution, here is how to get started:
 
-1. **Find an issue.** Look for issues labeled [`good first issue`](https://github.com/topway-ai/TopClaw/issues?q=is%3Aissue+is%3Aopen+label%3A%22good+first+issue%22) — these are scoped for newcomers and include context to get moving quickly.
+1. **Find an issue.** Look for issues labeled [`good first issue`](https://github.com/topway-ai/topclaw/issues?q=is%3Aissue+is%3Aopen+label%3A%22good+first+issue%22) — these are scoped for newcomers and include context to get moving quickly.
 
 2. **Pick a scope.** Good first contributions include:
    - Typo and documentation fixes
@@ -28,7 +28,7 @@ If you get stuck, open a draft PR early and ask questions in the description.
 
 ```bash
 # Clone the repo
-git clone https://github.com/topway-ai/TopClaw.git
+git clone https://github.com/topway-ai/topclaw.git
 cd TopClaw
 
 # Enable the pre-push hook (runs fmt, clippy, tests before every push)

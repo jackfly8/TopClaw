@@ -298,6 +298,6 @@ If all tests pass:
 
 ## 📞 Support
 
-- Issues: https://github.com/topway-ai/TopClaw/issues
+- Issues: https://github.com/topway-ai/topclaw/issues
 - Docs: `./TESTING_TELEGRAM.md`
 - Help: `topclaw --help`

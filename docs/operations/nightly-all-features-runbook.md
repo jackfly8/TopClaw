@@ -59,13 +59,13 @@ SLA targets:
 
 Use:
 
-- `gh run list --repo topway-ai/TopClaw --workflow feature-matrix.yml --limit 10`
-- `gh run view <run_id> --repo topway-ai/TopClaw --json jobs,headSha,event,createdAt,url`
+- `gh run list --repo topway-ai/topclaw --workflow feature-matrix.yml --limit 10`
+- `gh run view <run_id> --repo topway-ai/topclaw --json jobs,headSha,event,createdAt,url`
 - inspect `nightly-history.json` in `nightly-all-features-summary` artifact
 
 Manual trigger (nightly profile):
 
-- `gh workflow run feature-matrix.yml --repo topway-ai/TopClaw --ref dev -f profile=nightly -f fail_on_failure=true`
+- `gh workflow run feature-matrix.yml --repo topway-ai/topclaw --ref dev -f profile=nightly -f fail_on_failure=true`
 
 Project update expectation:
 

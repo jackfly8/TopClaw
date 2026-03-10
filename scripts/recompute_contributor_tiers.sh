@@ -23,8 +23,8 @@ Options:
   -h, --help              Show this help
 
 Examples:
-  ./$SCRIPT_NAME --repo topway-ai/TopClaw --limit 50
-  ./$SCRIPT_NAME --repo topway-ai/TopClaw --kind prs --state open --apply
+  ./$SCRIPT_NAME --repo topway-ai/topclaw --limit 50
+  ./$SCRIPT_NAME --repo topway-ai/topclaw --kind prs --state open --apply
 USAGE
 }
 

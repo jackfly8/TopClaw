@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-REPO="topway-ai/TopClaw"
+REPO="topway-ai/topclaw"
 API_URL="https://api.github.com/repos/${REPO}/releases/latest"
 RELEASE_BASE="https://github.com/${REPO}/releases/latest/download"
 
