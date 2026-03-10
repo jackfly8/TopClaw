@@ -11,7 +11,7 @@ topclaw peripheral add arduino-uno /dev/cu.usbmodem12345
 topclaw peripheral add rpi-gpio native   # cho Raspberry Pi GPIO (Linux)
 
 # Khởi động lại daemon để áp dụng
-topclaw daemon --host 127.0.0.1 --port 3000
+topclaw daemon --host 127.0.0.1 --port 42617
 ```
 
 ## Các board được hỗ trợ

@@ -14,17 +14,17 @@ This guide explains how to run TopClaw in Docker mode, including bootstrap, onbo
 ```bash
 # Clone the repository
 git clone https://github.com/topway-ai/topclaw.git
-cd TopClaw
+cd topclaw
 
 # Run bootstrap with Docker mode
 ./bootstrap.sh --docker
 ```
 
-This builds the Docker image and prepares the data directory. Onboarding is **not** run by default in Docker mode.
+This builds the Docker image, prepares the data directory, and launches onboarding by default in plain `--docker` mode.
 
-### 2. Run Onboarding
+### 2. Run Onboarding Again
 
-After bootstrap completes, run onboarding inside Docker:
+If you want to rerun onboarding later, run it inside Docker:
 
 ```bash
 # Interactive onboarding (recommended for first-time setup)
@@ -33,6 +33,8 @@ After bootstrap completes, run onboarding inside Docker:
 # Or non-interactive with API key
 ./topclaw_install.sh --docker --api-key "sk-..." --provider openrouter
 ```
+
+If you seed config with `--docker-config` or start directly with `--docker-daemon`, bootstrap skips onboarding intentionally.
 
 ### 3. Start TopClaw
 
@@ -54,15 +56,19 @@ docker rm -f topclaw-daemon
 ```bash
 # Run a one-off command inside the container
 docker run --rm -it \
-  -v ~/.topclaw-docker/.topclaw:/home/claw/.topclaw \
-  -v ~/.topclaw-docker/workspace:/workspace \
+  -e HOME=/topclaw-data \
+  -e TOPCLAW_WORKSPACE=/topclaw-data/workspace \
+  -v ./.topclaw-docker/.topclaw:/topclaw-data/.topclaw \
+  -v ./.topclaw-docker/workspace:/topclaw-data/workspace \
   topclaw-bootstrap:local \
   topclaw agent -m "Hello, TopClaw!"
 
 # Start interactive CLI mode
 docker run --rm -it \
-  -v ~/.topclaw-docker/.topclaw:/home/claw/.topclaw \
-  -v ~/.topclaw-docker/workspace:/workspace \
+  -e HOME=/topclaw-data \
+  -e TOPCLAW_WORKSPACE=/topclaw-data/workspace \
+  -v ./.topclaw-docker/.topclaw:/topclaw-data/.topclaw \
+  -v ./.topclaw-docker/workspace:/topclaw-data/workspace \
   topclaw-bootstrap:local \
   topclaw agent
 ```
@@ -72,8 +78,10 @@ docker run --rm -it \
 ### Data Directory
 
 By default, Docker mode stores data in:
-- `~/.topclaw-docker/.topclaw/` - Configuration files
-- `~/.topclaw-docker/workspace/` - Workspace files
+- `./.topclaw-docker/.topclaw/` - Configuration files
+- `./.topclaw-docker/workspace/` - Workspace files
+
+When bootstrap runs from a temporary clone outside a repository checkout, it falls back to `~/.topclaw-docker/`.
 
 Override with environment variable:
 ```bash
@@ -120,7 +128,7 @@ This removes:
 - Docker containers
 - Docker networks
 - Docker volumes
-- Data directory (`~/.topclaw-docker/`)
+- Data directory (`./.topclaw-docker/` by default)
 
 ## Troubleshooting
 
@@ -134,15 +142,17 @@ topclaw agent
 
 # Correct (inside container)
 docker run --rm -it \
-  -v ~/.topclaw-docker/.topclaw:/home/claw/.topclaw \
-  -v ~/.topclaw-docker/workspace:/workspace \
+  -e HOME=/topclaw-data \
+  -e TOPCLAW_WORKSPACE=/topclaw-data/workspace \
+  -v ./.topclaw-docker/.topclaw:/topclaw-data/.topclaw \
+  -v ./.topclaw-docker/workspace:/topclaw-data/workspace \
   topclaw-bootstrap:local \
   topclaw agent
 ```
 
 ### No Containers Running After Bootstrap
 
-Running `./bootstrap.sh --docker` only builds the image and prepares the data directory. It does **not** start a container. To start TopClaw:
+Running `./bootstrap.sh --docker` does not leave a long-running daemon container behind. It runs onboarding in a temporary container unless you explicitly skip onboarding. To start persistent runtime:
 
 1. Run onboarding: `./topclaw_install.sh --docker --interactive-onboard`
 2. Start daemon: `./topclaw_install.sh --docker --docker-daemon`
@@ -162,9 +172,9 @@ Common issues:
 
 | Variable | Description | Default |
 |----------|-------------|---------|
-| `TOPCLAW_DOCKER_DATA_DIR` | Data directory path | `~/.topclaw-docker` |
+| `TOPCLAW_DOCKER_DATA_DIR` | Data directory path | `./.topclaw-docker` inside a repo checkout; otherwise `~/.topclaw-docker` |
 | `TOPCLAW_DOCKER_IMAGE` | Docker image name | `topclaw-bootstrap:local` |
-| `TOPCLAW_CONTAINER_CLI` | Container CLI (docker/podman) | `docker` |
+| `TOPCLAW_CONTAINER_CLI` | Container CLI (docker/podman) | `docker` with automatic fallback to `podman` when Docker CLI is unavailable |
 | `TOPCLAW_DOCKER_DAEMON_NAME` | Daemon container name | `topclaw-daemon` |
 | `TOPCLAW_DOCKER_CARGO_FEATURES` | Build features | (empty) |
 

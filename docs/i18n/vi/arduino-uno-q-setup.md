@@ -15,7 +15,7 @@ TopClaw bao gồm mọi thứ cần thiết cho Arduino Uno Q. **Clone repo và 
 | Setup command | `src/peripherals/uno_q_setup.rs` | `topclaw peripheral setup-uno-q` triển khai Bridge qua scp + arduino-app-cli |
 | Config schema | `board = "arduino-uno-q"`, `transport = "bridge"` | Được hỗ trợ trong `config.toml` |
 
-Build với `--features hardware` (hoặc features mặc định) để bao gồm hỗ trợ Uno Q.
+Build với `--features hardware` để bao gồm hỗ trợ Uno Q.
 
 ---
 
@@ -67,10 +67,10 @@ sudo apt-get install -y pkg-config libssl-dev
 
 # Clone topclaw (hoặc scp project của bạn)
 git clone https://github.com/topway-ai/topclaw.git
-cd TopClaw
+cd topclaw
 
 # Build (~15–30 phút trên Uno Q)
-cargo build --release
+cargo build --release --features hardware
 
 # Cài đặt
 sudo cp target/release/topclaw /usr/local/bin/
@@ -87,7 +87,7 @@ brew tap messense/macos-cross-toolchains
 brew install aarch64-unknown-linux-gnu
 
 # Build
-CC_aarch64_unknown_linux_gnu=aarch64-unknown-linux-gnu-gcc cargo build --release --target aarch64-unknown-linux-gnu
+CC_aarch64_unknown_linux_gnu=aarch64-unknown-linux-gnu-gcc cargo build --release --target aarch64-unknown-linux-gnu --features hardware
 
 # Copy sang Uno Q
 scp target/aarch64-unknown-linux-gnu/release/topclaw arduino@<UNO_Q_IP>:~/
@@ -130,7 +130,7 @@ allowed_users = ["*"]
 
 [gateway]
 host = "127.0.0.1"
-port = 3000
+port = 42617
 allow_public_bind = false
 
 [agent]
@@ -145,7 +145,7 @@ compact_context = true
 ssh arduino@<UNO_Q_IP>
 
 # Chạy daemon (Telegram polling hoạt động qua WiFi)
-topclaw daemon --host 127.0.0.1 --port 3000
+topclaw daemon --host 127.0.0.1 --port 42617
 ```
 
 **Tại bước này:** Telegram chat hoạt động. Gửi tin nhắn tới bot — TopClaw phản hồi. Chưa có GPIO.
@@ -184,7 +184,7 @@ transport = "bridge"
 ### 5.3 Chạy TopClaw
 
 ```bash
-topclaw daemon --host 127.0.0.1 --port 3000
+topclaw daemon --host 127.0.0.1 --port 42617
 ```
 
 Giờ khi bạn nhắn tin cho Telegram bot *"Turn on the LED"* hoặc *"Set pin 13 high"*, TopClaw dùng `gpio_write` qua Bridge.
@@ -199,11 +199,11 @@ Giờ khi bạn nhắn tin cho Telegram bot *"Turn on the LED"* hoặc *"Set pin
 | 2 | `ssh arduino@<IP>` |
 | 3 | `curl -sSf https://sh.rustup.rs \| sh -s -- -y && source ~/.cargo/env` |
 | 4 | `sudo apt-get install -y pkg-config libssl-dev` |
-| 5 | `git clone https://github.com/topway-ai/topclaw.git && cd TopClaw` |
-| 6 | `cargo build --release --no-default-features` |
+| 5 | `git clone https://github.com/topway-ai/topclaw.git && cd topclaw` |
+| 6 | `cargo build --release --features hardware` |
 | 7 | `topclaw onboard --api-key KEY --provider openrouter` |
 | 8 | Chỉnh sửa `~/.topclaw/config.toml` (thêm Telegram bot_token) |
-| 9 | `topclaw daemon --host 127.0.0.1 --port 3000` |
+| 9 | `topclaw daemon --host 127.0.0.1 --port 42617` |
 | 10 | Nhắn tin cho Telegram bot — nó phản hồi |
 
 ---
@@ -212,6 +212,6 @@ Giờ khi bạn nhắn tin cho Telegram bot *"Turn on the LED"* hoặc *"Set pin
 
 - **"command not found: topclaw"** — Dùng đường dẫn đầy đủ: `/usr/local/bin/topclaw` hoặc đảm bảo `~/.cargo/bin` nằm trong PATH.
 - **Telegram không phản hồi** — Kiểm tra bot_token, allowed_users, và Uno Q có kết nối internet (WiFi).
-- **Hết bộ nhớ** — Dùng `--no-default-features` để giảm kích thước binary; cân nhắc `compact_context = true`.
+- **Hết bộ nhớ** — Giữ build ở mức tối thiểu với `--features hardware`; cân nhắc `compact_context = true`.
 - **Lệnh GPIO bị bỏ qua** — Đảm bảo Bridge app đang chạy (`topclaw peripheral setup-uno-q` triển khai và khởi động nó). Config phải có `board = "arduino-uno-q"` và `transport = "bridge"`.
 - **LLM provider (GLM/Zhipu)** — Dùng `default_provider = "glm"` hoặc `"zhipu"` với `GLM_API_KEY` trong env hoặc config. TopClaw dùng endpoint v4 chính xác.

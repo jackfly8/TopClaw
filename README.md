@@ -14,7 +14,7 @@ Then use the same quick-start path on Linux or macOS:
 
 ```bash
 git clone https://github.com/topway-ai/topclaw.git
-cd TopClaw
+cd topclaw
 ./bootstrap.sh --install-system-deps --install-rust --prefer-prebuilt
 topclaw status
 topclaw status --diagnose

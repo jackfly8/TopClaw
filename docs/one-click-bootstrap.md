@@ -41,7 +41,7 @@ brew install topclaw
 
 ```bash
 git clone https://github.com/topway-ai/topclaw.git
-cd TopClaw
+cd topclaw
 ./bootstrap.sh --install-system-deps --install-rust --prefer-prebuilt
 ```
 
@@ -49,7 +49,7 @@ Windows PowerShell equivalent:
 
 ```powershell
 git clone https://github.com/topway-ai/topclaw.git
-cd TopClaw
+cd topclaw
 .\bootstrap.ps1 -InstallRust -PreferPrebuilt
 ```
 

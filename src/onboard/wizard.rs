@@ -335,52 +335,61 @@ async fn maybe_prompt_openai_codex_login(
     }
 
     let client = reqwest::Client::new();
-    match crate::auth::openai_oauth::start_device_code_flow(&client).await {
-        Ok(device) => {
-            println!(
-                "  {} OpenAI device-code login started.",
-                style("✓").green().bold()
-            );
-            print_bullet(&format!(
-                "Visit: {}",
-                style(&device.verification_uri).cyan()
-            ));
-            print_bullet(&format!(
-                "Code:  {}",
-                style(&device.user_code).yellow().bold()
-            ));
-            if let Some(uri_complete) = &device.verification_uri_complete {
-                print_bullet(&format!("Fast link: {}", style(uri_complete).cyan()));
-            }
-            if let Some(message) = &device.message {
-                print_bullet(message);
-            }
+    let pkce = crate::auth::openai_oauth::generate_pkce_state();
+    let authorize_url = crate::auth::openai_oauth::build_authorize_url(&pkce);
 
-            let token_set =
-                crate::auth::openai_oauth::poll_device_code_tokens(&client, &device).await?;
-            let account_id =
-                crate::auth::openai_oauth::extract_account_id_from_jwt(&token_set.access_token);
+    println!(
+        "  {} OpenAI browser login ready.",
+        style("✓").green().bold()
+    );
+    print_bullet("Open this URL in your browser and authorize access:");
+    println!("    {}", style(&authorize_url).cyan());
+    print_bullet("Waiting for callback at http://localhost:1455/auth/callback ...");
 
-            auth_service
-                .store_openai_tokens("default", token_set, account_id, true)
-                .await?;
-
-            println!(
-                "  {} OpenAI Codex login saved to profile {}",
-                style("✓").green().bold(),
-                style("default").green()
-            );
-        }
+    let code = match crate::auth::openai_oauth::receive_loopback_code(
+        &pkce.state,
+        Duration::from_secs(180),
+    )
+    .await
+    {
+        Ok(code) => code,
         Err(error) => {
             print_bullet(&format!(
-                "OpenAI Codex device-code login could not start ({}).",
+                "Browser callback capture failed ({}).",
                 style(error.to_string()).yellow()
             ));
-            print_bullet(
-                "Finish onboarding, then run `topclaw auth login --provider openai-codex` to use the browser login flow.",
-            );
+
+            let redirect_input: String = Input::new()
+                .with_prompt("  Paste redirect URL or OAuth code (leave empty to skip for now)")
+                .allow_empty(true)
+                .interact_text()?;
+
+            let trimmed = redirect_input.trim();
+            if trimmed.is_empty() {
+                print_bullet(
+                    "Skipping OAuth for now. Run `topclaw auth login --provider openai-codex` later.",
+                );
+                return Ok(());
+            }
+
+            crate::auth::openai_oauth::parse_code_from_redirect(trimmed, Some(&pkce.state))?
         }
-    }
+    };
+
+    let token_set =
+        crate::auth::openai_oauth::exchange_code_for_tokens(&client, &code, &pkce).await?;
+    let account_id =
+        crate::auth::openai_oauth::extract_account_id_from_jwt(&token_set.access_token);
+
+    auth_service
+        .store_openai_tokens("default", token_set, account_id, true)
+        .await?;
+
+    println!(
+        "  {} OpenAI Codex login saved to profile {}",
+        style("✓").green().bold(),
+        style("default").green()
+    );
 
     Ok(())
 }

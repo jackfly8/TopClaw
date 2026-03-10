@@ -42,18 +42,18 @@ brew install topclaw
 1. **Κλωνοποίηση του αποθετηρίου**:
    ```bash
    git clone https://github.com/topway-ai/topclaw.git
-   cd TopClaw
+   cd topclaw
    ```
 2. **Εκτέλεση του bootstrap**:
    ```bash
-   ./bootstrap.sh
+   ./bootstrap.sh --install-system-deps --install-rust --prefer-prebuilt
    ```
 
-### Λειτουργία Σενάριου
-
-Από προεπιλογή, το σενάριο εκτελεί:
-1. `cargo build --release --locked`
-2. `cargo install --path . --force --locked`
+Η προτεινόμενη αυτή διαδρομή:
+1. εγκαθιστά τις συνήθεις προαπαιτούμενες εξαρτήσεις όπου υποστηρίζεται
+2. εγκαθιστά το Rust αν λείπει
+3. δοκιμάζει πρώτα prebuilt binary
+4. κάνει fallback σε build από source μόνο αν δεν υπάρχει συμβατό release asset
 
 ### Απαιτήσεις Πόρων και Προ-μεταγλωττισμένα Αρχεία
 
@@ -99,6 +99,12 @@ curl -fsSL https://raw.githubusercontent.com/topway-ai/topclaw/main/scripts/boot
 ```
 Το σενάριο θα δημιουργήσει μια τοπική εικόνα Docker και θα ξεκινήσει τη διαδικασία onboarding. Οι ρυθμίσεις αποθηκεύονται στον κατάλογο `./.topclaw-docker`.
 
+Το CLI container είναι από προεπιλογή το `docker`. Αν το Docker CLI δεν είναι διαθέσιμο και υπάρχει `podman`, το bootstrap κάνει αυτόματο fallback σε `podman`. Μπορείτε επίσης να ορίσετε ρητά το `TOPCLAW_CONTAINER_CLI` (π.χ. `TOPCLAW_CONTAINER_CLI=podman ./bootstrap.sh --docker`).
+
+Με Podman, το bootstrap χρησιμοποιεί `--userns keep-id` και volume labels `:Z` ώστε τα mounts config/workspace να παραμένουν εγγράψιμα μέσα στο container.
+
+Αν προσθέσετε `--skip-build`, το bootstrap παραλείπει το τοπικό build της εικόνας. Πρώτα δοκιμάζει το τοπικό tag (`TOPCLAW_DOCKER_IMAGE`, προεπιλογή: `topclaw-bootstrap:local`) και, αν λείπει, κάνει pull το `ghcr.io/topway-ai/topclaw:latest` και το επαναπροσθέτει τοπικά πριν συνεχίσει.
+
 ### Μη Διαδραστική Εισαγωγή
 
 ```bash
@@ -115,7 +121,7 @@ curl -fsSL https://raw.githubusercontent.com/topway-ai/topclaw/main/scripts/boot
 
 - `--install-system-deps`: Εγκατάσταση εξαρτήσεων συστήματος.
 - `--install-rust`: Εγκατάσταση του Rust toolchain.
-- `--skip-build`: Παράλειψη της διαδικασίας μεταγλώττισης.
+- `--skip-build`: Σε `--docker` mode, χρήση υπάρχουσας τοπικής εικόνας ή pull του `ghcr.io/topway-ai/topclaw:latest` αν χρειάζεται.
 - `--skip-install`: Παράλειψη της εγκατάστασης του εκτελέσιμου.
 - `--provider <id>`: Ορισμός παρόχου LLM.
 

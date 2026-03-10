@@ -41,14 +41,16 @@ brew install topclaw
 
 ```bash
 git clone https://github.com/topway-ai/topclaw.git
-cd TopClaw
-./bootstrap.sh
+cd topclaw
+./bootstrap.sh --install-system-deps --install-rust --prefer-prebuilt
 ```
 
-Mặc định script sẽ:
+Đường dẫn khuyến nghị này sẽ:
 
-1. `cargo build --release --locked`
-2. `cargo install --path . --force --locked`
+1. cài các phụ thuộc hệ thống tiêu chuẩn khi được hỗ trợ
+2. cài Rust nếu chưa có
+3. ưu tiên binary dựng sẵn trước
+4. chỉ fallback sang build từ source khi không có release asset tương thích
 
 ### Kiểm tra tài nguyên và binary dựng sẵn
 
@@ -122,6 +124,12 @@ Nếu chạy Cách B ngoài thư mục repo, bootstrap script sẽ tự clone wo
 
 Lệnh này build image TopClaw cục bộ và chạy thiết lập trong container, lưu config/workspace vào `./.topclaw-docker`.
 
+CLI container mặc định là `docker`. Nếu Docker CLI không có mà `podman` tồn tại, bootstrap sẽ tự fallback sang `podman`. Bạn cũng có thể đặt `TOPCLAW_CONTAINER_CLI` tường minh (ví dụ: `TOPCLAW_CONTAINER_CLI=podman ./bootstrap.sh --docker`).
+
+Với Podman, bootstrap chạy cùng `--userns keep-id` và volume label `:Z` để mount workspace/config vẫn ghi được trong container.
+
+Nếu thêm `--skip-build`, bootstrap sẽ bỏ qua bước build image cục bộ. Nó sẽ thử Docker tag cục bộ trước (`TOPCLAW_DOCKER_IMAGE`, mặc định: `topclaw-bootstrap:local`); nếu không có thì kéo `ghcr.io/topway-ai/topclaw:latest` rồi tag lại cục bộ trước khi chạy.
+
 ### Thiết lập nhanh (không tương tác)
 
 ```bash
@@ -144,7 +152,7 @@ TOPCLAW_API_KEY="sk-..." TOPCLAW_PROVIDER="openrouter" ./bootstrap.sh --onboard
 
 - `--install-system-deps`
 - `--install-rust`
-- `--skip-build`
+- `--skip-build` (trong chế độ `--docker`: dùng image cục bộ nếu có, nếu không sẽ kéo `ghcr.io/topway-ai/topclaw:latest`)
 - `--skip-install`
 - `--provider <id>`
 
