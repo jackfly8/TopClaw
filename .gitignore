@@ -44,3 +44,6 @@ credentials.json
 
 # Nix
 result
+
+# Generated runtime state
+state/
