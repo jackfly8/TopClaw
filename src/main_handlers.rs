@@ -1,8 +1,3 @@
-use crate::auth;
-use crate::config::Config;
-use crate::security;
-use crate::service;
-use crate::workspace;
 use crate::{
     AuthCommands, Cli, CompletionShell, EstopLevelArg, EstopSubcommands, SecurityCommands,
     ServiceCommands, WorkspaceCommands, WorkspaceTokenCommands,
@@ -13,6 +8,7 @@ use directories::UserDirs;
 use serde::{Deserialize, Serialize};
 use std::fs;
 use std::io::Write;
+use topclaw::{auth, security, service, workspace, Config};
 use tracing::warn;
 
 pub(crate) fn handle_uninstall_command(purge: bool) -> Result<()> {
@@ -985,7 +981,7 @@ pub(crate) async fn handle_auth_command(auth_command: AuthCommands, config: &Con
                     marker,
                     id,
                     profile.kind,
-                    crate::security::redact(profile.account_id.as_deref().unwrap_or("unknown")),
+                    security::redact(profile.account_id.as_deref().unwrap_or("unknown")),
                     format_expiry(profile)
                 );
             }

@@ -1,9 +1,9 @@
-use crate::config::schema::SelfImprovementConfig;
-use crate::config::Config;
+use crate::config::{Config, SelfImprovementConfig};
 use crate::cron::{self, add_agent_job, CronJob, CronJobPatch, Schedule, SessionTarget};
 use anyhow::{Context, Result};
 use chrono::Utc;
 use serde::{Deserialize, Serialize};
+use std::fmt::Write as _;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
@@ -80,6 +80,13 @@ pub struct SelfImprovementManager {
     workspace_dir: PathBuf,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct SelfImprovementRepairOutcome {
+    pub action: String,
+    pub state_path: String,
+    pub quarantine_path: Option<String>,
+}
+
 impl SelfImprovementManager {
     pub fn new(workspace_dir: &Path) -> Self {
         Self {
@@ -100,10 +107,38 @@ impl SelfImprovementManager {
             .join("candidate")
     }
 
+    async fn quarantine_state_file(&self, path: &Path) -> Result<PathBuf> {
+        let timestamp = Utc::now().format("%Y%m%dT%H%M%SZ");
+        let quarantine_path =
+            path.with_file_name(format!("self_improvement_tasks.corrupt.{timestamp}.json"));
+        tokio::fs::rename(path, &quarantine_path)
+            .await
+            .with_context(|| {
+                format!(
+                    "failed to quarantine corrupt self-improvement state {} to {}",
+                    path.display(),
+                    quarantine_path.display()
+                )
+            })?;
+        Ok(quarantine_path)
+    }
+
     pub async fn load_state(&self) -> Result<SelfImprovementState> {
         let path = self.state_path();
         match tokio::fs::read_to_string(&path).await {
-            Ok(raw) => Ok(serde_json::from_str(&raw).unwrap_or_default()),
+            Ok(raw) => match serde_json::from_str(&raw) {
+                Ok(state) => Ok(state),
+                Err(error) => {
+                    let quarantine_path = self.quarantine_state_file(&path).await?;
+                    Err(error).with_context(|| {
+                        format!(
+                            "invalid self-improvement state file {} (quarantined to {})",
+                            path.display(),
+                            quarantine_path.display()
+                        )
+                    })
+                }
+            },
             Err(err) if err.kind() == std::io::ErrorKind::NotFound => {
                 Ok(SelfImprovementState::default())
             }
@@ -121,6 +156,37 @@ impl SelfImprovementManager {
         tokio::fs::write(&tmp, data).await?;
         tokio::fs::rename(&tmp, &path).await?;
         Ok(())
+    }
+
+    pub async fn repair_state_file(&self) -> Result<SelfImprovementRepairOutcome> {
+        let path = self.state_path();
+        match tokio::fs::read_to_string(&path).await {
+            Ok(raw) => match serde_json::from_str::<SelfImprovementState>(&raw) {
+                Ok(_) => Ok(SelfImprovementRepairOutcome {
+                    action: "noop".to_string(),
+                    state_path: path.display().to_string(),
+                    quarantine_path: None,
+                }),
+                Err(_) => {
+                    let quarantine_path = self.quarantine_state_file(&path).await?;
+                    self.save_state(&SelfImprovementState::default()).await?;
+                    Ok(SelfImprovementRepairOutcome {
+                        action: "quarantined_and_reset".to_string(),
+                        state_path: path.display().to_string(),
+                        quarantine_path: Some(quarantine_path.display().to_string()),
+                    })
+                }
+            },
+            Err(err) if err.kind() == std::io::ErrorKind::NotFound => {
+                self.save_state(&SelfImprovementState::default()).await?;
+                Ok(SelfImprovementRepairOutcome {
+                    action: "created_default".to_string(),
+                    state_path: path.display().to_string(),
+                    quarantine_path: None,
+                })
+            }
+            Err(err) => Err(err.into()),
+        }
     }
 
     pub async fn enqueue_task(
@@ -245,7 +311,7 @@ fn stable_repo_path(cfg: &SelfImprovementConfig) -> Option<PathBuf> {
     }
 }
 
-pub async fn check_git_readiness(config: &Config) -> GitReadiness {
+pub fn check_git_readiness(config: &Config) -> GitReadiness {
     let manager = SelfImprovementManager::new(&config.workspace_dir);
     let Some(repository_path) = stable_repo_path(&config.self_improvement) else {
         return GitReadiness {
@@ -309,7 +375,7 @@ pub async fn check_git_readiness(config: &Config) -> GitReadiness {
     }
 
     let repo = repository_path.display().to_string();
-    let checks = vec![
+    let checks = [
         run_command("git", &["--version"]),
         run_command("cargo", &["--version"]),
         run_command("git", &["-C", &repo, "rev-parse", "--is-inside-work-tree"]),
@@ -448,9 +514,10 @@ fn build_task_prompt(
         problem = task.problem
     );
     if let Some(evidence) = task.evidence.as_deref() {
-        prompt.push_str(&format!("Evidence: {evidence}\n"));
+        let _ = writeln!(prompt, "Evidence: {evidence}");
     }
-    prompt.push_str(&format!(
+    let _ = write!(
+        prompt,
         "\nStable repository: `{repo}`\n\
          Candidate worktree: `{candidate}`\n\
          Target branch: `{branch_name}`\n\n\
@@ -464,7 +531,7 @@ fn build_task_prompt(
          7. For generated skills, run skill vetting before publish (`topclaw skills audit <skill-path>` from the candidate worktree, or the nearest equivalent validation path available in this environment).\n\
          8. Run validation from the candidate worktree with `cargo fmt --all -- --check`, `cargo check --locked`, and the most relevant tests.\n\
          9. If you are blocked, use `self_improvement_task` to mark the task `blocked` with the reason.\n"
-    ));
+    );
     if cfg.auto_push_branch {
         prompt.push_str(
             "10. If the fix is effective and validation passes, use `self_improvement_task` action `publish_pr` to commit, push, and optionally open the draft PR automatically.\n",
@@ -538,7 +605,7 @@ pub async fn sync_scheduled_job(config: &Config) -> Result<SyncOutcome> {
         });
     }
 
-    let readiness = check_git_readiness(config).await;
+    let readiness = check_git_readiness(config);
     if !readiness.ready {
         for job in jobs {
             let _ = cron::remove_job(config, &job.id);
@@ -618,7 +685,7 @@ pub async fn publish_draft_pr_for_task(
         .find(|task| task.id == task_id)
         .cloned()
         .with_context(|| format!("self-improvement task '{task_id}' not found"))?;
-    let readiness = check_git_readiness(config).await;
+    let readiness = check_git_readiness(config);
     if !readiness.ready {
         anyhow::bail!(
             "self-improvement publishing blocked: {}",

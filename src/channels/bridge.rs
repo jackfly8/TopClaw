@@ -1,5 +1,5 @@
 use crate::channels::traits::{Channel, ChannelMessage, SendMessage};
-use crate::config::schema::BridgeConfig;
+use crate::config::BridgeConfig;
 use crate::security::pairing::{constant_time_eq, is_public_bind};
 use anyhow::Context;
 use async_trait::async_trait;

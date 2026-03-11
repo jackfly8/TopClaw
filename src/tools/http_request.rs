@@ -12,6 +12,7 @@ use std::time::Duration;
 /// Supports GET, POST, PUT, DELETE methods with configurable security.
 pub struct HttpRequestTool {
     security: Arc<SecurityPolicy>,
+    client: reqwest::Client,
     allowed_domains: Vec<String>,
     max_response_size: usize,
     timeout_secs: u64,
@@ -26,8 +27,20 @@ impl HttpRequestTool {
         timeout_secs: u64,
         user_agent: String,
     ) -> Self {
+        let effective_timeout_secs = timeout_secs.max(1);
+        let builder = reqwest::Client::builder()
+            .timeout(Duration::from_secs(effective_timeout_secs))
+            .connect_timeout(Duration::from_secs(10))
+            .redirect(reqwest::redirect::Policy::none())
+            .user_agent(user_agent.as_str());
+        let builder = crate::config::apply_runtime_proxy_to_builder(builder, "tool.http_request");
+        let client = builder
+            .build()
+            .expect("http_request client configuration must be valid");
+
         Self {
             security,
+            client,
             allowed_domains: normalize_allowed_domains(allowed_domains),
             max_response_size,
             timeout_secs,
@@ -101,21 +114,11 @@ impl HttpRequestTool {
         headers: Vec<(String, String)>,
         body: Option<&str>,
     ) -> anyhow::Result<reqwest::Response> {
-        let timeout_secs = if self.timeout_secs == 0 {
+        if self.timeout_secs == 0 {
             tracing::warn!("http_request: timeout_secs is 0, using safe default of 30s");
-            30
-        } else {
-            self.timeout_secs
-        };
-        let builder = reqwest::Client::builder()
-            .timeout(Duration::from_secs(timeout_secs))
-            .connect_timeout(Duration::from_secs(10))
-            .redirect(reqwest::redirect::Policy::none())
-            .user_agent(self.user_agent.as_str());
-        let builder = crate::config::apply_runtime_proxy_to_builder(builder, "tool.http_request");
-        let client = builder.build()?;
+        }
 
-        let mut request = client.request(method, url);
+        let mut request = self.client.request(method, url);
 
         for (key, value) in headers {
             request = request.header(&key, &value);

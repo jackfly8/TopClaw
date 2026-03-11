@@ -162,9 +162,9 @@ pub async fn run_wizard(force: bool) -> Result<Config> {
         runtime: RuntimeConfig::default(),
         research: crate::config::ResearchPhaseConfig::default(),
         reliability: crate::config::ReliabilityConfig::default(),
-        scheduler: crate::config::schema::SchedulerConfig::default(),
+        scheduler: crate::config::SchedulerConfig::default(),
         coordination: crate::config::CoordinationConfig::default(),
-        agent: crate::config::schema::AgentConfig::default(),
+        agent: crate::config::AgentConfig::default(),
         workspaces: crate::config::WorkspacesConfig::default(),
         skills: crate::config::SkillsConfig::default(),
         model_routes: Vec::new(),
@@ -172,7 +172,7 @@ pub async fn run_wizard(force: bool) -> Result<Config> {
         heartbeat: HeartbeatConfig::default(),
         cron: crate::config::CronConfig::default(),
         self_improvement: crate::config::SelfImprovementConfig::default(),
-        goal_loop: crate::config::schema::GoalLoopConfig::default(),
+        goal_loop: crate::config::GoalLoopConfig::default(),
         channels_config,
         memory: memory_config_defaults_for_backend("sqlite"),
         storage: StorageConfig::default(),
@@ -626,9 +626,9 @@ async fn run_quick_setup_with_home(
         runtime: RuntimeConfig::default(),
         research: crate::config::ResearchPhaseConfig::default(),
         reliability: crate::config::ReliabilityConfig::default(),
-        scheduler: crate::config::schema::SchedulerConfig::default(),
+        scheduler: crate::config::SchedulerConfig::default(),
         coordination: crate::config::CoordinationConfig::default(),
-        agent: crate::config::schema::AgentConfig::default(),
+        agent: crate::config::AgentConfig::default(),
         workspaces: crate::config::WorkspacesConfig::default(),
         skills: crate::config::SkillsConfig::default(),
         model_routes: Vec::new(),
@@ -636,7 +636,7 @@ async fn run_quick_setup_with_home(
         heartbeat: HeartbeatConfig::default(),
         cron: crate::config::CronConfig::default(),
         self_improvement: crate::config::SelfImprovementConfig::default(),
-        goal_loop: crate::config::schema::GoalLoopConfig::default(),
+        goal_loop: crate::config::GoalLoopConfig::default(),
         channels_config: ChannelsConfig::default(),
         memory: memory_config,
         storage: StorageConfig::default(),
@@ -5762,7 +5762,7 @@ fn setup_channels() -> Result<ChannelsConfig> {
 
 #[allow(clippy::too_many_lines)]
 fn setup_tunnel() -> Result<crate::config::TunnelConfig> {
-    use crate::config::schema::{
+    use crate::config::{
         CloudflareTunnelConfig, CustomTunnelConfig, NgrokTunnelConfig, TailscaleTunnelConfig,
         TunnelConfig,
     };
@@ -7992,7 +7992,9 @@ mod tests {
 
     #[test]
     fn provider_next_step_prefers_auth_guidance_for_known_provider() {
+        let tmp = TempDir::new().unwrap();
         let config = Config {
+            config_path: tmp.path().join("config.toml"),
             default_provider: Some("openai-codex".to_string()),
             ..Config::default()
         };

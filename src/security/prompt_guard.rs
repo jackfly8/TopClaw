@@ -12,6 +12,7 @@
 
 use regex::Regex;
 use serde::{Deserialize, Serialize};
+use std::str::FromStr;
 use std::sync::OnceLock;
 
 /// Pattern detection result.
@@ -38,12 +39,14 @@ pub enum GuardAction {
     Sanitize,
 }
 
-impl GuardAction {
-    pub fn from_str(s: &str) -> Self {
+impl FromStr for GuardAction {
+    type Err = core::convert::Infallible;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s.to_lowercase().as_str() {
-            "block" => Self::Block,
-            "sanitize" => Self::Sanitize,
-            _ => Self::Warn,
+            "block" => Ok(Self::Block),
+            "sanitize" => Ok(Self::Sanitize),
+            _ => Ok(Self::Warn),
         }
     }
 }

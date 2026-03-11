@@ -1,7 +1,7 @@
 # syntax=docker/dockerfile:1.7
 
 # ── Stage 1: Build ────────────────────────────────────────────
-FROM rust:1.94-slim@sha256:d6782f2b326a10eaf593eb90cafc34a03a287b4a25fe4d0c693c90304b06f6d7 AS builder
+FROM rust:1.92-slim@sha256:bf3368a992915f128293ac76917ab6e561e4dda883273c8f5c9f6f8ea37a378e AS builder
 
 WORKDIR /app
 ARG TOPCLAW_CARGO_FEATURES=""
@@ -16,11 +16,13 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
 # 1. Copy manifests to cache dependencies
 COPY Cargo.toml Cargo.lock ./
 COPY crates/robot-kit/Cargo.toml crates/robot-kit/Cargo.toml
+COPY crates/skill-vetter/Cargo.toml crates/skill-vetter/Cargo.toml
 # Create dummy targets declared in Cargo.toml so manifest parsing succeeds.
-RUN mkdir -p src benches crates/robot-kit/src \
+RUN mkdir -p src benches crates/robot-kit/src crates/skill-vetter/src \
     && echo "fn main() {}" > src/main.rs \
     && echo "fn main() {}" > benches/agent_benchmarks.rs \
-    && echo "pub fn placeholder() {}" > crates/robot-kit/src/lib.rs
+    && echo "pub fn placeholder() {}" > crates/robot-kit/src/lib.rs \
+    && echo "pub fn placeholder() {}" > crates/skill-vetter/src/lib.rs
 RUN --mount=type=cache,id=topclaw-cargo-registry,target=/usr/local/cargo/registry,sharing=locked \
     --mount=type=cache,id=topclaw-cargo-git,target=/usr/local/cargo/git,sharing=locked \
     --mount=type=cache,id=topclaw-target,target=/app/target,sharing=locked \
@@ -29,7 +31,7 @@ RUN --mount=type=cache,id=topclaw-cargo-registry,target=/usr/local/cargo/registr
     else \
       cargo build --release --locked; \
     fi
-RUN rm -rf src benches crates/robot-kit/src
+RUN rm -rf src benches crates/robot-kit/src crates/skill-vetter/src
 
 # 2. Copy only build-relevant source paths (avoid cache-busting on docs/tests/scripts)
 COPY src/ src/

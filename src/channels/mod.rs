@@ -15,6 +15,7 @@
 //! [`start_channels`]. See `AGENTS.md` §7.2 for the full change playbook.
 
 pub mod bridge;
+mod capability_detection;
 pub mod clawdtalk;
 pub mod cli;
 pub mod dingtalk;
@@ -31,6 +32,10 @@ pub mod mattermost;
 pub mod nextcloud_talk;
 pub mod nostr;
 pub mod qq;
+mod route_state;
+mod runtime_commands;
+mod runtime_config;
+mod runtime_helpers;
 pub mod signal;
 pub mod slack;
 pub mod telegram;
@@ -87,14 +92,42 @@ use crate::tools::channel_runtime_context::{
 use crate::tools::{self, Tool};
 use crate::util::truncate_with_ellipsis;
 use anyhow::{Context, Result};
+#[cfg(test)]
+use capability_detection::looks_like_remote_repo_review_request;
+use capability_detection::{
+    extract_json_object, looks_like_file_read_task, looks_like_file_write_task,
+    looks_like_shell_task, looks_like_skill_candidate_request, looks_like_web_task,
+    should_try_llm_capability_recovery,
+};
+use route_state::{
+    append_sender_turn, clear_sender_history, compact_sender_history, get_route_selection,
+    rollback_orphan_user_turn, set_route_selection, set_sender_history,
+};
+use runtime_commands::{
+    approval_target_label, is_approval_management_command, non_cli_natural_language_mode_label,
+    parse_runtime_command, ChannelRuntimeCommand, APPROVAL_ALL_TOOLS_ONCE_TOKEN,
+};
+use runtime_config::{
+    config_file_stamp, describe_non_cli_approvals, maybe_apply_runtime_config_update,
+    persist_non_cli_approval_to_config, remove_non_cli_approval_from_config, runtime_config_path,
+    runtime_config_store, runtime_defaults_from_config, runtime_defaults_snapshot,
+    RuntimeConfigState,
+};
+#[cfg(test)]
+use runtime_config::{load_runtime_defaults_from_config_file, ChannelRuntimeDefaults};
+use runtime_helpers::{
+    build_runtime_tool_visibility_prompt, filtered_tool_specs_for_runtime,
+    is_non_cli_tool_excluded, resolve_provider_alias, resolved_default_model,
+    resolved_default_provider, snapshot_non_cli_excluded_tools,
+};
 use serde::Deserialize;
 use std::collections::{HashMap, HashSet};
 use std::fmt::Write;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
-use std::sync::{Arc, Mutex, OnceLock};
-use std::time::{Duration, Instant, SystemTime};
+use std::sync::{Arc, Mutex};
+use std::time::{Duration, Instant};
 use tokio_util::sync::CancellationToken;
 
 /// Per-sender conversation history for channel messages.
@@ -154,26 +187,6 @@ struct ChannelRouteSelection {
     model: String,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
-enum ChannelRuntimeCommand {
-    ShowProviders,
-    SetProvider(String),
-    ShowModel,
-    SetModel(String),
-    NewSession,
-    RequestAllToolsOnce,
-    RequestToolApproval(String),
-    ConfirmToolApproval(String),
-    ApprovePendingRequest(String),
-    DenyToolApproval(String),
-    ListPendingApprovals,
-    ApproveTool(String),
-    UnapproveTool(String),
-    ListApprovals,
-}
-
-const APPROVAL_ALL_TOOLS_ONCE_TOKEN: &str = "__all_tools_once__";
-
 #[derive(Debug, Clone, Default, Deserialize)]
 struct ModelCacheState {
     entries: Vec<ModelCacheEntry>,
@@ -183,44 +196,6 @@ struct ModelCacheState {
 struct ModelCacheEntry {
     provider: String,
     models: Vec<String>,
-}
-
-#[derive(Debug, Clone)]
-struct ChannelRuntimeDefaults {
-    default_provider: String,
-    model: String,
-    temperature: f64,
-    api_key: Option<String>,
-    api_url: Option<String>,
-    reliability: crate::config::ReliabilityConfig,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-struct ConfigFileStamp {
-    modified: SystemTime,
-    len: u64,
-}
-
-#[derive(Debug, Clone)]
-struct RuntimeConfigState {
-    defaults: ChannelRuntimeDefaults,
-    last_applied_stamp: Option<ConfigFileStamp>,
-}
-
-#[derive(Debug, Clone)]
-struct RuntimeAutonomyPolicy {
-    auto_approve: Vec<String>,
-    always_ask: Vec<String>,
-    non_cli_excluded_tools: Vec<String>,
-    non_cli_approval_approvers: Vec<String>,
-    non_cli_natural_language_approval_mode: NonCliNaturalLanguageApprovalMode,
-    non_cli_natural_language_approval_mode_by_channel:
-        HashMap<String, NonCliNaturalLanguageApprovalMode>,
-}
-
-fn runtime_config_store() -> &'static Mutex<HashMap<PathBuf, RuntimeConfigState>> {
-    static STORE: OnceLock<Mutex<HashMap<PathBuf, RuntimeConfigState>>> = OnceLock::new();
-    STORE.get_or_init(|| Mutex::new(HashMap::new()))
 }
 
 const SYSTEMD_STATUS_ARGS: [&str; 3] = ["--user", "is-active", "topclaw.service"];
@@ -684,279 +659,6 @@ struct LlmCapabilityRecoverySuggestion {
     queue_skill_candidate: bool,
 }
 
-#[cfg(test)]
-fn looks_like_remote_repo_review_request(user_message: &str) -> bool {
-    let trimmed = user_message.trim();
-    if trimmed.is_empty() {
-        return false;
-    }
-
-    let lower = trimmed.to_ascii_lowercase();
-    let has_repo_url = lower.contains("github.com/")
-        || lower.contains("gitlab.com/")
-        || lower.contains("bitbucket.org/");
-
-    if !has_repo_url {
-        return false;
-    }
-
-    let english_review_hints = [
-        "review",
-        "inspect",
-        "audit",
-        "analyze",
-        "analyse",
-        "check",
-        "look at",
-        "look through",
-        "codebase",
-        "repository",
-        "repo",
-        "source code",
-        "what is wrong",
-        "obvious issue",
-    ];
-    if english_review_hints.iter().any(|hint| lower.contains(hint)) {
-        return true;
-    }
-
-    let cjk_review_hints = [
-        "代码库",
-        "仓库",
-        "源码",
-        "看看",
-        "检查",
-        "审查",
-        "评审",
-        "缺陷",
-        "问题",
-        "有什么明显",
-    ];
-    cjk_review_hints.iter().any(|hint| trimmed.contains(hint))
-}
-
-fn message_contains_url(user_message: &str) -> bool {
-    let lower = user_message.to_ascii_lowercase();
-    lower.contains("http://")
-        || lower.contains("https://")
-        || lower.contains("www.")
-        || lower.contains("github.com/")
-        || lower.contains("gitlab.com/")
-        || lower.contains("bitbucket.org/")
-}
-
-fn looks_like_web_task(user_message: &str) -> bool {
-    let trimmed = user_message.trim();
-    if trimmed.is_empty() || !message_contains_url(trimmed) {
-        return false;
-    }
-
-    let lower = trimmed.to_ascii_lowercase();
-    let english_hints = [
-        "review",
-        "inspect",
-        "audit",
-        "analyze",
-        "analyse",
-        "check",
-        "look at",
-        "look through",
-        "read",
-        "summarize",
-        "open",
-        "browse",
-        "visit",
-        "fetch",
-        "search",
-        "look up",
-        "what is on",
-        "what's on",
-    ];
-    if english_hints.iter().any(|hint| lower.contains(hint)) {
-        return true;
-    }
-
-    let cjk_hints = [
-        "看看",
-        "检查",
-        "审查",
-        "评审",
-        "读",
-        "读取",
-        "总结",
-        "打开",
-        "访问",
-        "搜索",
-        "查一下",
-        "网页",
-        "链接",
-        "网址",
-    ];
-    cjk_hints.iter().any(|hint| trimmed.contains(hint))
-}
-
-fn looks_like_shell_task(user_message: &str) -> bool {
-    let trimmed = user_message.trim();
-    if trimmed.is_empty() {
-        return false;
-    }
-
-    let lower = trimmed.to_ascii_lowercase();
-    let english_hints = [
-        "run ", "execute ", "terminal", "shell", "command", "build", "compile", "test", "cargo ",
-        "npm ", "pnpm ", "yarn ", "pip ", "python ", "pytest", "make ", "cmake", "docker ",
-        "kubectl ",
-    ];
-    if english_hints.iter().any(|hint| lower.contains(hint)) {
-        return true;
-    }
-
-    let cjk_hints = [
-        "运行命令",
-        "执行命令",
-        "终端",
-        "命令行",
-        "编译",
-        "构建",
-        "测试",
-        "跑一下",
-    ];
-    cjk_hints.iter().any(|hint| trimmed.contains(hint))
-}
-
-fn looks_like_file_read_task(user_message: &str) -> bool {
-    let trimmed = user_message.trim();
-    if trimmed.is_empty() {
-        return false;
-    }
-
-    let lower = trimmed.to_ascii_lowercase();
-    let mentions_path = trimmed.contains('/') || trimmed.contains('\\') || trimmed.contains(".md");
-    let english_hints = [
-        "read file",
-        "open file",
-        "show file",
-        "inspect file",
-        "cat ",
-    ];
-    if mentions_path && english_hints.iter().any(|hint| lower.contains(hint)) {
-        return true;
-    }
-
-    mentions_path
-        && ["读取文件", "打开文件", "查看文件", "看看文件"]
-            .iter()
-            .any(|hint| trimmed.contains(hint))
-}
-
-fn looks_like_file_write_task(user_message: &str) -> bool {
-    let trimmed = user_message.trim();
-    if trimmed.is_empty() {
-        return false;
-    }
-
-    let lower = trimmed.to_ascii_lowercase();
-    let mentions_path = trimmed.contains('/') || trimmed.contains('\\') || trimmed.contains(".rs");
-    let english_hints = [
-        "edit file",
-        "modify file",
-        "update file",
-        "change file",
-        "write file",
-        "create file",
-        "patch file",
-    ];
-    if mentions_path && english_hints.iter().any(|hint| lower.contains(hint)) {
-        return true;
-    }
-
-    mentions_path
-        && ["修改文件", "更新文件", "编辑文件", "创建文件", "写入文件"]
-            .iter()
-            .any(|hint| trimmed.contains(hint))
-}
-
-fn looks_like_skill_candidate_request(user_message: &str) -> bool {
-    let trimmed = user_message.trim();
-    if trimmed.is_empty() {
-        return false;
-    }
-
-    let lower = trimmed.to_ascii_lowercase();
-    let english_hints = [
-        "create a skill",
-        "new skill",
-        "generate a skill",
-        "skill candidate",
-        "official skills",
-        "add to topclaw",
-        "upstream this",
-        "candidate pr",
-        "teach topclaw",
-        "new capability",
-        "extend topclaw",
-    ];
-    if english_hints.iter().any(|hint| lower.contains(hint)) {
-        return true;
-    }
-
-    let cjk_hints = [
-        "创建技能",
-        "新技能",
-        "生成技能",
-        "候选技能",
-        "官方技能",
-        "加入TopClaw",
-        "扩展TopClaw",
-        "新能力",
-        "提交PR",
-    ];
-    cjk_hints.iter().any(|hint| trimmed.contains(hint))
-}
-
-fn should_try_llm_capability_recovery(user_message: &str) -> bool {
-    let trimmed = user_message.trim();
-    if trimmed.is_empty() || trimmed.starts_with('/') {
-        return false;
-    }
-
-    let lower = trimmed.to_ascii_lowercase();
-    let english_hints = [
-        "can't",
-        "cannot",
-        "unable",
-        "failed",
-        "failure",
-        "fix",
-        "solve",
-        "handle",
-        "recover",
-        "blocked",
-        "why",
-        "how",
-        "capability",
-        "skill",
-    ];
-    if english_hints.iter().any(|hint| lower.contains(hint)) {
-        return true;
-    }
-
-    let cjk_hints = [
-        "不能",
-        "无法",
-        "失败",
-        "修复",
-        "解决",
-        "处理",
-        "恢复",
-        "为什么",
-        "怎么",
-        "能力",
-        "技能",
-    ];
-    cjk_hints.iter().any(|hint| trimmed.contains(hint))
-}
-
 fn tool_is_registered(tools_registry: &[Box<dyn Tool>], tool_name: &str) -> bool {
     tools_registry.iter().any(|tool| tool.name() == tool_name)
 }
@@ -1066,6 +768,13 @@ fn infer_capability_recovery_plan(
     msg: &traits::ChannelMessage,
     excluded_tools: &[String],
 ) -> Option<CapabilityRecoveryPlan> {
+    // Requests asking to expose commands/tool calls already used in this turn
+    // should stay on the normal response path instead of being misclassified
+    // as a fresh shell-capability deficit.
+    if should_expose_internal_tool_details(&msg.content) {
+        return None;
+    }
+
     if looks_like_web_task(&msg.content) {
         return create_capability_recovery_plan(
             ctx,
@@ -1143,26 +852,6 @@ fn infer_capability_recovery_plan(
     }
 
     None
-}
-
-fn extract_json_object(text: &str) -> Option<&str> {
-    let trimmed = text.trim();
-    if let Some(stripped) = trimmed
-        .strip_prefix("```json")
-        .or_else(|| trimmed.strip_prefix("```"))
-    {
-        return stripped
-            .trim()
-            .strip_suffix("```")
-            .map(str::trim)
-            .filter(|inner| inner.starts_with('{') && inner.ends_with('}'));
-    }
-
-    if trimmed.starts_with('{') && trimmed.ends_with('}') {
-        Some(trimmed)
-    } else {
-        None
-    }
 }
 
 fn map_tool_to_capability_kind(tool_name: &str) -> Option<CapabilityRecoveryKind> {
@@ -1538,798 +1227,6 @@ fn filter_noop_assistant_turns(turns: Vec<ChatMessage>) -> Vec<ChatMessage> {
         .collect()
 }
 
-fn supports_runtime_model_switch(channel_name: &str) -> bool {
-    matches!(channel_name, "telegram" | "discord")
-}
-
-fn parse_runtime_command(channel_name: &str, content: &str) -> Option<ChannelRuntimeCommand> {
-    let trimmed = content.trim();
-    if !trimmed.starts_with('/') {
-        return parse_natural_language_runtime_command(trimmed);
-    }
-
-    let mut parts = trimmed.split_whitespace();
-    let command_token = parts.next()?;
-    let base_command = command_token
-        .split('@')
-        .next()
-        .unwrap_or(command_token)
-        .to_ascii_lowercase();
-    let args: Vec<&str> = parts.collect();
-    let tail = args.join(" ").trim().to_string();
-
-    match base_command.as_str() {
-        // History reset commands are safe for all channels.
-        "/new" | "/clear" => Some(ChannelRuntimeCommand::NewSession),
-        "/approve-all-once" => Some(ChannelRuntimeCommand::RequestAllToolsOnce),
-        "/approve-request" => Some(ChannelRuntimeCommand::RequestToolApproval(tail)),
-        "/approve-confirm" => Some(ChannelRuntimeCommand::ConfirmToolApproval(tail)),
-        "/approve-allow" => Some(ChannelRuntimeCommand::ApprovePendingRequest(tail)),
-        "/approve-deny" => Some(ChannelRuntimeCommand::DenyToolApproval(tail)),
-        "/approve-pending" => Some(ChannelRuntimeCommand::ListPendingApprovals),
-        "/approve" => Some(ChannelRuntimeCommand::ApproveTool(tail)),
-        "/unapprove" => Some(ChannelRuntimeCommand::UnapproveTool(tail)),
-        "/approvals" => Some(ChannelRuntimeCommand::ListApprovals),
-        // Provider/model switching remains limited to channels with session routing.
-        "/models" if supports_runtime_model_switch(channel_name) => {
-            if let Some(provider) = args.first() {
-                Some(ChannelRuntimeCommand::SetProvider(
-                    provider.trim().to_string(),
-                ))
-            } else {
-                Some(ChannelRuntimeCommand::ShowProviders)
-            }
-        }
-        "/model" if supports_runtime_model_switch(channel_name) => {
-            let model = tail;
-            if model.is_empty() {
-                Some(ChannelRuntimeCommand::ShowModel)
-            } else {
-                Some(ChannelRuntimeCommand::SetModel(model))
-            }
-        }
-        _ => None,
-    }
-}
-
-fn is_runtime_token(value: &str) -> bool {
-    let token = value.trim();
-    !token.is_empty()
-        && token
-            .chars()
-            .all(|ch| ch.is_ascii_alphanumeric() || matches!(ch, '_' | '-' | '.' | ':'))
-}
-
-fn extract_runtime_tail_token(text: &str, prefixes: &[&str]) -> Option<String> {
-    prefixes.iter().find_map(|prefix| {
-        text.strip_prefix(prefix).and_then(|rest| {
-            let token = rest.trim();
-            if is_runtime_token(token) {
-                Some(token.to_string())
-            } else {
-                None
-            }
-        })
-    })
-}
-
-fn contains_any_fragment(haystack: &str, fragments: &[&str]) -> bool {
-    fragments.iter().any(|fragment| haystack.contains(fragment))
-}
-
-fn is_natural_language_all_tools_once_intent(content: &str) -> bool {
-    let trimmed = content.trim();
-    if trimmed.is_empty() {
-        return false;
-    }
-
-    let lower = trimmed.to_ascii_lowercase();
-    let has_allow_verb = contains_any_fragment(&lower, &["approve", "allow"])
-        || contains_any_fragment(trimmed, &["授权", "放开", "允许"]);
-    let has_all_tools_scope = contains_any_fragment(&lower, &["all tools", "all commands"])
-        || contains_any_fragment(trimmed, &["所有工具", "全部工具", "所有命令", "全部命令"]);
-    let has_one_time_scope = contains_any_fragment(&lower, &["once", "one-time", "one time"])
-        || contains_any_fragment(trimmed, &["一次", "这次"]);
-
-    has_allow_verb && has_all_tools_scope && has_one_time_scope
-}
-
-fn approval_target_label(tool_name: &str) -> String {
-    if tool_name == APPROVAL_ALL_TOOLS_ONCE_TOKEN {
-        "all tools/commands (one-time bypass token)".to_string()
-    } else {
-        tool_name.to_string()
-    }
-}
-
-fn parse_natural_language_runtime_command(content: &str) -> Option<ChannelRuntimeCommand> {
-    let trimmed = content.trim();
-    if trimmed.is_empty() {
-        return None;
-    }
-
-    let lower = trimmed.to_ascii_lowercase();
-    if matches!(
-        lower.as_str(),
-        "show pending approvals" | "list pending approvals" | "pending approvals"
-    ) {
-        return Some(ChannelRuntimeCommand::ListPendingApprovals);
-    }
-    if trimmed == "查看授权"
-        || matches!(
-            lower.as_str(),
-            "show approvals" | "list approvals" | "approvals"
-        )
-    {
-        return Some(ChannelRuntimeCommand::ListApprovals);
-    }
-    if is_natural_language_all_tools_once_intent(trimmed)
-        || matches!(
-            lower.as_str(),
-            "approve all tools once" | "allow all tools once" | "approve all once"
-        )
-    {
-        return Some(ChannelRuntimeCommand::RequestAllToolsOnce);
-    }
-
-    if let Some(request_id) = extract_runtime_tail_token(&lower, &["confirm "]) {
-        return Some(ChannelRuntimeCommand::ConfirmToolApproval(request_id));
-    }
-    if let Some(request_id) = extract_runtime_tail_token(trimmed, &["确认授权 "]) {
-        return Some(ChannelRuntimeCommand::ConfirmToolApproval(request_id));
-    }
-
-    if let Some(tool) =
-        extract_runtime_tail_token(&lower, &["revoke tool ", "unapprove ", "revoke "])
-    {
-        return Some(ChannelRuntimeCommand::UnapproveTool(tool));
-    }
-    if let Some(tool) = extract_runtime_tail_token(trimmed, &["撤销工具 ", "取消授权 "]) {
-        return Some(ChannelRuntimeCommand::UnapproveTool(tool));
-    }
-
-    if let Some(tool) = extract_runtime_tail_token(&lower, &["approve tool ", "approve "]) {
-        return Some(ChannelRuntimeCommand::RequestToolApproval(tool));
-    }
-    if let Some(tool) = extract_runtime_tail_token(trimmed, &["授权工具 ", "请放开 ", "放开 "])
-    {
-        return Some(ChannelRuntimeCommand::RequestToolApproval(tool));
-    }
-
-    None
-}
-
-fn is_approval_management_command(command: &ChannelRuntimeCommand) -> bool {
-    matches!(
-        command,
-        ChannelRuntimeCommand::RequestAllToolsOnce
-            | ChannelRuntimeCommand::RequestToolApproval(_)
-            | ChannelRuntimeCommand::ConfirmToolApproval(_)
-            | ChannelRuntimeCommand::ApprovePendingRequest(_)
-            | ChannelRuntimeCommand::DenyToolApproval(_)
-            | ChannelRuntimeCommand::ListPendingApprovals
-            | ChannelRuntimeCommand::ApproveTool(_)
-            | ChannelRuntimeCommand::UnapproveTool(_)
-            | ChannelRuntimeCommand::ListApprovals
-    )
-}
-
-fn non_cli_natural_language_mode_label(mode: NonCliNaturalLanguageApprovalMode) -> &'static str {
-    match mode {
-        NonCliNaturalLanguageApprovalMode::Disabled => "disabled",
-        NonCliNaturalLanguageApprovalMode::RequestConfirm => "request_confirm",
-        NonCliNaturalLanguageApprovalMode::Direct => "direct",
-    }
-}
-
-fn resolve_provider_alias(name: &str) -> Option<String> {
-    let candidate = name.trim();
-    if candidate.is_empty() {
-        return None;
-    }
-
-    let providers_list = providers::list_providers();
-    for provider in providers_list {
-        if provider.name.eq_ignore_ascii_case(candidate)
-            || provider
-                .aliases
-                .iter()
-                .any(|alias| alias.eq_ignore_ascii_case(candidate))
-        {
-            return Some(provider.name.to_string());
-        }
-    }
-
-    None
-}
-
-fn resolved_default_provider(config: &Config) -> String {
-    config
-        .default_provider
-        .clone()
-        .unwrap_or_else(|| "openrouter".to_string())
-}
-
-fn resolved_default_model(config: &Config) -> String {
-    config
-        .default_model
-        .clone()
-        .unwrap_or_else(|| "anthropic/claude-sonnet-4.6".to_string())
-}
-
-fn runtime_defaults_from_config(config: &Config) -> ChannelRuntimeDefaults {
-    ChannelRuntimeDefaults {
-        default_provider: resolved_default_provider(config),
-        model: resolved_default_model(config),
-        temperature: config.default_temperature,
-        api_key: config.api_key.clone(),
-        api_url: config.api_url.clone(),
-        reliability: config.reliability.clone(),
-    }
-}
-
-fn runtime_autonomy_policy_from_config(config: &Config) -> RuntimeAutonomyPolicy {
-    RuntimeAutonomyPolicy {
-        auto_approve: config.autonomy.auto_approve.clone(),
-        always_ask: config.autonomy.always_ask.clone(),
-        non_cli_excluded_tools: config.autonomy.non_cli_excluded_tools.clone(),
-        non_cli_approval_approvers: config.autonomy.non_cli_approval_approvers.clone(),
-        non_cli_natural_language_approval_mode: config
-            .autonomy
-            .non_cli_natural_language_approval_mode,
-        non_cli_natural_language_approval_mode_by_channel: config
-            .autonomy
-            .non_cli_natural_language_approval_mode_by_channel
-            .clone(),
-    }
-}
-
-fn runtime_config_path(ctx: &ChannelRuntimeContext) -> Option<PathBuf> {
-    ctx.provider_runtime_options
-        .topclaw_dir
-        .as_ref()
-        .map(|dir| dir.join("config.toml"))
-}
-
-fn runtime_defaults_snapshot(ctx: &ChannelRuntimeContext) -> ChannelRuntimeDefaults {
-    if let Some(config_path) = runtime_config_path(ctx) {
-        let store = runtime_config_store()
-            .lock()
-            .unwrap_or_else(|e| e.into_inner());
-        if let Some(state) = store.get(&config_path) {
-            return state.defaults.clone();
-        }
-    }
-
-    ChannelRuntimeDefaults {
-        default_provider: ctx.default_provider.as_str().to_string(),
-        model: ctx.model.as_str().to_string(),
-        temperature: ctx.temperature,
-        api_key: ctx.api_key.clone(),
-        api_url: ctx.api_url.clone(),
-        reliability: (*ctx.reliability).clone(),
-    }
-}
-
-fn snapshot_non_cli_excluded_tools(ctx: &ChannelRuntimeContext) -> Vec<String> {
-    ctx.non_cli_excluded_tools
-        .lock()
-        .unwrap_or_else(|e| e.into_inner())
-        .clone()
-}
-
-fn filtered_tool_specs_for_runtime(
-    tools_registry: &[Box<dyn Tool>],
-    excluded_tools: &[String],
-) -> Vec<crate::tools::ToolSpec> {
-    tools_registry
-        .iter()
-        .map(|tool| tool.spec())
-        .filter(|spec| !excluded_tools.iter().any(|excluded| excluded == &spec.name))
-        .collect()
-}
-
-fn is_non_cli_tool_excluded(ctx: &ChannelRuntimeContext, tool_name: &str) -> bool {
-    ctx.non_cli_excluded_tools
-        .lock()
-        .unwrap_or_else(|e| e.into_inner())
-        .iter()
-        .any(|excluded| excluded == tool_name)
-}
-
-fn build_runtime_tool_visibility_prompt(
-    tools_registry: &[Box<dyn Tool>],
-    excluded_tools: &[String],
-    native_tools: bool,
-) -> String {
-    let mut prompt = String::new();
-    let mut specs = filtered_tool_specs_for_runtime(tools_registry, excluded_tools);
-    specs.sort_by(|a, b| a.name.cmp(&b.name));
-
-    use std::fmt::Write;
-    prompt.push_str("\n## Runtime Tool Availability (Authoritative)\n\n");
-    prompt.push_str(
-        "This section is generated from current runtime policy for this message. \
-         Only the listed tools may be called in this turn.\n\n",
-    );
-
-    if specs.is_empty() {
-        prompt.push_str("- Allowed tools: (none)\n");
-    } else {
-        let _ = writeln!(prompt, "- Allowed tools ({}):", specs.len());
-        for spec in &specs {
-            let _ = writeln!(prompt, "  - `{}`", spec.name);
-        }
-    }
-
-    if excluded_tools.is_empty() {
-        prompt.push_str("- Excluded by runtime policy: (none)\n\n");
-    } else {
-        let mut excluded_sorted = excluded_tools.to_vec();
-        excluded_sorted.sort();
-        let _ = writeln!(
-            prompt,
-            "- Excluded by runtime policy: {}\n",
-            excluded_sorted.join(", ")
-        );
-    }
-
-    prompt.push_str(
-        "- Do not claim tools are unavailable when they are listed above; call the appropriate tool directly.\n",
-    );
-    prompt.push_str(
-        "- If the user asks what you can do, answer from the allowed tool list above plus loaded skills and channel capabilities below.\n",
-    );
-    prompt.push_str(
-        "- Distinguish clearly between actions available now, actions that still require approval, and workflows that remain operator-controlled.\n",
-    );
-    prompt.push_str(
-        "- Self-improvement is not automatic by default; candidate preparation, validation, and promotion remain manual/operator-controlled unless a dedicated workflow was explicitly configured.\n",
-    );
-    if specs
-        .iter()
-        .any(|spec| matches!(spec.name.as_str(), "file_write" | "file_edit"))
-    {
-        prompt.push_str(
-            "- File changes are supported in this turn (`file_write`/`file_edit`) when requested and policy permits.\n",
-        );
-    }
-
-    if native_tools {
-        prompt.push_str(
-            "Tool calling for this turn uses native provider function-calling. \
-             Do not emit `<tool_call>` XML tags.\n",
-        );
-    } else {
-        prompt.push_str(
-            "Tool calling for this turn uses XML tool protocol below. \
-             This protocol block is generated from the same runtime policy snapshot.\n",
-        );
-        prompt.push_str(&build_tool_instructions_from_specs(&specs));
-    }
-
-    prompt
-}
-
-async fn config_file_stamp(path: &Path) -> Option<ConfigFileStamp> {
-    let metadata = tokio::fs::metadata(path).await.ok()?;
-    let modified = metadata.modified().ok()?;
-    Some(ConfigFileStamp {
-        modified,
-        len: metadata.len(),
-    })
-}
-
-fn decrypt_optional_secret_for_runtime_reload(
-    store: &crate::security::SecretStore,
-    value: &mut Option<String>,
-    field_name: &str,
-) -> Result<()> {
-    if let Some(raw) = value.clone() {
-        if crate::security::SecretStore::is_encrypted(&raw) {
-            *value = Some(
-                store
-                    .decrypt(&raw)
-                    .with_context(|| format!("Failed to decrypt {field_name}"))?,
-            );
-        }
-    }
-    Ok(())
-}
-
-async fn load_runtime_defaults_from_config_file(
-    path: &Path,
-) -> Result<(ChannelRuntimeDefaults, RuntimeAutonomyPolicy)> {
-    let contents = tokio::fs::read_to_string(path)
-        .await
-        .with_context(|| format!("Failed to read {}", path.display()))?;
-    let mut parsed: Config =
-        toml::from_str(&contents).with_context(|| format!("Failed to parse {}", path.display()))?;
-    parsed.config_path = path.to_path_buf();
-
-    if let Some(topclaw_dir) = path.parent() {
-        let store = crate::security::SecretStore::new(topclaw_dir, parsed.secrets.encrypt);
-        decrypt_optional_secret_for_runtime_reload(&store, &mut parsed.api_key, "config.api_key")?;
-    }
-
-    parsed.apply_env_overrides();
-    Ok((
-        runtime_defaults_from_config(&parsed),
-        runtime_autonomy_policy_from_config(&parsed),
-    ))
-}
-
-async fn persist_non_cli_approval_to_config(
-    ctx: &ChannelRuntimeContext,
-    tool_name: &str,
-) -> Result<Option<PathBuf>> {
-    let Some(config_path) = runtime_config_path(ctx) else {
-        return Ok(None);
-    };
-
-    let contents = tokio::fs::read_to_string(&config_path)
-        .await
-        .with_context(|| format!("Failed to read {}", config_path.display()))?;
-    let mut parsed: Config = toml::from_str(&contents)
-        .with_context(|| format!("Failed to parse {}", config_path.display()))?;
-    parsed.config_path = config_path.clone();
-
-    let mut changed = false;
-    if !parsed
-        .autonomy
-        .auto_approve
-        .iter()
-        .any(|entry| entry == tool_name)
-    {
-        parsed.autonomy.auto_approve.push(tool_name.to_string());
-        changed = true;
-    }
-
-    let before_always_ask = parsed.autonomy.always_ask.len();
-    parsed
-        .autonomy
-        .always_ask
-        .retain(|entry| entry != tool_name);
-    if parsed.autonomy.always_ask.len() != before_always_ask {
-        changed = true;
-    }
-
-    if changed {
-        parsed.save().await?;
-    }
-
-    Ok(Some(config_path))
-}
-
-async fn remove_non_cli_approval_from_config(
-    ctx: &ChannelRuntimeContext,
-    tool_name: &str,
-) -> Result<Option<(PathBuf, bool)>> {
-    let Some(config_path) = runtime_config_path(ctx) else {
-        return Ok(None);
-    };
-
-    let contents = tokio::fs::read_to_string(&config_path)
-        .await
-        .with_context(|| format!("Failed to read {}", config_path.display()))?;
-    let mut parsed: Config = toml::from_str(&contents)
-        .with_context(|| format!("Failed to parse {}", config_path.display()))?;
-    parsed.config_path = config_path.clone();
-
-    let before_auto_approve = parsed.autonomy.auto_approve.len();
-    parsed
-        .autonomy
-        .auto_approve
-        .retain(|entry| entry != tool_name);
-    let removed = parsed.autonomy.auto_approve.len() != before_auto_approve;
-    if removed {
-        parsed.save().await?;
-    }
-
-    Ok(Some((config_path, removed)))
-}
-
-async fn describe_non_cli_approvals(
-    ctx: &ChannelRuntimeContext,
-    sender: &str,
-    channel: &str,
-    reply_target: &str,
-) -> Result<String> {
-    let mut response = String::new();
-    response.push_str("Supervised non-CLI tool approvals:\n");
-
-    let mut runtime_auto = ctx
-        .approval_manager
-        .auto_approve_tools()
-        .into_iter()
-        .collect::<Vec<_>>();
-    runtime_auto.sort();
-    if runtime_auto.is_empty() {
-        response.push_str("- Runtime auto_approve (effective): (none)\n");
-    } else {
-        let _ = writeln!(
-            response,
-            "- Runtime auto_approve (effective): {}",
-            runtime_auto.join(", ")
-        );
-    }
-
-    let mut runtime_always = ctx
-        .approval_manager
-        .always_ask_tools()
-        .into_iter()
-        .collect::<Vec<_>>();
-    runtime_always.sort();
-    if runtime_always.is_empty() {
-        response.push_str("- Runtime always_ask (effective): (none)\n");
-    } else {
-        let _ = writeln!(
-            response,
-            "- Runtime always_ask (effective): {}",
-            runtime_always.join(", ")
-        );
-    }
-
-    let mut session_grants = ctx
-        .approval_manager
-        .non_cli_session_allowlist()
-        .into_iter()
-        .collect::<Vec<_>>();
-    session_grants.sort();
-    if session_grants.is_empty() {
-        response.push_str("- Runtime session grants: (none)\n");
-    } else {
-        let _ = writeln!(
-            response,
-            "- Runtime session grants: {}",
-            session_grants.join(", ")
-        );
-    }
-    let one_time_all_tools_tokens = ctx.approval_manager.non_cli_allow_all_once_remaining();
-    let _ = writeln!(
-        response,
-        "- Runtime one-time all-tools bypass tokens: {}",
-        one_time_all_tools_tokens
-    );
-
-    let mut approval_approvers = ctx
-        .approval_manager
-        .non_cli_approval_approvers()
-        .into_iter()
-        .collect::<Vec<_>>();
-    approval_approvers.sort();
-    if approval_approvers.is_empty() {
-        response.push_str("- Runtime non_cli_approval_approvers: (any channel-allowed sender)\n");
-    } else {
-        let _ = writeln!(
-            response,
-            "- Runtime non_cli_approval_approvers: {}",
-            approval_approvers.join(", ")
-        );
-    }
-
-    let default_mode = non_cli_natural_language_mode_label(
-        ctx.approval_manager
-            .non_cli_natural_language_approval_mode(),
-    );
-    let effective_mode = non_cli_natural_language_mode_label(
-        ctx.approval_manager
-            .non_cli_natural_language_approval_mode_for_channel(channel),
-    );
-    let _ = writeln!(
-        response,
-        "- Runtime non_cli_natural_language_approval_mode: {}",
-        default_mode
-    );
-    let _ = writeln!(
-        response,
-        "- Runtime non_cli_natural_language_approval_mode (current channel `{channel}`): {}",
-        effective_mode
-    );
-    let mut mode_overrides = ctx
-        .approval_manager
-        .non_cli_natural_language_approval_mode_by_channel()
-        .into_iter()
-        .map(|(ch, mode)| format!("{ch}={}", non_cli_natural_language_mode_label(mode)))
-        .collect::<Vec<_>>();
-    mode_overrides.sort();
-    if mode_overrides.is_empty() {
-        response.push_str("- Runtime non_cli_natural_language_approval_mode_by_channel: (none)\n");
-    } else {
-        let _ = writeln!(
-            response,
-            "- Runtime non_cli_natural_language_approval_mode_by_channel: {}",
-            mode_overrides.join(", ")
-        );
-    }
-
-    let mut pending_requests = ctx.approval_manager.list_non_cli_pending_requests(
-        Some(sender),
-        Some(channel),
-        Some(reply_target),
-    );
-    pending_requests.sort_by(|a, b| a.created_at.cmp(&b.created_at));
-    if pending_requests.is_empty() {
-        response.push_str("- Pending approvals (sender+chat/channel scoped): (none)\n");
-    } else {
-        response.push_str("- Pending approvals (sender+chat/channel scoped):\n");
-        for req in pending_requests {
-            let reason = req
-                .reason
-                .as_deref()
-                .filter(|text| !text.trim().is_empty())
-                .unwrap_or("n/a");
-            let _ = writeln!(
-                response,
-                "  - {}: tool={}, expires_at={}, reason={}",
-                req.request_id,
-                approval_target_label(&req.tool_name),
-                req.expires_at,
-                reason
-            );
-        }
-    }
-
-    let mut excluded = snapshot_non_cli_excluded_tools(ctx);
-    excluded.sort();
-    if excluded.is_empty() {
-        response.push_str("- Runtime non_cli_excluded_tools: (none)\n");
-    } else {
-        let _ = writeln!(
-            response,
-            "- Runtime non_cli_excluded_tools: {}",
-            excluded.join(", ")
-        );
-    }
-
-    let Some(config_path) = runtime_config_path(ctx) else {
-        response.push_str(
-            "- Persisted config approvals: unavailable (runtime config path not resolved)\n",
-        );
-        return Ok(response);
-    };
-
-    let contents = tokio::fs::read_to_string(&config_path)
-        .await
-        .with_context(|| format!("Failed to read {}", config_path.display()))?;
-    let parsed: Config = toml::from_str(&contents)
-        .with_context(|| format!("Failed to parse {}", config_path.display()))?;
-
-    let mut auto_approve = parsed.autonomy.auto_approve;
-    auto_approve.sort();
-    if auto_approve.is_empty() {
-        response.push_str("- Persisted autonomy.auto_approve: (none)\n");
-    } else {
-        let _ = writeln!(
-            response,
-            "- Persisted autonomy.auto_approve: {}",
-            auto_approve.join(", ")
-        );
-    }
-
-    let mut always_ask = parsed.autonomy.always_ask;
-    always_ask.sort();
-    if always_ask.is_empty() {
-        response.push_str("- Persisted autonomy.always_ask: (none)\n");
-    } else {
-        let _ = writeln!(
-            response,
-            "- Persisted autonomy.always_ask: {}",
-            always_ask.join(", ")
-        );
-    }
-
-    let _ = writeln!(response, "- Config path: {}", config_path.display());
-    Ok(response)
-}
-
-async fn maybe_apply_runtime_config_update(ctx: &ChannelRuntimeContext) -> Result<()> {
-    let Some(config_path) = runtime_config_path(ctx) else {
-        return Ok(());
-    };
-
-    let Some(stamp) = config_file_stamp(&config_path).await else {
-        return Ok(());
-    };
-
-    {
-        let store = runtime_config_store()
-            .lock()
-            .unwrap_or_else(|e| e.into_inner());
-        if let Some(state) = store.get(&config_path) {
-            if state.last_applied_stamp == Some(stamp) {
-                return Ok(());
-            }
-        }
-    }
-
-    let (next_defaults, next_autonomy_policy) =
-        load_runtime_defaults_from_config_file(&config_path).await?;
-    let next_default_provider = providers::create_resilient_provider_with_options(
-        &next_defaults.default_provider,
-        next_defaults.api_key.as_deref(),
-        next_defaults.api_url.as_deref(),
-        &next_defaults.reliability,
-        &ctx.provider_runtime_options,
-    )?;
-    let next_default_provider: Arc<dyn Provider> = Arc::from(next_default_provider);
-
-    if let Err(err) = next_default_provider.warmup().await {
-        tracing::warn!(
-            provider = %next_defaults.default_provider,
-            "Provider warmup failed after config reload: {err}"
-        );
-    }
-
-    {
-        let mut cache = ctx.provider_cache.lock().unwrap_or_else(|e| e.into_inner());
-        cache.clear();
-        cache.insert(
-            next_defaults.default_provider.clone(),
-            Arc::clone(&next_default_provider),
-        );
-    }
-
-    {
-        let mut store = runtime_config_store()
-            .lock()
-            .unwrap_or_else(|e| e.into_inner());
-        store.insert(
-            config_path.clone(),
-            RuntimeConfigState {
-                defaults: next_defaults.clone(),
-                last_applied_stamp: Some(stamp),
-            },
-        );
-    }
-
-    ctx.approval_manager.replace_runtime_non_cli_policy(
-        &next_autonomy_policy.auto_approve,
-        &next_autonomy_policy.always_ask,
-        &next_autonomy_policy.non_cli_approval_approvers,
-        next_autonomy_policy.non_cli_natural_language_approval_mode,
-        &next_autonomy_policy.non_cli_natural_language_approval_mode_by_channel,
-    );
-    {
-        let mut excluded = ctx
-            .non_cli_excluded_tools
-            .lock()
-            .unwrap_or_else(|e| e.into_inner());
-        *excluded = next_autonomy_policy.non_cli_excluded_tools.clone();
-    }
-
-    tracing::info!(
-        path = %config_path.display(),
-        provider = %next_defaults.default_provider,
-        model = %next_defaults.model,
-        temperature = next_defaults.temperature,
-        non_cli_approval_mode = %non_cli_natural_language_mode_label(
-            next_autonomy_policy.non_cli_natural_language_approval_mode
-        ),
-        non_cli_excluded_tools_count = next_autonomy_policy.non_cli_excluded_tools.len(),
-        "Applied updated channel runtime config from disk"
-    );
-
-    Ok(())
-}
-
-fn default_route_selection(ctx: &ChannelRuntimeContext) -> ChannelRouteSelection {
-    let defaults = runtime_defaults_snapshot(ctx);
-    ChannelRouteSelection {
-        provider: defaults.default_provider,
-        model: defaults.model,
-    }
-}
-
-fn get_route_selection(ctx: &ChannelRuntimeContext, sender_key: &str) -> ChannelRouteSelection {
-    ctx.route_overrides
-        .lock()
-        .unwrap_or_else(|e| e.into_inner())
-        .get(sender_key)
-        .cloned()
-        .unwrap_or_else(|| default_route_selection(ctx))
-}
-
 /// Classify a user message and return the appropriate route selection with logging.
 /// Returns None if classification is disabled or no rules match.
 fn classify_message_route(
@@ -2355,123 +1252,6 @@ fn classify_message_route(
         provider: route.provider.clone(),
         model: route.model.clone(),
     })
-}
-
-fn set_route_selection(ctx: &ChannelRuntimeContext, sender_key: &str, next: ChannelRouteSelection) {
-    let default_route = default_route_selection(ctx);
-    let mut routes = ctx
-        .route_overrides
-        .lock()
-        .unwrap_or_else(|e| e.into_inner());
-    if next == default_route {
-        routes.remove(sender_key);
-    } else {
-        routes.insert(sender_key.to_string(), next);
-    }
-}
-
-fn clear_sender_history(ctx: &ChannelRuntimeContext, sender_key: &str) {
-    ctx.conversation_histories
-        .lock()
-        .unwrap_or_else(|e| e.into_inner())
-        .remove(sender_key);
-    if let Ok(mut lossless) = LosslessContext::for_session(
-        ctx.workspace_dir.as_path(),
-        "channel",
-        sender_key,
-        ctx.system_prompt.as_str(),
-    ) {
-        let _ = lossless.reset(ctx.system_prompt.as_str());
-    }
-}
-
-fn compact_sender_history(ctx: &ChannelRuntimeContext, sender_key: &str) -> bool {
-    let mut histories = ctx
-        .conversation_histories
-        .lock()
-        .unwrap_or_else(|e| e.into_inner());
-
-    let Some(turns) = histories.get_mut(sender_key) else {
-        return false;
-    };
-
-    if turns.is_empty() {
-        return false;
-    }
-
-    let keep_from = turns
-        .len()
-        .saturating_sub(CHANNEL_HISTORY_COMPACT_KEEP_MESSAGES);
-    let mut compacted = normalize_cached_channel_turns(turns[keep_from..].to_vec());
-
-    for turn in &mut compacted {
-        if turn.content.chars().count() > CHANNEL_HISTORY_COMPACT_CONTENT_CHARS {
-            turn.content =
-                truncate_with_ellipsis(&turn.content, CHANNEL_HISTORY_COMPACT_CONTENT_CHARS);
-        }
-    }
-
-    if compacted.is_empty() {
-        turns.clear();
-        return false;
-    }
-
-    *turns = compacted;
-    true
-}
-
-fn append_sender_turn(ctx: &ChannelRuntimeContext, sender_key: &str, turn: ChatMessage) {
-    let mut histories = ctx
-        .conversation_histories
-        .lock()
-        .unwrap_or_else(|e| e.into_inner());
-    let turns = histories.entry(sender_key.to_string()).or_default();
-    turns.push(turn);
-    while turns.len() > MAX_CHANNEL_HISTORY {
-        turns.remove(0);
-    }
-}
-
-fn set_sender_history(ctx: &ChannelRuntimeContext, sender_key: &str, history: Vec<ChatMessage>) {
-    let mut histories = ctx
-        .conversation_histories
-        .lock()
-        .unwrap_or_else(|e| e.into_inner());
-    if history.is_empty() {
-        histories.remove(sender_key);
-    } else {
-        histories.insert(
-            sender_key.to_string(),
-            normalize_cached_channel_turns(history),
-        );
-    }
-}
-
-fn rollback_orphan_user_turn(
-    ctx: &ChannelRuntimeContext,
-    sender_key: &str,
-    expected_content: &str,
-) -> bool {
-    let mut histories = ctx
-        .conversation_histories
-        .lock()
-        .unwrap_or_else(|e| e.into_inner());
-    let Some(turns) = histories.get_mut(sender_key) else {
-        return false;
-    };
-
-    let should_pop = turns
-        .last()
-        .is_some_and(|turn| turn.role == "user" && turn.content == expected_content);
-    if !should_pop {
-        return false;
-    }
-
-    turns.pop();
-    if turns.is_empty() {
-        histories.remove(sender_key);
-    }
-    true
 }
 
 fn should_skip_memory_context_entry(key: &str, content: &str) -> bool {
@@ -3352,7 +2132,15 @@ async fn handle_runtime_command_if_needed(
             }
         }
         ChannelRuntimeCommand::ListApprovals => {
-            match describe_non_cli_approvals(ctx, sender, source_channel, reply_target).await {
+            match describe_non_cli_approvals(
+                ctx,
+                sender,
+                source_channel,
+                reply_target,
+                &snapshot_non_cli_excluded_tools(ctx),
+            )
+            .await
+            {
                 Ok(summary) => summary,
                 Err(err) => format!("Failed to read approval state: {err}"),
             }
@@ -5444,7 +4232,7 @@ fn maybe_restart_managed_daemon_service() -> Result<bool> {
     Ok(false)
 }
 
-pub(crate) async fn handle_command(command: crate::ChannelCommands, config: &Config) -> Result<()> {
+pub async fn handle_command(command: crate::ChannelCommands, config: &Config) -> Result<()> {
     match command {
         crate::ChannelCommands::Start => {
             anyhow::bail!("Start must be handled in main.rs (requires async runtime)")
@@ -5984,8 +4772,14 @@ pub async fn start_channels(config: Config) -> Result<()> {
         Arc::from(runtime::create_runtime(&config.runtime)?);
     let security = Arc::new(SecurityPolicy::from_runtime_config(&config)?);
     let temperature = config.default_temperature;
-    let mem: Arc<dyn Memory> = Arc::from(memory::create_memory_with_storage(
+    memory::prepare_memory_workspace(
         &config.memory,
+        Some(&config.storage.provider.config),
+        &config.workspace_dir,
+    )?;
+    let mem: Arc<dyn Memory> = Arc::from(memory::create_memory_backend_with_storage_and_routes(
+        &config.memory,
+        &[],
         Some(&config.storage.provider.config),
         &config.workspace_dir,
         config.api_key.as_deref(),
@@ -11207,7 +10001,7 @@ Done reminder set for 1:38 AM."#;
             ApprovalManager::from_config(&crate::config::AutonomyConfig::default());
         assert_eq!(
             capability_tool_state(&tools, &[], &approval_manager, "web_fetch"),
-            CapabilityState::Available
+            CapabilityState::NeedsApproval
         );
         assert_eq!(
             capability_tool_state(
@@ -11822,7 +10616,7 @@ BTC is currently around $65,000 based on latest tool output."#;
     #[test]
     fn collect_configured_channels_includes_bridge_when_configured() {
         let mut config = Config::default();
-        config.channels_config.bridge = Some(crate::config::schema::BridgeConfig::default());
+        config.channels_config.bridge = Some(crate::config::BridgeConfig::default());
 
         let channels = collect_configured_channels(&config, "test");
 

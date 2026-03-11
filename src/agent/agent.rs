@@ -263,13 +263,20 @@ impl Agent {
     }
 
     fn build_memory_from_config(config: &Config) -> Result<Arc<dyn Memory>> {
-        Ok(Arc::from(memory::create_memory_with_storage_and_routes(
+        memory::prepare_memory_workspace(
             &config.memory,
-            &config.embedding_routes,
             Some(&config.storage.provider.config),
             &config.workspace_dir,
-            config.api_key.as_deref(),
-        )?))
+        )?;
+        Ok(Arc::from(
+            memory::create_memory_backend_with_storage_and_routes(
+                &config.memory,
+                &config.embedding_routes,
+                Some(&config.storage.provider.config),
+                &config.workspace_dir,
+                config.api_key.as_deref(),
+            )?,
+        ))
     }
 
     fn composio_context_from_config(config: &Config) -> (Option<&str>, Option<&str>) {

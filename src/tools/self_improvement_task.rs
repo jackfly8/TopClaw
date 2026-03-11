@@ -66,7 +66,7 @@ impl Tool for SelfImprovementTaskTool {
             "properties": {
                 "action": {
                     "type": "string",
-                    "enum": ["enqueue", "list", "update", "readiness", "sync", "publish_pr"]
+                    "enum": ["enqueue", "list", "update", "readiness", "sync", "publish_pr", "repair"]
                 },
                 "title": {"type": "string"},
                 "problem": {"type": "string"},
@@ -170,12 +170,18 @@ impl Tool for SelfImprovementTaskTool {
                 let sync = self_improvement::sync_scheduled_job(&self.config).await?;
                 json!({"task": task, "sync": sync})
             }
-            "readiness" => json!(self_improvement::check_git_readiness(&self.config).await),
+            "readiness" => json!(self_improvement::check_git_readiness(&self.config)),
             "sync" => {
                 if let Err(result) = self.enforce_act() {
                     return Ok(result);
                 }
                 json!(self_improvement::sync_scheduled_job(&self.config).await?)
+            }
+            "repair" => {
+                if let Err(result) = self.enforce_act() {
+                    return Ok(result);
+                }
+                json!(manager.repair_state_file().await?)
             }
             "publish_pr" => {
                 if let Err(result) = self.enforce_act() {
@@ -222,7 +228,7 @@ impl Tool for SelfImprovementTaskTool {
                     success: false,
                     output: String::new(),
                     error: Some(format!(
-                        "Unknown action '{other}'. Use enqueue, list, update, readiness, sync, or publish_pr"
+                        "Unknown action '{other}'. Use enqueue, list, update, readiness, sync, publish_pr, or repair"
                     )),
                 })
             }

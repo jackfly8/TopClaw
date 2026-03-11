@@ -3,16 +3,16 @@ use crate::config::Config;
 use crate::memory::{self, Memory, MemoryCategory};
 use crate::multimodal;
 use crate::observability::{self, runtime_trace, Observer, ObserverEvent};
-use crate::providers::traits::StreamEvent;
-use crate::providers::{
-    self, ChatMessage, ChatRequest, Provider, ProviderCapabilityError, ToolCall,
-};
+#[allow(unused_imports)]
+use crate::providers::ChatRequest;
+#[cfg(test)]
+use crate::providers::ToolCall;
+use crate::providers::{self, ChatMessage, Provider, ProviderCapabilityError};
 use crate::runtime;
 use crate::security::SecurityPolicy;
 use crate::tools::{self, Tool};
 use crate::util::truncate_with_ellipsis;
 use anyhow::Result;
-use futures_util::StreamExt;
 use regex::{Regex, RegexSet};
 use rustyline::error::ReadlineError;
 use std::collections::{BTreeSet, HashSet};
@@ -25,18 +25,30 @@ use uuid::Uuid;
 
 mod context;
 mod execution;
+mod guardrails;
 mod history;
+mod history_builders;
 pub(crate) mod lossless;
 mod parsing;
+mod provider_io;
+mod tool_helpers;
+mod utilities;
 
 use context::{build_context, build_hardware_context};
 use execution::{
     execute_tools_parallel, execute_tools_sequential, should_execute_tools_in_parallel,
     ToolExecutionOutcome,
 };
+use guardrails::{
+    build_tool_unavailable_retry_prompt, looks_like_tool_unavailability_claim,
+    looks_like_unverified_action_completion_without_tool_call,
+};
 use history::trim_history;
 #[cfg(test)]
 use history::{apply_compaction_summary, build_compaction_transcript};
+use history_builders::{
+    build_native_assistant_history, build_native_assistant_history_from_parsed_calls,
+};
 use lossless::LosslessContext;
 #[allow(unused_imports)]
 use parsing::{
@@ -45,6 +57,14 @@ use parsing::{
     parse_perl_style_tool_calls, parse_structured_tool_calls, parse_tool_call_value,
     parse_tool_calls, parse_tool_calls_from_json_value, tool_call_signature, ParsedToolCall,
 };
+use provider_io::{call_provider_chat, consume_provider_streaming_response};
+use tool_helpers::{
+    maybe_inject_cron_add_delivery, qualifies_for_non_cli_investigation_batch,
+    truncate_tool_args_for_progress,
+};
+use utilities::autosave_memory_key;
+#[cfg(test)]
+use utilities::tools_to_openai_format;
 
 /// Minimum characters per chunk when relaying LLM text to a streaming draft.
 const STREAM_CHUNK_MIN_CHARS: usize = 80;
@@ -126,58 +146,9 @@ tokio::task_local! {
     static TOOL_LOOP_REPLY_TARGET: Option<String>;
 }
 
-const AUTO_CRON_DELIVERY_CHANNELS: &[&str] = &["telegram", "discord", "slack", "mattermost"];
-
 const NON_CLI_APPROVAL_WAIT_TIMEOUT_SECS: u64 = 300;
 const NON_CLI_APPROVAL_POLL_INTERVAL_MS: u64 = 250;
 const MISSING_TOOL_CALL_RETRY_PROMPT: &str = "Internal correction: your last reply implied a follow-up action or claimed action completion, but no valid tool call was emitted. If a tool is needed, emit it now using the required <tool_call>...</tool_call> format. If no tool is needed, provide the complete final answer now and do not defer action.";
-const TOOL_UNAVAILABLE_RETRY_PROMPT_PREFIX: &str = "Internal correction: your prior reply claimed required tools were unavailable. Use only the runtime-allowed tools listed below. If file changes are requested and `file_write`/`file_edit` are listed, call them directly.";
-
-/// Detect completion claims that imply state-changing work already happened
-/// without an accompanying tool call.
-static ACTION_COMPLETION_CUE_REGEX: LazyLock<Regex> = LazyLock::new(|| {
-    Regex::new(
-        r"(?ix)\b(done|completed?|finished|successfully|i(?:'ve|\s+have)|we(?:'ve|\s+have))\b",
-    )
-    .unwrap()
-});
-
-/// Verbs that usually imply side effects requiring tool execution.
-static SIDE_EFFECT_ACTION_VERB_REGEX: LazyLock<Regex> = LazyLock::new(|| {
-    Regex::new(
-        r"(?ix)\b(create|created|write|wrote|run|ran|execute|executed|update|updated|delete|deleted|remove|removed|rename|renamed|move|moved|install|installed|save|saved|make|made)\b",
-    )
-    .unwrap()
-});
-
-/// Concrete artifacts often referenced in file/system action completion claims.
-static SIDE_EFFECT_ACTION_OBJECT_REGEX: LazyLock<Regex> = LazyLock::new(|| {
-    Regex::new(
-        r"(?ix)\b(file|files|folder|folders|directory|directories|workspace|cwd|current\s+working\s+directory|command|commands|script|scripts|path|paths)\b",
-    )
-    .unwrap()
-});
-
-/// Detect responses that incorrectly claim file tooling is unavailable even
-/// when runtime policy allows file tools in this turn.
-static TOOL_UNAVAILABLE_CLAIM_REGEX: LazyLock<Regex> = LazyLock::new(|| {
-    Regex::new(
-        r"(?ix)
-        \b(
-            i\s+(?:do\s+not|don't)\s+have\s+access|
-            i\s+(?:cannot|can't)\s+(?:access|use|perform|create|edit|write)|
-            i\s+am\s+unable\s+to|
-            no\s+(?:tool|tools|function|functions)\s+(?:available|access)
-        )\b
-        [^.!?\n]{0,220}
-        \b(
-            tool|tools|function|functions|file|file_write|file_edit|
-            create|write|edit|delete
-        )\b",
-    )
-    .unwrap()
-});
-
 #[derive(Debug, Clone)]
 pub(crate) struct NonCliApprovalPrompt {
     pub request_id: String,
@@ -195,112 +166,6 @@ pub(crate) struct NonCliApprovalContext {
 
 tokio::task_local! {
     static TOOL_LOOP_NON_CLI_APPROVAL_CONTEXT: Option<NonCliApprovalContext>;
-}
-
-/// Extract a short hint from tool call arguments for progress display.
-fn truncate_tool_args_for_progress(name: &str, args: &serde_json::Value, max_len: usize) -> String {
-    let hint = match name {
-        "shell" => args.get("command").and_then(|v| v.as_str()),
-        "file_read" | "file_write" => args.get("path").and_then(|v| v.as_str()),
-        _ => args
-            .get("action")
-            .and_then(|v| v.as_str())
-            .or_else(|| args.get("query").and_then(|v| v.as_str())),
-    };
-    match hint {
-        Some(s) => truncate_with_ellipsis(s, max_len),
-        None => String::new(),
-    }
-}
-
-fn qualifies_for_non_cli_investigation_batch(tool_name: &str, args: &serde_json::Value) -> bool {
-    match tool_name {
-        // Planning is stateful but low-risk and commonly used to organize one
-        // investigation turn; avoid prompting for every create/update step.
-        "task_plan" => true,
-        "glob_search" | "content_search" | "lossless_search" | "file_read" | "memory_search"
-        | "memory_recall" => true,
-        "process" => matches!(
-            args.get("action").and_then(serde_json::Value::as_str),
-            Some("list" | "output")
-        ),
-        _ => false,
-    }
-}
-
-fn maybe_inject_cron_add_delivery(
-    tool_name: &str,
-    tool_args: &mut serde_json::Value,
-    channel_name: &str,
-    reply_target: Option<&str>,
-) {
-    if tool_name != "cron_add"
-        || !AUTO_CRON_DELIVERY_CHANNELS
-            .iter()
-            .any(|supported| supported == &channel_name)
-    {
-        return;
-    }
-
-    let Some(reply_target) = reply_target.map(str::trim).filter(|v| !v.is_empty()) else {
-        return;
-    };
-
-    let Some(args_obj) = tool_args.as_object_mut() else {
-        return;
-    };
-
-    let is_agent_job = match args_obj.get("job_type").and_then(serde_json::Value::as_str) {
-        Some("agent") => true,
-        Some(_) => false,
-        None => args_obj.contains_key("prompt"),
-    };
-    if !is_agent_job {
-        return;
-    }
-
-    let delivery = args_obj
-        .entry("delivery".to_string())
-        .or_insert_with(|| serde_json::json!({}));
-    let Some(delivery_obj) = delivery.as_object_mut() else {
-        return;
-    };
-
-    let mode = delivery_obj
-        .get("mode")
-        .and_then(serde_json::Value::as_str)
-        .unwrap_or("none");
-    if mode.eq_ignore_ascii_case("none") || mode.trim().is_empty() {
-        delivery_obj.insert(
-            "mode".to_string(),
-            serde_json::Value::String("announce".to_string()),
-        );
-    } else if !mode.eq_ignore_ascii_case("announce") {
-        // Respect explicitly chosen non-announce modes.
-        return;
-    }
-
-    let needs_channel = delivery_obj
-        .get("channel")
-        .and_then(serde_json::Value::as_str)
-        .is_none_or(|value| value.trim().is_empty());
-    if needs_channel {
-        delivery_obj.insert(
-            "channel".to_string(),
-            serde_json::Value::String(channel_name.to_string()),
-        );
-    }
-
-    let needs_target = delivery_obj
-        .get("to")
-        .and_then(serde_json::Value::as_str)
-        .is_none_or(|value| value.trim().is_empty());
-    if needs_target {
-        delivery_obj.insert(
-            "to".to_string(),
-            serde_json::Value::String(reply_target.to_string()),
-        );
-    }
 }
 
 async fn await_non_cli_approval_decision(
@@ -338,161 +203,6 @@ async fn await_non_cli_approval_decision(
     }
 }
 
-/// Convert a tool registry to OpenAI function-calling format for native tool support.
-fn tools_to_openai_format(tools_registry: &[Box<dyn Tool>]) -> Vec<serde_json::Value> {
-    tools_registry
-        .iter()
-        .map(|tool| {
-            serde_json::json!({
-                "type": "function",
-                "function": {
-                    "name": tool.name(),
-                    "description": tool.description(),
-                    "parameters": tool.parameters_schema()
-                }
-            })
-        })
-        .collect()
-}
-
-fn autosave_memory_key(prefix: &str) -> String {
-    format!("{prefix}_{}", Uuid::new_v4())
-}
-
-/// Build assistant history entry in JSON format for native tool-call APIs.
-/// `convert_messages` in the OpenRouter provider parses this JSON to reconstruct
-/// the proper `NativeMessage` with structured `tool_calls`.
-fn build_native_assistant_history(
-    text: &str,
-    tool_calls: &[ToolCall],
-    reasoning_content: Option<&str>,
-) -> String {
-    let calls_json: Vec<serde_json::Value> = tool_calls
-        .iter()
-        .map(|tc| {
-            serde_json::json!({
-                "id": tc.id,
-                "name": tc.name,
-                "arguments": tc.arguments,
-            })
-        })
-        .collect();
-
-    let content = if text.trim().is_empty() {
-        serde_json::Value::Null
-    } else {
-        serde_json::Value::String(text.trim().to_string())
-    };
-
-    let mut obj = serde_json::json!({
-        "content": content,
-        "tool_calls": calls_json,
-    });
-
-    if let Some(rc) = reasoning_content {
-        obj.as_object_mut().unwrap().insert(
-            "reasoning_content".to_string(),
-            serde_json::Value::String(rc.to_string()),
-        );
-    }
-
-    obj.to_string()
-}
-
-fn build_native_assistant_history_from_parsed_calls(
-    text: &str,
-    tool_calls: &[ParsedToolCall],
-    reasoning_content: Option<&str>,
-) -> Option<String> {
-    let calls_json = tool_calls
-        .iter()
-        .map(|tc| {
-            Some(serde_json::json!({
-                "id": tc.tool_call_id.clone()?,
-                "name": tc.name,
-                "arguments": serde_json::to_string(&tc.arguments).unwrap_or_else(|_| "{}".to_string()),
-            }))
-        })
-        .collect::<Option<Vec<_>>>()?;
-
-    let content = if text.trim().is_empty() {
-        serde_json::Value::Null
-    } else {
-        serde_json::Value::String(text.trim().to_string())
-    };
-
-    let mut obj = serde_json::json!({
-        "content": content,
-        "tool_calls": calls_json,
-    });
-
-    if let Some(rc) = reasoning_content {
-        obj.as_object_mut().unwrap().insert(
-            "reasoning_content".to_string(),
-            serde_json::Value::String(rc.to_string()),
-        );
-    }
-
-    Some(obj.to_string())
-}
-
-fn build_assistant_history_with_tool_calls(text: &str, tool_calls: &[ToolCall]) -> String {
-    let mut parts = Vec::new();
-
-    if !text.trim().is_empty() {
-        parts.push(text.trim().to_string());
-    }
-
-    for call in tool_calls {
-        let arguments = serde_json::from_str::<serde_json::Value>(&call.arguments)
-            .unwrap_or_else(|_| serde_json::Value::String(call.arguments.clone()));
-        let payload = serde_json::json!({
-            "id": call.id,
-            "name": call.name,
-            "arguments": arguments,
-        });
-        parts.push(format!("<tool_call>\n{payload}\n</tool_call>"));
-    }
-
-    parts.join("\n")
-}
-
-fn looks_like_unverified_action_completion_without_tool_call(text: &str) -> bool {
-    let trimmed = text.trim();
-    if trimmed.is_empty() {
-        return false;
-    }
-
-    ACTION_COMPLETION_CUE_REGEX.is_match(trimmed)
-        && SIDE_EFFECT_ACTION_VERB_REGEX.is_match(trimmed)
-        && SIDE_EFFECT_ACTION_OBJECT_REGEX.is_match(trimmed)
-}
-
-fn looks_like_tool_unavailability_claim(text: &str, tool_specs: &[crate::tools::ToolSpec]) -> bool {
-    let trimmed = text.trim();
-    if trimmed.is_empty() || !TOOL_UNAVAILABLE_CLAIM_REGEX.is_match(trimmed) {
-        return false;
-    }
-
-    tool_specs
-        .iter()
-        .any(|spec| matches!(spec.name.as_str(), "file_write" | "file_edit"))
-}
-
-fn build_tool_unavailable_retry_prompt(tool_specs: &[crate::tools::ToolSpec]) -> String {
-    const MAX_TOOLS_IN_PROMPT: usize = 24;
-    let tool_list = tool_specs
-        .iter()
-        .map(|spec| spec.name.as_str())
-        .take(MAX_TOOLS_IN_PROMPT)
-        .collect::<Vec<_>>()
-        .join(", ");
-
-    format!(
-        "{TOOL_UNAVAILABLE_RETRY_PROMPT_PREFIX}\nRuntime tools: {tool_list}\nEmit the correct tool call now if tool use is required. Otherwise provide the final answer without claiming missing tools."
-    )
-}
-
 #[derive(Debug)]
 pub(crate) struct ToolLoopCancelled;
 
@@ -514,144 +224,6 @@ pub(crate) fn is_tool_iteration_limit_error(err: &anyhow::Error) -> bool {
             .to_string()
             .contains("Agent exceeded maximum tool iterations")
     })
-}
-
-#[derive(Debug, Default)]
-struct StreamedChatOutcome {
-    response_text: String,
-    tool_calls: Vec<ToolCall>,
-    forwarded_live_deltas: bool,
-}
-
-fn looks_like_streamed_tool_payload(window: &str) -> bool {
-    let lowered = window.to_ascii_lowercase();
-    lowered.contains("<tool_call")
-        || lowered.contains("<toolcall")
-        || lowered.contains("\"tool_calls\"")
-}
-
-async fn call_provider_chat(
-    provider: &dyn Provider,
-    messages: &[ChatMessage],
-    request_tools: Option<&[crate::tools::ToolSpec]>,
-    model: &str,
-    temperature: f64,
-    cancellation_token: Option<&CancellationToken>,
-) -> Result<crate::providers::ChatResponse> {
-    let chat_future = provider.chat(
-        ChatRequest {
-            messages,
-            tools: request_tools,
-        },
-        model,
-        temperature,
-    );
-
-    if let Some(token) = cancellation_token {
-        tokio::select! {
-            () = token.cancelled() => Err(ToolLoopCancelled.into()),
-            result = chat_future => result,
-        }
-    } else {
-        chat_future.await
-    }
-}
-
-async fn consume_provider_streaming_response(
-    provider: &dyn Provider,
-    messages: &[ChatMessage],
-    request_tools: Option<&[crate::tools::ToolSpec]>,
-    model: &str,
-    temperature: f64,
-    cancellation_token: Option<&CancellationToken>,
-    on_delta: Option<&tokio::sync::mpsc::Sender<String>>,
-) -> Result<StreamedChatOutcome> {
-    let mut provider_stream = provider.stream_chat(
-        ChatRequest {
-            messages,
-            tools: request_tools,
-        },
-        model,
-        temperature,
-        crate::providers::traits::StreamOptions::new(true),
-    );
-    let mut outcome = StreamedChatOutcome::default();
-    let mut delta_sender = on_delta;
-    let mut suppress_forwarding = false;
-    let mut marker_window = String::new();
-
-    loop {
-        let next_chunk = if let Some(token) = cancellation_token {
-            tokio::select! {
-                () = token.cancelled() => return Err(ToolLoopCancelled.into()),
-                chunk = provider_stream.next() => chunk,
-            }
-        } else {
-            provider_stream.next().await
-        };
-
-        let Some(event_result) = next_chunk else {
-            break;
-        };
-
-        let event = event_result.map_err(|err| anyhow::anyhow!("provider stream error: {err}"))?;
-        match event {
-            StreamEvent::Final => break,
-            StreamEvent::ToolCall(tool_call) => {
-                outcome.tool_calls.push(tool_call);
-                suppress_forwarding = true;
-                if outcome.forwarded_live_deltas {
-                    if let Some(tx) = delta_sender {
-                        let _ = tx.send(DRAFT_CLEAR_SENTINEL.to_string()).await;
-                    }
-                    outcome.forwarded_live_deltas = false;
-                }
-            }
-            StreamEvent::TextDelta(chunk) => {
-                if chunk.delta.is_empty() {
-                    continue;
-                }
-
-                outcome.response_text.push_str(&chunk.delta);
-                marker_window.push_str(&chunk.delta);
-
-                if marker_window.len() > STREAM_TOOL_MARKER_WINDOW_CHARS {
-                    let keep_from = marker_window.len() - STREAM_TOOL_MARKER_WINDOW_CHARS;
-                    let boundary = marker_window
-                        .char_indices()
-                        .find(|(idx, _)| *idx >= keep_from)
-                        .map_or(0, |(idx, _)| idx);
-                    marker_window.drain(..boundary);
-                }
-
-                if !suppress_forwarding && looks_like_streamed_tool_payload(&marker_window) {
-                    suppress_forwarding = true;
-                    if outcome.forwarded_live_deltas {
-                        if let Some(tx) = delta_sender {
-                            let _ = tx.send(DRAFT_CLEAR_SENTINEL.to_string()).await;
-                        }
-                        outcome.forwarded_live_deltas = false;
-                    }
-                }
-
-                if suppress_forwarding {
-                    continue;
-                }
-
-                if let Some(tx) = delta_sender {
-                    if !outcome.forwarded_live_deltas {
-                        let _ = tx.send(DRAFT_CLEAR_SENTINEL.to_string()).await;
-                        outcome.forwarded_live_deltas = true;
-                    }
-                    if tx.send(chunk.delta).await.is_err() {
-                        delta_sender = None;
-                    }
-                }
-            }
-        }
-    }
-
-    Ok(outcome)
 }
 
 /// Execute a single turn of the agent loop: send messages, parse tool calls,
@@ -1404,15 +976,9 @@ pub(crate) async fn run_tool_call_loop(
 
             // ── Approval hook ────────────────────────────────
             if let Some(mgr) = approval {
-                if bypass_non_cli_approval_for_turn {
-                    mgr.record_decision(
-                        &tool_name,
-                        &tool_args,
-                        ApprovalResponse::Yes,
-                        channel_name,
-                    );
-                } else if bypass_non_cli_investigation_batch_for_turn
-                    && qualifies_for_non_cli_investigation_batch(&tool_name, &tool_args)
+                if bypass_non_cli_approval_for_turn
+                    || (bypass_non_cli_investigation_batch_for_turn
+                        && qualifies_for_non_cli_investigation_batch(&tool_name, &tool_args))
                 {
                     mgr.record_decision(
                         &tool_name,
@@ -1872,8 +1438,14 @@ pub async fn run(
     let security = Arc::new(SecurityPolicy::from_runtime_config(&config)?);
 
     // ── Memory (the brain) ────────────────────────────────────────
-    let mem: Arc<dyn Memory> = Arc::from(memory::create_memory_with_storage(
+    memory::prepare_memory_workspace(
         &config.memory,
+        Some(&config.storage.provider.config),
+        &config.workspace_dir,
+    )?;
+    let mem: Arc<dyn Memory> = Arc::from(memory::create_memory_backend_with_storage_and_routes(
+        &config.memory,
+        &[],
         Some(&config.storage.provider.config),
         &config.workspace_dir,
         config.api_key.as_deref(),
@@ -2371,8 +1943,14 @@ pub async fn process_message(config: Config, message: &str) -> Result<String> {
     let runtime: Arc<dyn runtime::RuntimeAdapter> =
         Arc::from(runtime::create_runtime(&config.runtime)?);
     let security = Arc::new(SecurityPolicy::from_runtime_config(&config)?);
-    let mem: Arc<dyn Memory> = Arc::from(memory::create_memory_with_storage(
+    memory::prepare_memory_workspace(
         &config.memory,
+        Some(&config.storage.provider.config),
+        &config.workspace_dir,
+    )?;
+    let mem: Arc<dyn Memory> = Arc::from(memory::create_memory_backend_with_storage_and_routes(
+        &config.memory,
+        &[],
         Some(&config.storage.provider.config),
         &config.workspace_dir,
         config.api_key.as_deref(),
