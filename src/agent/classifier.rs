@@ -1,4 +1,4 @@
-use crate::config::schema::QueryClassificationConfig;
+use crate::config::QueryClassificationConfig;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ClassificationDecision {
@@ -68,7 +68,7 @@ pub fn classify_with_decision(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::config::schema::{ClassificationRule, QueryClassificationConfig};
+    use crate::config::{ClassificationRule, QueryClassificationConfig};
 
     fn make_config(enabled: bool, rules: Vec<ClassificationRule>) -> QueryClassificationConfig {
         QueryClassificationConfig { enabled, rules }

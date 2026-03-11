@@ -1361,9 +1361,8 @@ fn hydrate_config_for_save(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::config::schema::{
-        CloudflareTunnelConfig, LarkReceiveMode, NgrokTunnelConfig, WatiConfig,
-    };
+    use crate::config::schema::{LarkReceiveMode, WatiConfig};
+    use crate::config::{CloudflareTunnelConfig, NgrokTunnelConfig};
     use std::collections::BTreeMap;
 
     #[test]

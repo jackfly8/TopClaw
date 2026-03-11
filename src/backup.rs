@@ -36,9 +36,9 @@ struct BackupBuildStats {
     files: Vec<BackupFileEntry>,
 }
 
-pub(crate) async fn handle_command(backup_command: topclaw::BackupCommands) -> Result<()> {
+pub async fn handle_command(backup_command: crate::BackupCommands) -> Result<()> {
     match backup_command {
-        topclaw::BackupCommands::Create {
+        crate::BackupCommands::Create {
             destination,
             include_logs,
         } => {
@@ -64,7 +64,7 @@ pub(crate) async fn handle_command(backup_command: topclaw::BackupCommands) -> R
             );
             Ok(())
         }
-        topclaw::BackupCommands::Inspect { source } => {
+        crate::BackupCommands::Inspect { source } => {
             let summary = inspect_backup_bundle(&source)?;
             println!("Backup bundle verified.");
             println!("  Bundle: {}", source.display());
@@ -78,7 +78,7 @@ pub(crate) async fn handle_command(backup_command: topclaw::BackupCommands) -> R
             );
             Ok(())
         }
-        topclaw::BackupCommands::Restore { source, force } => {
+        crate::BackupCommands::Restore { source, force } => {
             let (target_config_dir, _) =
                 crate::config::schema::resolve_runtime_dirs_for_onboarding()
                     .await

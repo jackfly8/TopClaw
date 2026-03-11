@@ -182,7 +182,8 @@ pub fn create_memory(
     workspace_dir: &Path,
     api_key: Option<&str>,
 ) -> anyhow::Result<Box<dyn Memory>> {
-    create_memory_with_storage_and_routes(config, &[], None, workspace_dir, api_key)
+    prepare_memory_workspace(config, None, workspace_dir)?;
+    create_memory_backend_with_storage_and_routes(config, &[], None, workspace_dir, api_key)
 }
 
 /// Factory: create memory with optional storage-provider override.
@@ -192,20 +193,23 @@ pub fn create_memory_with_storage(
     workspace_dir: &Path,
     api_key: Option<&str>,
 ) -> anyhow::Result<Box<dyn Memory>> {
-    create_memory_with_storage_and_routes(config, &[], storage_provider, workspace_dir, api_key)
+    prepare_memory_workspace(config, storage_provider, workspace_dir)?;
+    create_memory_backend_with_storage_and_routes(
+        config,
+        &[],
+        storage_provider,
+        workspace_dir,
+        api_key,
+    )
 }
 
-/// Factory: create memory with optional storage-provider override and embedding routes.
-pub fn create_memory_with_storage_and_routes(
+pub fn prepare_memory_workspace(
     config: &MemoryConfig,
-    embedding_routes: &[EmbeddingRouteConfig],
     storage_provider: Option<&StorageProviderConfig>,
     workspace_dir: &Path,
-    api_key: Option<&str>,
-) -> anyhow::Result<Box<dyn Memory>> {
+) -> anyhow::Result<()> {
     let backend_name = effective_memory_backend_name(&config.backend, storage_provider);
     let backend_kind = classify_memory_backend(&backend_name);
-    let resolved_embedding = resolve_embedding_config(config, embedding_routes, api_key);
 
     // Best-effort memory hygiene/retention pass (throttled by state file).
     if let Err(e) = hygiene::run_if_due(config, workspace_dir) {
@@ -246,6 +250,40 @@ pub fn create_memory_with_storage_and_routes(
             }
         }
     }
+
+    Ok(())
+}
+
+/// Factory: create memory with optional storage-provider override and embedding routes.
+pub fn create_memory_with_storage_and_routes(
+    config: &MemoryConfig,
+    embedding_routes: &[EmbeddingRouteConfig],
+    storage_provider: Option<&StorageProviderConfig>,
+    workspace_dir: &Path,
+    api_key: Option<&str>,
+) -> anyhow::Result<Box<dyn Memory>> {
+    prepare_memory_workspace(config, storage_provider, workspace_dir)?;
+    create_memory_backend_with_storage_and_routes(
+        config,
+        embedding_routes,
+        storage_provider,
+        workspace_dir,
+        api_key,
+    )
+}
+
+/// Side-effect-free memory backend factory. Call `prepare_memory_workspace()`
+/// first when the runtime expects hygiene, snapshot export, or hydration.
+pub fn create_memory_backend_with_storage_and_routes(
+    config: &MemoryConfig,
+    embedding_routes: &[EmbeddingRouteConfig],
+    storage_provider: Option<&StorageProviderConfig>,
+    workspace_dir: &Path,
+    api_key: Option<&str>,
+) -> anyhow::Result<Box<dyn Memory>> {
+    let backend_name = effective_memory_backend_name(&config.backend, storage_provider);
+    let backend_kind = classify_memory_backend(&backend_name);
+    let resolved_embedding = resolve_embedding_config(config, embedding_routes, api_key);
 
     fn build_sqlite_memory(
         config: &MemoryConfig,

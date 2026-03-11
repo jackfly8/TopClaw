@@ -35,6 +35,11 @@
 
 use anyhow::{bail, Context, Result};
 use clap::{Parser, Subcommand, ValueEnum};
+use topclaw::{
+    agent, auth, backup, channels, config, cron, daemon, doctor, gateway, hardware, integrations,
+    memory, migration, observability, onboard, peripherals, providers, security, self_improvement,
+    service, skills, update, Config,
+};
 use tracing::{info, warn};
 use tracing_subscriber::{fmt, EnvFilter};
 
@@ -72,49 +77,7 @@ fn daemon_ready(diag_results: &[doctor::DiagResult]) -> bool {
     })
 }
 
-mod agent;
-mod approval;
-mod auth;
-mod backup;
-mod channels;
-mod rag {
-    pub use topclaw::rag::*;
-}
-mod config;
-mod coordination;
-mod cost;
-mod cron;
-mod daemon;
-mod doctor;
-mod gateway;
-mod goals;
-mod hardware;
-mod health;
-mod heartbeat;
-mod hooks;
-mod identity;
-mod integrations;
 mod main_handlers;
-mod memory;
-mod migration;
-mod multimodal;
-mod observability;
-mod onboard;
-mod peripherals;
-mod providers;
-mod runtime;
-mod security;
-mod self_improvement;
-mod service;
-mod skillforge;
-mod skills;
-mod tools;
-mod tunnel;
-mod update;
-mod util;
-mod workspace;
-
-use config::Config;
 use main_handlers::{
     handle_auth_command, handle_estop_command, handle_security_command, handle_uninstall_command,
     handle_workspace_command, write_shell_completion,
@@ -123,7 +86,7 @@ use main_handlers::{
 // Re-export so binary modules can use crate::<CommandEnum> while keeping a single source of truth.
 pub use topclaw::{
     BackupCommands, ChannelCommands, CronCommands, HardwareCommands, IntegrationCommands,
-    MigrateCommands, PeripheralCommands, ServiceCommands, SkillCommands,
+    MemoryCommands, MigrateCommands, PeripheralCommands, ServiceCommands, SkillCommands,
 };
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq, ValueEnum)]
@@ -676,12 +639,25 @@ Examples:
         #[arg(value_enum)]
         shell: CompletionShell,
     },
+
+    /// Self-improvement maintenance commands
+    #[command(name = "self-improvement", visible_alias = "self-improve")]
+    SelfImprovement {
+        #[command(subcommand)]
+        self_improvement_command: SelfImprovementCommands,
+    },
 }
 
 #[derive(Subcommand, Debug)]
 enum ConfigCommands {
     /// Dump the full configuration JSON Schema to stdout
     Schema,
+}
+
+#[derive(Subcommand, Debug)]
+enum SelfImprovementCommands {
+    /// Quarantine corrupt task state and recreate a default empty file
+    RepairState,
 }
 
 #[derive(Subcommand, Debug)]
@@ -897,36 +873,6 @@ enum DoctorCommands {
         /// Maximum number of events to display
         #[arg(long, default_value = "20")]
         limit: usize,
-    },
-}
-
-#[derive(Subcommand, Debug)]
-enum MemoryCommands {
-    /// List memory entries with optional filters
-    List {
-        #[arg(long)]
-        category: Option<String>,
-        #[arg(long)]
-        session: Option<String>,
-        #[arg(long, default_value = "50")]
-        limit: usize,
-        #[arg(long, default_value = "0")]
-        offset: usize,
-    },
-    /// Get a specific memory entry by key
-    Get { key: String },
-    /// Show memory backend statistics and health
-    Stats,
-    /// Clear memories by category, by key, or clear all
-    Clear {
-        /// Delete a single entry by key (supports prefix match)
-        #[arg(long)]
-        key: Option<String>,
-        #[arg(long)]
-        category: Option<String>,
-        /// Skip confirmation prompt
-        #[arg(long)]
-        yes: bool,
     },
 }
 
@@ -1416,6 +1362,17 @@ async fn main() -> Result<()> {
         Commands::Workspace { workspace_command } => {
             handle_workspace_command(workspace_command, &config)
         }
+
+        Commands::SelfImprovement {
+            self_improvement_command,
+        } => match self_improvement_command {
+            SelfImprovementCommands::RepairState => {
+                let manager = self_improvement::SelfImprovementManager::new(&config.workspace_dir);
+                let outcome = manager.repair_state_file().await?;
+                println!("{}", serde_json::to_string_pretty(&outcome)?);
+                Ok(())
+            }
+        },
     }
 }
 
@@ -1813,6 +1770,19 @@ mod tests {
                 assert!(confirm);
             }
             other => panic!("expected workspace delete command, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn self_improvement_cli_parses_repair_state() {
+        let cli = Cli::try_parse_from(["topclaw", "self-improvement", "repair-state"])
+            .expect("self-improvement repair-state should parse");
+
+        match cli.command {
+            Commands::SelfImprovement {
+                self_improvement_command: SelfImprovementCommands::RepairState,
+            } => {}
+            other => panic!("expected self-improvement repair-state command, got {other:?}"),
         }
     }
 }
