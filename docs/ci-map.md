@@ -147,7 +147,7 @@ Merge-blocking checks should stay small and deterministic. Optional checks are u
 - Run full strict lint audits regularly via `./scripts/ci/rust_quality_gate.sh --strict` (for example through `./dev/ci.sh lint-strict`) and track cleanup in focused PRs.
 - Keep docs markdown gating incremental via `./scripts/ci/docs_quality_gate.sh` (block changed-line issues, report baseline issues separately).
 - Keep docs link gating incremental via `./scripts/ci/collect_changed_links.py` + lychee (check only links added on changed lines).
-- Keep docs deploy policy current in `.github/release/docs-deploy-policy.json`, `docs/operations/docs-deploy-policy.md`, and `docs/operations/docs-deploy-runbook.md`.
+- Keep docs deploy policy current in `.github/release/docs-deploy-policy.json`, `.github/workflows/docs-deploy.yml`, `scripts/docs/build_site.py`, `docs/operations/docs-deploy-policy.md`, and `docs/operations/docs-deploy-runbook.md`.
 - Prefer explicit workflow permissions (least privilege).
 - Keep Actions source policy restricted to approved allowlist patterns (see `docs/actions-source-policy.md`).
 - Use path filters for expensive workflows when practical.

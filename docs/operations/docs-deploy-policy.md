@@ -7,6 +7,7 @@ This document defines the promotion and rollback validation contract for docs de
 - Machine policy: `.github/release/docs-deploy-policy.json`
 - Enforcement script: `scripts/ci/docs_deploy_guard.py`
 - Workflow integration: `.github/workflows/docs-deploy.yml` (`docs-quality` job)
+- Site builder: `scripts/docs/build_site.py`
 
 ## Promotion Contract
 
@@ -15,6 +16,7 @@ For production deploys:
 1. Source branch must be production branch (`main`).
 2. Manual production dispatch must include preview promotion evidence (`preview_evidence_run_url`) when policy requires it.
 3. Guard output must be `ready=true` before `Deploy Docs to GitHub Pages` lane can run.
+4. The published artifact must be generated from tracked Markdown via `scripts/docs/build_site.py`.
 
 ## Rollback Contract
 
