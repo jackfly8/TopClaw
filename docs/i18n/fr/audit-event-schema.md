@@ -12,12 +12,10 @@ Source anglaise:
 - Profondeur : passerelle enrichie (guidage de sections + conseils d'exécution)
 - Usage : comprendre la structure puis appliquer les étapes selon la source normative anglaise.
 
-## Plan des sections source
+## Navigation de la source
 
-- [H2 · Envelope](../../audit-event-schema.md#envelope)
-- [H2 · Event Types](../../audit-event-schema.md#event-types)
-- [H2 · Retention Policy](../../audit-event-schema.md#retention-policy)
-- [H2 · Governance](../../audit-event-schema.md#governance)
+- Utilisez directement les titres réels du document anglais pour naviguer dans la source.
+- Si la structure de cette passerelle diverge de la version anglaise actuelle, la version anglaise prévaut.
 
 ## Conseils d'exécution
 

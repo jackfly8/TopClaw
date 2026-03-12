@@ -12,18 +12,10 @@
 - Глубина: усиленный bridge (карта разделов + операционные подсказки)
 - Применение: сначала понять структуру, затем выполнять по английскому нормативному описанию.
 
-## Карта разделов оригинала
+## Навигация по оригиналу
 
-- [H2 · 1. Summary](../../doc-template.md#1-summary)
-- [H2 · 2. Prerequisites](../../doc-template.md#2-prerequisites)
-- [H2 · 3. Procedure](../../doc-template.md#3-procedure)
-- [H3 · 3.1 Baseline Check](../../doc-template.md#3-1-baseline-check)
-- [H3 · 3.2 Main Workflow](../../doc-template.md#3-2-main-workflow)
-- [H3 · 3.3 Verification](../../doc-template.md#3-3-verification)
-- [H2 · 4. Safety, Risk, and Rollback](../../doc-template.md#4-safety-risk-and-rollback)
-- [H2 · 5. Troubleshooting](../../doc-template.md#5-troubleshooting)
-- [H2 · 6. Related Docs](../../doc-template.md#6-related-docs)
-- [H2 · 7. Maintenance Notes](../../doc-template.md#7-maintenance-notes)
+- Для перехода по разделам опирайтесь на реальные заголовки английского оригинала.
+- Если структура bridge-страницы расходится с текущими заголовками английской версии, приоритет у английского оригинала.
 
 ## Практические рекомендации
 

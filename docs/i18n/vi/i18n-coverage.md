@@ -8,10 +8,11 @@ Bản gốc tiếng Anh:
 
 ## Dùng khi nào
 
-- Cần biết locale nào là full-tree và locale nào mới ở mức hub scaffold.
-- Cần cập nhật trạng thái coverage sau khi thêm/sửa docs theo ngôn ngữ.
+- Cần biết locale nào có bridge page và locale nào có bản dịch sâu hơn
+- Cần cập nhật trạng thái coverage sau khi thêm/sửa docs theo ngôn ngữ
 
 ## Lưu ý
 
-- `vi` và `el` là full localized tree.
-- `zh-CN`/`ja`/`ru`/`fr` hiện ở mức hub-level scaffold.
+- Tiếng Anh là runtime-contract tree đầy đủ duy nhất.
+- Các locale không phải tiếng Anh, bao gồm `vi` và `el`, dùng hub + bridge page hoặc bản dịch chọn lọc tùy tài liệu.
+- Trạng thái chuẩn cần xem ở [../../i18n-coverage.md](../../i18n-coverage.md).

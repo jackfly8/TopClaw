@@ -12,16 +12,10 @@ Source anglaise:
 - Profondeur : passerelle enrichie (guidage de sections + conseils d'exécution)
 - Usage : comprendre la structure puis appliquer les étapes selon la source normative anglaise.
 
-## Plan des sections source
+## Navigation de la source
 
-- [H2 · Canonical Layout](../../i18n-coverage.md#canonical-layout)
-- [H2 · Locale Coverage Matrix](../../i18n-coverage.md#locale-coverage-matrix)
-- [H2 · Top-Level Parity Snapshot](../../i18n-coverage.md#top-level-parity-snapshot)
-- [H2 · Root README Completeness](../../i18n-coverage.md#root-readme-completeness)
-- [H2 · Collection Index i18n](../../i18n-coverage.md#collection-index-i18n)
-- [H2 · Localization Rules](../../i18n-coverage.md#localization-rules)
-- [H2 · Adding a New Locale](../../i18n-coverage.md#adding-a-new-locale)
-- [H2 · Review Checklist](../../i18n-coverage.md#review-checklist)
+- Utilisez directement les titres réels du document anglais pour naviguer dans la source.
+- Si la structure de cette passerelle diverge de la version anglaise actuelle, la version anglaise prévaut.
 
 ## Conseils d'exécution
 

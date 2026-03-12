@@ -12,14 +12,10 @@ Source anglaise:
 - Profondeur : passerelle enrichie (guidage de sections + conseils d'exécution)
 - Usage : comprendre la structure puis appliquer les étapes selon la source normative anglaise.
 
-## Plan des sections source
+## Navigation de la source
 
-- [H2 · Current Policy](../../actions-source-policy.md#current-policy)
-- [H2 · Change Control Export](../../actions-source-policy.md#change-control-export)
-- [H2 · Why This Phase](../../actions-source-policy.md#why-this-phase)
-- [H2 · Agentic Workflow Guardrails](../../actions-source-policy.md#agentic-workflow-guardrails)
-- [H2 · Validation Checklist](../../actions-source-policy.md#validation-checklist)
-- [H2 · Rollback](../../actions-source-policy.md#rollback)
+- Utilisez directement les titres réels du document anglais pour naviguer dans la source.
+- Si la structure de cette passerelle diverge de la version anglaise actuelle, la version anglaise prévaut.
 
 ## Conseils d'exécution
 

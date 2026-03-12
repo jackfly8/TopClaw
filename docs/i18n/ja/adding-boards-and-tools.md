@@ -12,20 +12,10 @@
 - 深度: 強化ブリッジ（セクション導線 + 実行ヒント）
 - 使い方: 構成を把握してから、英語版の規範記述に従って実施します。
 
-## 原文セクションガイド
+## 原文ガイド
 
-- [H2 · Quick Start: Add a Board via CLI](../../adding-boards-and-tools.md#quick-start-add-a-board-via-cli)
-- [H2 · Supported Boards](../../adding-boards-and-tools.md#supported-boards)
-- [H2 · Manual Config](../../adding-boards-and-tools.md#manual-config)
-- [H2 · Adding a Datasheet (RAG)](../../adding-boards-and-tools.md#adding-a-datasheet-rag)
-- [H3 · Pin Aliases (Recommended)](../../adding-boards-and-tools.md#pin-aliases-recommended)
-- [H2 · Pin Aliases](../../adding-boards-and-tools.md#pin-aliases)
-- [H2 · Pin Aliases](../../adding-boards-and-tools.md#pin-aliases)
-- [H3 · PDF Datasheets](../../adding-boards-and-tools.md#pdf-datasheets)
-- [H2 · Adding a New Board Type](../../adding-boards-and-tools.md#adding-a-new-board-type)
-- [H2 · Adding a Custom Tool](../../adding-boards-and-tools.md#adding-a-custom-tool)
-- [H2 · CLI Reference](../../adding-boards-and-tools.md#cli-reference)
-- [H2 · Troubleshooting](../../adding-boards-and-tools.md#troubleshooting)
+- 実際のセクション移動は英語版原文の見出しを基準にしてください。
+- ブリッジ本文と英語版の見出し構成に差分がある場合は、英語版原文を優先します。
 
 ## 実行ヒント
 

@@ -12,20 +12,10 @@ Source anglaise:
 - Profondeur : passerelle enrichie (guidage de sections + conseils d'exécution)
 - Usage : comprendre la structure puis appliquer les étapes selon la source normative anglaise.
 
-## Plan des sections source
+## Navigation de la source
 
-- [H2 · Get Board Info via Telegram (No Firmware Needed)](../../nucleo-setup.md#get-board-info-via-telegram-no-firmware-needed)
-- [H2 · What's Included (No Code Changes Needed)](../../nucleo-setup.md#what-s-included-no-code-changes-needed)
-- [H2 · Prerequisites](../../nucleo-setup.md#prerequisites)
-- [H2 · Phase 1: Flash Firmware](../../nucleo-setup.md#phase-1-flash-firmware)
-- [H3 · 1.1 Connect Nucleo](../../nucleo-setup.md#1-1-connect-nucleo)
-- [H3 · 1.2 Flash via TopClaw](../../nucleo-setup.md#1-2-flash-via-topclaw)
-- [H3 · 1.3 Manual Flash (Alternative)](../../nucleo-setup.md#1-3-manual-flash-alternative)
-- [H2 · Phase 2: Find Serial Port](../../nucleo-setup.md#phase-2-find-serial-port)
-- [H2 · Phase 3: Configure TopClaw](../../nucleo-setup.md#phase-3-configure-topclaw)
-- [H2 · Phase 4: Run and Test](../../nucleo-setup.md#phase-4-run-and-test)
-- [H2 · Summary: Commands](../../nucleo-setup.md#summary-commands)
-- [H2 · Troubleshooting](../../nucleo-setup.md#troubleshooting)
+- Utilisez directement les titres réels du document anglais pour naviguer dans la source.
+- Si la structure de cette passerelle diverge de la version anglaise actuelle, la version anglaise prévaut.
 
 ## Conseils d'exécution
 

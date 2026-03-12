@@ -69,7 +69,6 @@
 
 ### 7) Κατάσταση έργου και στιγμιότυπα
 
-- [i18n/el/project-triage-snapshot-2026-02-18.md](i18n/el/project-triage-snapshot-2026-02-18.md)
 - [i18n/el/docs-inventory.md](i18n/el/docs-inventory.md)
 - [i18n/el/cargo-slicer-speedup.md](i18n/el/cargo-slicer-speedup.md)
 - [i18n/el/matrix-e2ee-guide.md](i18n/el/matrix-e2ee-guide.md)

@@ -26,7 +26,6 @@
 - i18n 索引：[i18n/README.md](i18n/README.md)
 - i18n カバレッジ：[i18n-coverage.md](i18n-coverage.md)
 - i18n ガイド：[i18n-guide.md](i18n-guide.md)
-- i18n ギャップ管理：[i18n-gap-backlog.md](i18n-gap-backlog.md)
 
 ## カテゴリ
 
@@ -90,6 +89,4 @@
 ### 7) プロジェクト状況とスナップショット
 
 - [docs/i18n/ja/README.md](i18n/ja/README.md)
-- [i18n/ja/project-triage-snapshot-2026-02-18.md](i18n/ja/project-triage-snapshot-2026-02-18.md)
-- [i18n/ja/docs-audit-2026-02-24.md](i18n/ja/docs-audit-2026-02-24.md)
 - [i18n/ja/docs-inventory.md](i18n/ja/docs-inventory.md)

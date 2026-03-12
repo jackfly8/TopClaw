@@ -12,23 +12,10 @@
 - 深度: 強化ブリッジ（セクション導線 + 実行ヒント）
 - 使い方: 構成を把握してから、英語版の規範記述に従って実施します。
 
-## 原文セクションガイド
+## 原文ガイド
 
-- [H2 · Overview](../../zai-glm-setup.md#overview)
-- [H2 · Setup](../../zai-glm-setup.md#setup)
-- [H3 · Quick Start](../../zai-glm-setup.md#quick-start)
-- [H3 · Manual Configuration](../../zai-glm-setup.md#manual-configuration)
-- [H2 · Available Models](../../zai-glm-setup.md#available-models)
-- [H2 · Verify Setup](../../zai-glm-setup.md#verify-setup)
-- [H3 · Test with curl](../../zai-glm-setup.md#test-with-curl)
-- [H3 · Test with TopClaw CLI](../../zai-glm-setup.md#test-with-topclaw-cli)
-- [H2 · Environment Variables](../../zai-glm-setup.md#environment-variables)
-- [H2 · Troubleshooting](../../zai-glm-setup.md#troubleshooting)
-- [H3 · Rate Limiting](../../zai-glm-setup.md#rate-limiting)
-- [H3 · Authentication Errors](../../zai-glm-setup.md#authentication-errors)
-- [H3 · Model Not Found](../../zai-glm-setup.md#model-not-found)
-- [H2 · Getting an API Key](../../zai-glm-setup.md#getting-an-api-key)
-- [H2 · Related Documentation](../../zai-glm-setup.md#related-documentation)
+- 実際のセクション移動は英語版原文の見出しを基準にしてください。
+- ブリッジ本文と英語版の見出し構成に差分がある場合は、英語版原文を優先します。
 
 ## 実行ヒント
 

@@ -79,8 +79,6 @@
 ### 7) Dự án
 
 - [project/README.md](project/README.md)
-- [project-triage-snapshot-2026-02-18.md](project-triage-snapshot-2026-02-18.md)
-- [docs-audit-2026-02-24.md](docs-audit-2026-02-24.md)
 
 ### 8) Quản trị tài liệu & i18n
 
@@ -88,7 +86,6 @@
 - [doc-template.md](doc-template.md)
 - [i18n-guide.md](i18n-guide.md)
 - [i18n-coverage.md](i18n-coverage.md)
-- [i18n-gap-backlog.md](i18n-gap-backlog.md)
 
 ## Ngôn ngữ khác
 

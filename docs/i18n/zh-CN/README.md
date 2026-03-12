@@ -47,7 +47,6 @@ TopClaw 是一个 Rust-first agent runtime，组合了：
 - 本地文档总清单：[docs-inventory.md](docs-inventory.md)
 - i18n 执行指南：[i18n-guide.md](i18n-guide.md)
 - i18n 覆盖状态：[i18n-coverage.md](i18n-coverage.md)
-- i18n 缺口追踪：[i18n-gap-backlog.md](i18n-gap-backlog.md)
 
 ## 按分类浏览
 

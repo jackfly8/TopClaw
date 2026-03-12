@@ -12,16 +12,10 @@ Source anglaise:
 - Profondeur : passerelle enrichie (guidage de sections + conseils d'exécution)
 - Usage : comprendre la structure puis appliquer les étapes selon la source normative anglaise.
 
-## Plan des sections source
+## Navigation de la source
 
-- [H2 · Merge-Blocking vs Optional](../../ci-map.md#merge-blocking-vs-optional)
-- [H3 · Merge-Blocking](../../ci-map.md#merge-blocking)
-- [H3 · Non-Blocking but Important](../../ci-map.md#non-blocking-but-important)
-- [H3 · Optional Repository Automation](../../ci-map.md#optional-repository-automation)
-- [H2 · Trigger Map](../../ci-map.md#trigger-map)
-- [H2 · Fast Triage Guide](../../ci-map.md#fast-triage-guide)
-- [H2 · Maintenance Rules](../../ci-map.md#maintenance-rules)
-- [H2 · Automation Side-Effect Controls](../../ci-map.md#automation-side-effect-controls)
+- Utilisez directement les titres réels du document anglais pour naviguer dans la source.
+- Si la structure de cette passerelle diverge de la version anglaise actuelle, la version anglaise prévaut.
 
 ## Conseils d'exécution
 

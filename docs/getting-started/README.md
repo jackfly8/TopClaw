@@ -5,19 +5,23 @@ Use this section for first install, onboarding, and first-run validation.
 ## Recommended Path
 
 1. Run the main quick start: [../../README.md](../../README.md)
-2. Run `./bootstrap.sh --install-system-deps --install-rust --prefer-prebuilt`
-3. Let bootstrap install prerequisites, prefer a prebuilt binary, and launch onboarding
+2. Run the hosted installer for your shell:
+   `curl -fsSL https://raw.githubusercontent.com/topway-ai/topclaw/main/scripts/bootstrap.sh | bash`
+   or on Windows PowerShell:
+   `iwr -useb https://raw.githubusercontent.com/topway-ai/topclaw/main/bootstrap.ps1 | iex`
+3. Let the installer install prerequisites, prefer a prebuilt binary, and launch onboarding
 4. Validate readiness with `topclaw status`
 5. Run deeper checks with `topclaw status --diagnose`
 6. Send a test prompt with `topclaw agent -m "Hello, TopClaw!"`
 
-If you need to test the local checkout instead of the latest release asset, use `./bootstrap.sh --force-source-build`.
+If you need to review the installer first or test the local checkout instead of the latest release asset, clone the repo and use `./bootstrap.sh --force-source-build`.
 
 ## Setup Paths
 
 | Situation | Recommended path |
 |---|---|
 | New user on Linux or macOS | [../../README.md](../../README.md) |
+| New user on Windows | `iwr -useb https://raw.githubusercontent.com/topway-ai/topclaw/main/bootstrap.ps1 | iex` |
 | Want bootstrap details and flags | [../one-click-bootstrap.md](../one-click-bootstrap.md) |
 | Unsure whether to use `agent`, `service`, or `daemon` | [../runtime-model.md](../runtime-model.md) |
 | Already have an API key | `topclaw bootstrap --api-key "sk-..." --provider openrouter` |

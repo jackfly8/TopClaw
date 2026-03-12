@@ -36,4 +36,3 @@
 - Каталог документов: [docs-inventory.md](docs-inventory.md)
 - Гайд i18n: [i18n-guide.md](i18n-guide.md)
 - Покрытие: [i18n-coverage.md](i18n-coverage.md)
-- Трекинг gap: [i18n-gap-backlog.md](i18n-gap-backlog.md)

@@ -12,26 +12,10 @@
 - 深度：增强 bridge（章节导览 + 执行提示）
 - 适用：先理解结构，再按英文规范逐条执行。
 
-## 原文章节导览
+## 原文导览
 
-- [H2 · Provider Types](../../custom-providers.md#provider-types)
-- [H3 · OpenAI-Compatible Endpoints (`custom:`)](../../custom-providers.md#openai-compatible-endpoints-custom)
-- [H3 · Anthropic-Compatible Endpoints (`anthropic-custom:`)](../../custom-providers.md#anthropic-compatible-endpoints-anthropic-custom)
-- [H2 · Configuration Methods](../../custom-providers.md#configuration-methods)
-- [H3 · Config File](../../custom-providers.md#config-file)
-- [H3 · Environment Variables](../../custom-providers.md#environment-variables)
-- [H2 · llama.cpp Server (Recommended Local Setup)](../../custom-providers.md#llama-cpp-server-recommended-local-setup)
-- [H2 · SGLang Server](../../custom-providers.md#sglang-server)
-- [H2 · vLLM Server](../../custom-providers.md#vllm-server)
-- [H2 · Testing Configuration](../../custom-providers.md#testing-configuration)
-- [H2 · Troubleshooting](../../custom-providers.md#troubleshooting)
-- [H3 · Authentication Errors](../../custom-providers.md#authentication-errors)
-- [H3 · Model Not Found](../../custom-providers.md#model-not-found)
-- [H3 · Connection Issues](../../custom-providers.md#connection-issues)
-- [H2 · Examples](../../custom-providers.md#examples)
-- [H3 · Local LLM Server (Generic Custom Endpoint)](../../custom-providers.md#local-llm-server-generic-custom-endpoint)
-- [H3 · Corporate Proxy](../../custom-providers.md#corporate-proxy)
-- [H3 · Cloud Provider Gateway](../../custom-providers.md#cloud-provider-gateway)
+- 直接以英文原文中的实际标题为准进行导航。
+- 如果桥接页中的中文说明与英文标题结构不一致，请优先阅读英文原文。
 
 ## 操作建议
 

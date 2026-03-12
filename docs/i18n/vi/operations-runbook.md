@@ -1,162 +1,18 @@
-# Sổ tay Vận hành TopClaw
+# Runbook vận hành TopClaw (Tiếng Việt)
 
-Tài liệu này dành cho các operator chịu trách nhiệm duy trì tính sẵn sàng, tình trạng bảo mật và xử lý sự cố.
+Đây là trang cầu nối cho vận hành day-2, service runtime và rollback.
 
-Cập nhật lần cuối: **2026-03-09**.
+Nguồn tiếng Anh:
 
-## Phạm vi
+- [../../operations-runbook.md](../../operations-runbook.md)
 
-Dùng tài liệu này cho các tác vụ vận hành day-2:
+## Dùng khi nào
 
-- khởi động và giám sát runtime
-- kiểm tra sức khoẻ và chẩn đoán hệ thống
-- triển khai an toàn và rollback
-- phân loại và khôi phục sau sự cố
+- Khởi động hoặc kiểm tra service chạy nền
+- Xử lý sự cố sau onboarding hoặc sau khi cập nhật
+- Tìm lệnh khôi phục an toàn và các bước rollback
 
-Nếu đây là lần cài đặt đầu tiên, hãy bắt đầu từ [one-click-bootstrap.md](one-click-bootstrap.md).
+## Quy ước
 
-## Các chế độ Runtime
-
-| Chế độ | Lệnh | Khi nào dùng |
-|---|---|---|
-| Chat trực tiếp trong terminal | `topclaw agent` | thử nhanh và gửi prompt một lần |
-| Foreground runtime | `topclaw daemon` | gỡ lỗi cục bộ, phiên ngắn |
-| Foreground gateway only | `topclaw gateway` | kiểm thử webhook endpoint |
-| User service | `topclaw service install && topclaw service start` | runtime được quản lý liên tục bởi operator |
-| Foreground channel thủ công | `topclaw channel start` | khắc phục sự cố nâng cao |
-
-## Service luôn chạy nền
-
-Hãy dùng service mode khi TopClaw cần chạy liên tục trong nền ngay cả khi bạn đóng terminal.
-
-Nếu onboarding đã tự cài và khởi động service, đừng chạy thêm `topclaw daemon` song song. Hãy bắt đầu bằng:
-
-```bash
-topclaw service status
-```
-
-Cài đặt và khởi động:
-
-```bash
-topclaw service install
-topclaw service start
-topclaw service status
-```
-
-Khởi động lại sau khi đổi config hoặc chỉnh channel:
-
-```bash
-topclaw service stop
-topclaw service start
-```
-
-Dừng service hoàn toàn:
-
-```bash
-topclaw service stop
-```
-
-## Checklist Cơ bản cho Operator
-
-1. Xác thực cấu hình:
-
-```bash
-topclaw status
-topclaw status --diagnose
-```
-
-1. Kiểm tra chẩn đoán:
-
-```bash
-topclaw doctor
-topclaw channel doctor
-```
-
-1. Khởi động runtime:
-
-```bash
-topclaw daemon
-```
-
-1. Để chạy như user session service liên tục:
-
-```bash
-topclaw service install
-topclaw service start
-topclaw service status
-```
-
-## Tín hiệu Sức khoẻ và Trạng thái
-
-| Tín hiệu | Lệnh / File | Kỳ vọng |
-|---|---|---|
-| Tính hợp lệ của config | `topclaw doctor` | không có lỗi nghiêm trọng |
-| Kết nối channel | `topclaw channel doctor` | các channel đã cấu hình đều khoẻ mạnh |
-| Tóm tắt runtime | `topclaw status` | provider/model/channels như mong đợi |
-| Heartbeat/trạng thái daemon | `~/.topclaw/daemon_state.json` | file được cập nhật định kỳ |
-
-## Log và Chẩn đoán
-
-### macOS / Windows (log của service wrapper)
-
-- `~/.topclaw/logs/daemon.stdout.log`
-- `~/.topclaw/logs/daemon.stderr.log`
-
-### Linux (systemd user service)
-
-```bash
-journalctl --user -u topclaw.service -f
-```
-
-## Quy trình Phân loại Sự cố (Fast Path)
-
-1. Chụp trạng thái hệ thống:
-
-```bash
-topclaw status
-topclaw status --diagnose
-topclaw channel doctor
-```
-
-1. Kiểm tra trạng thái service:
-
-```bash
-topclaw service status
-```
-
-1. Nếu service không khoẻ, khởi động lại sạch:
-
-```bash
-topclaw service stop
-topclaw service start
-```
-
-1. Nếu các channel vẫn thất bại, kiểm tra allowlist và thông tin xác thực trong `~/.topclaw/config.toml`.
-
-2. Nếu liên quan đến gateway, kiểm tra cài đặt bind/auth (`[gateway]`) và khả năng tiếp cận cục bộ.
-
-## Quy trình Thay đổi An toàn
-
-Trước khi áp dụng thay đổi cấu hình:
-
-1. sao lưu `~/.topclaw/config.toml`
-2. chỉ áp dụng một thay đổi logic tại một thời điểm
-3. chạy `topclaw doctor`
-4. khởi động lại daemon/service
-5. xác minh bằng `status` + `channel doctor`
-
-## Quy trình Rollback
-
-Nếu một lần triển khai gây ra suy giảm hành vi:
-
-1. khôi phục `config.toml` trước đó
-2. khởi động lại runtime (`daemon` hoặc `service`)
-3. xác nhận khôi phục qua `doctor` và kiểm tra sức khoẻ channel
-4. ghi lại nguyên nhân gốc rễ và biện pháp khắc phục sự cố
-
-## Tài liệu Liên quan
-
-- [one-click-bootstrap.md](one-click-bootstrap.md)
-- [troubleshooting.md](troubleshooting.md)
-- [config-reference.md](config-reference.md)
-- [commands-reference.md](commands-reference.md)
+- Quy trình vận hành chuẩn, lệnh service và checklist khôi phục lấy theo bản tiếng Anh.
+- Nếu cần thao tác khẩn cấp, luôn làm theo bản tiếng Anh trước.

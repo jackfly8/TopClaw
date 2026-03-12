@@ -12,26 +12,10 @@
 - 深度：增强 bridge（章节导览 + 执行提示）
 - 适用：先理解结构，再按英文规范逐条执行。
 
-## 原文章节导览
+## 原文导览
 
-- [H2 · What's Included (No Code Changes Needed)](../../arduino-uno-q-setup.md#what-s-included-no-code-changes-needed)
-- [H2 · Prerequisites](../../arduino-uno-q-setup.md#prerequisites)
-- [H2 · Phase 1: Initial Uno Q Setup (One-Time)](../../arduino-uno-q-setup.md#phase-1-initial-uno-q-setup-one-time)
-- [H3 · 1.1 Configure Uno Q via App Lab](../../arduino-uno-q-setup.md#1-1-configure-uno-q-via-app-lab)
-- [H3 · 1.2 Verify SSH Access](../../arduino-uno-q-setup.md#1-2-verify-ssh-access)
-- [H2 · Phase 2: Install TopClaw on Uno Q](../../arduino-uno-q-setup.md#phase-2-install-topclaw-on-uno-q)
-- [H3 · Option A: Build on the Device (Simpler, ~20–40 min)](../../arduino-uno-q-setup.md#option-a-build-on-the-device-simpler-20-40-min)
-- [H3 · Option B: Cross-Compile on Mac (Faster)](../../arduino-uno-q-setup.md#option-b-cross-compile-on-mac-faster)
-- [H2 · Phase 3: Configure TopClaw](../../arduino-uno-q-setup.md#phase-3-configure-topclaw)
-- [H3 · 3.1 Run Onboard (or Create Config Manually)](../../arduino-uno-q-setup.md#3-1-run-onboard-or-create-config-manually)
-- [H3 · 3.2 Minimal config.toml](../../arduino-uno-q-setup.md#3-2-minimal-config-toml)
-- [H2 · Phase 4: Run TopClaw Daemon](../../arduino-uno-q-setup.md#phase-4-run-topclaw-daemon)
-- [H2 · Phase 5: GPIO via Bridge (TopClaw Handles It)](../../arduino-uno-q-setup.md#phase-5-gpio-via-bridge-topclaw-handles-it)
-- [H3 · 5.1 Deploy Bridge App](../../arduino-uno-q-setup.md#5-1-deploy-bridge-app)
-- [H3 · 5.2 Add to config.toml](../../arduino-uno-q-setup.md#5-2-add-to-config-toml)
-- [H3 · 5.3 Run TopClaw](../../arduino-uno-q-setup.md#5-3-run-topclaw)
-- [H2 · Summary: Commands Start to End](../../arduino-uno-q-setup.md#summary-commands-start-to-end)
-- [H2 · Troubleshooting](../../arduino-uno-q-setup.md#troubleshooting)
+- 直接以英文原文中的实际标题为准进行导航。
+- 如果桥接页中的中文说明与英文标题结构不一致，请优先阅读英文原文。
 
 ## 操作建议
 

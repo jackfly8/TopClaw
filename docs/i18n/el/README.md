@@ -6,6 +6,8 @@
 
 Τοπικοποιημένα κέντρα: [简体中文](../zh-CN/README.md) · [日本語](../ja/README.md) · [Русский](../ru/README.md) · [Français](../fr/README.md) · [Tiếng Việt](../vi/README.md) · [Ελληνικά](README.md).
 
+> Σημείωση: Τα ονόματα εντολών, τα config keys και τα API paths παραμένουν στα αγγλικά. Τα αναλυτικά runtime-contract docs στα Ελληνικά λειτουργούν πλέον ως σελίδες-γέφυρες, ενώ το πλήρες κανονιστικό περιεχόμενο παραμένει στην αγγλική τεκμηρίωση.
+
 ## Επισκόπηση έργου
 
 Το TopClaw είναι ένα Rust-first agent runtime που συνδυάζει:
@@ -28,7 +30,7 @@
 
 | Στόχος | Σύνδεσμος |
 |---|---|
-| Γρήγορη εγκατάσταση και εκτέλεση | [README.md (Πρώτα βήματα)](../README.md#quick-start) |
+| Γρήγορη εγκατάσταση και εκτέλεση | [README.md (Πρώτα βήματα)](../../../README.md#quick-start) |
 | Αυτόματη προετοιμασία (Bootstrap) με μία εντολή | [one-click-bootstrap.md](one-click-bootstrap.md) |
 | Να καταλάβω πότε χρειάζομαι `agent`, `service` ή `daemon` | [runtime-model.md](runtime-model.md) |
 | Αναφορά εντολών ανά εργασία | [commands-reference.md](commands-reference.md) |
@@ -43,7 +45,6 @@
 | Αντιμετώπιση προβλημάτων εγκατάστασης και καναλιών | [troubleshooting.md](troubleshooting.md) |
 | Οδηγός κρυπτογραφημένων δωματίων Matrix | [matrix-e2ee-guide.md](matrix-e2ee-guide.md) |
 | Περιήγηση στα έγγραφα ανά κατηγορία | [SUMMARY.md](SUMMARY.md) |
-| Στιγμιότυπο διαχείρισης έργου (PR/Issues) | [project-triage-snapshot-2026-02-18.md](project-triage-snapshot-2026-02-18.md) |
 
 ## Οδηγός Γρήγορης Επιλογής
 
@@ -110,9 +111,6 @@
 - Κατάσταση κάλυψης i18n: [../../i18n-coverage.md](../../i18n-coverage.md)
 - Οδηγός ολοκλήρωσης i18n: [i18n-guide.md](i18n-guide.md)
 - Χάρτης κάλυψης i18n (Ελληνικά): [i18n-coverage.md](i18n-coverage.md)
-- Backlog κενών i18n: [i18n-gap-backlog.md](i18n-gap-backlog.md)
-- Snapshot ελέγχου τεκμηρίωσης (2026-02-24): [docs-audit-2026-02-24.md](docs-audit-2026-02-24.md)
-- Στιγμιότυπο διαχείρισης έργου: [project-triage-snapshot-2026-02-18.md](project-triage-snapshot-2026-02-18.md)
 
 ## Άλλες γλώσσες
 

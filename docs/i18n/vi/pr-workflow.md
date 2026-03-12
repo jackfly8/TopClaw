@@ -33,9 +33,7 @@ Dùng phần này để phân tuyến nhanh trước khi review sâu toàn bộ.
 1. Yêu cầu hoàn thiện template và bằng chứng còn thiếu trong một comment dạng checklist.
 2. Dừng review sâu cho đến khi các vấn đề intake được giải quyết.
 
-Xem tiếp:
-
-- [Mục 5.1](#51-definition-of-ready-dor-trước-khi-yêu-cầu-review)
+Xem tiếp phần hợp đồng sẵn sàng PR ở bên dưới.
 
 ### 1.2 `CI Required Gate` đang thất bại
 
@@ -45,7 +43,6 @@ Xem tiếp:
 Xem tiếp:
 
 - [docs/ci-map.md](ci-map.md)
-- [Mục 4.2](#42-bước-b-validation)
 
 ### 1.3 Đụng đến đường dẫn rủi ro cao
 
@@ -54,7 +51,6 @@ Xem tiếp:
 
 Xem tiếp:
 
-- [Mục 9](#9-quy-tắc-bảo-mật-và-ổn-định)
 - [docs/reviewer-playbook.md](reviewer-playbook.md)
 
 ### 1.4 PR bị supersede hoặc trùng lặp
@@ -62,9 +58,7 @@ Xem tiếp:
 1. Yêu cầu liên kết supersede rõ ràng và dọn dẹp hàng đợi.
 2. Đóng PR bị supersede sau khi maintainer xác nhận.
 
-Xem tiếp:
-
-- [Mục 8.2](#82-kiểm-soát-áp-lực-backlog)
+Xem tiếp phần backlog ở bên dưới.
 
 ---
 

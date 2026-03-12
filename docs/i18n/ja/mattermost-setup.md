@@ -12,14 +12,10 @@
 - 深度: 強化ブリッジ（セクション導線 + 実行ヒント）
 - 使い方: 構成を把握してから、英語版の規範記述に従って実施します。
 
-## 原文セクションガイド
+## 原文ガイド
 
-- [H2 · Prerequisites](../../mattermost-setup.md#prerequisites)
-- [H2 · Configuration](../../mattermost-setup.md#configuration)
-- [H3 · Configuration Fields](../../mattermost-setup.md#configuration-fields)
-- [H2 · Threaded Conversations](../../mattermost-setup.md#threaded-conversations)
-- [H2 · Mention-Only Mode](../../mattermost-setup.md#mention-only-mode)
-- [H2 · Security Note](../../mattermost-setup.md#security-note)
+- 実際のセクション移動は英語版原文の見出しを基準にしてください。
+- ブリッジ本文と英語版の見出し構成に差分がある場合は、英語版原文を優先します。
 
 ## 実行ヒント
 

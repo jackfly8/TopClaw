@@ -23,9 +23,7 @@ Dùng mục này để định tuyến vận hành nhanh.
 2. Đặt `http_proxy`/`https_proxy` hoặc `all_proxy`.
 3. Xác minh bằng `{"action":"get"}`.
 
-Xem:
-
-- [Mục 4](#4-mode-a--chỉ-proxy-cho-nội-bộ-topclaw)
+Xem phần Mode A ở bên dưới.
 
 ### 1.2 Chỉ proxy các dịch vụ được chọn
 
@@ -33,9 +31,7 @@ Xem:
 2. Đặt các key cụ thể hoặc wildcard selector trong `services`.
 3. Xác minh phủ sóng bằng `{"action":"list_services"}`.
 
-Xem:
-
-- [Mục 5](#5-mode-b--chỉ-proxy-cho-các-dịch-vụ-cụ-thể)
+Xem phần Mode B ở bên dưới.
 
 ### 1.3 Xuất biến môi trường proxy cho toàn bộ process
 
@@ -43,9 +39,7 @@ Xem:
 2. Áp dụng bằng `{"action":"apply_env"}`.
 3. Xác minh snapshot env qua `{"action":"get"}`.
 
-Xem:
-
-- [Mục 6](#6-mode-c--proxy-cho-toàn-bộ-môi-trường-process)
+Xem phần Mode C ở bên dưới.
 
 ### 1.4 Rollback khẩn cấp
 
@@ -53,9 +47,7 @@ Xem:
 2. Nếu cần, xóa các biến env đã xuất.
 3. Kiểm tra lại snapshot runtime và môi trường.
 
-Xem:
-
-- [Mục 7](#7-các-mẫu-tắt--rollback)
+Xem phần rollback ở bên dưới.
 
 ---
 

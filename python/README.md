@@ -151,4 +151,4 @@ Use **Rust TopClaw** for production edge deployments. Use **topclaw-tools** when
 
 ## License
 
-MIT License — see [LICENSE](../LICENSE)
+MIT License.

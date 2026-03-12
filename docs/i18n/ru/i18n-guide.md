@@ -12,16 +12,10 @@
 - Глубина: усиленный bridge (карта разделов + операционные подсказки)
 - Применение: сначала понять структуру, затем выполнять по английскому нормативному описанию.
 
-## Карта разделов оригинала
+## Навигация по оригиналу
 
-- [H2 · Scope](../../i18n-guide.md#scope)
-- [H2 · Canonical Layout](../../i18n-guide.md#canonical-layout)
-- [H2 · Trigger Matrix](../../i18n-guide.md#trigger-matrix)
-- [H2 · Completion Checklist (Mandatory)](../../i18n-guide.md#completion-checklist-mandatory)
-- [H2 · Deferred Translation Policy](../../i18n-guide.md#deferred-translation-policy)
-- [H2 · Agent Workflow Contract](../../i18n-guide.md#agent-workflow-contract)
-- [H2 · Gap Tracking](../../i18n-guide.md#gap-tracking)
-- [H2 · Quick Validation Commands](../../i18n-guide.md#quick-validation-commands)
+- Для перехода по разделам опирайтесь на реальные заголовки английского оригинала.
+- Если структура bridge-страницы расходится с текущими заголовками английской версии, приоритет у английского оригинала.
 
 ## Практические рекомендации
 

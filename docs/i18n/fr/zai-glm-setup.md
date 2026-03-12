@@ -12,23 +12,10 @@ Source anglaise:
 - Profondeur : passerelle enrichie (guidage de sections + conseils d'exécution)
 - Usage : comprendre la structure puis appliquer les étapes selon la source normative anglaise.
 
-## Plan des sections source
+## Navigation de la source
 
-- [H2 · Overview](../../zai-glm-setup.md#overview)
-- [H2 · Setup](../../zai-glm-setup.md#setup)
-- [H3 · Quick Start](../../zai-glm-setup.md#quick-start)
-- [H3 · Manual Configuration](../../zai-glm-setup.md#manual-configuration)
-- [H2 · Available Models](../../zai-glm-setup.md#available-models)
-- [H2 · Verify Setup](../../zai-glm-setup.md#verify-setup)
-- [H3 · Test with curl](../../zai-glm-setup.md#test-with-curl)
-- [H3 · Test with TopClaw CLI](../../zai-glm-setup.md#test-with-topclaw-cli)
-- [H2 · Environment Variables](../../zai-glm-setup.md#environment-variables)
-- [H2 · Troubleshooting](../../zai-glm-setup.md#troubleshooting)
-- [H3 · Rate Limiting](../../zai-glm-setup.md#rate-limiting)
-- [H3 · Authentication Errors](../../zai-glm-setup.md#authentication-errors)
-- [H3 · Model Not Found](../../zai-glm-setup.md#model-not-found)
-- [H2 · Getting an API Key](../../zai-glm-setup.md#getting-an-api-key)
-- [H2 · Related Documentation](../../zai-glm-setup.md#related-documentation)
+- Utilisez directement les titres réels du document anglais pour naviguer dans la source.
+- Si la structure de cette passerelle diverge de la version anglaise actuelle, la version anglaise prévaut.
 
 ## Conseils d'exécution
 

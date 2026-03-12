@@ -26,7 +26,6 @@ Cập nhật lần cuối: **24 tháng 2, 2026**.
 - Chỉ mục i18n: [i18n/README.md](i18n/README.md)
 - Bản đồ coverage i18n: [i18n-coverage.md](i18n-coverage.md)
 - Hướng dẫn i18n: [i18n-guide.md](i18n-guide.md)
-- Theo dõi gap i18n: [i18n-gap-backlog.md](i18n-gap-backlog.md)
 
 ## Danh mục
 
@@ -90,6 +89,4 @@ Cập nhật lần cuối: **24 tháng 2, 2026**.
 ### 7) Trạng thái dự án và ảnh chụp
 
 - [docs/i18n/vi/README.md](i18n/vi/project/README.md)
-- [i18n/vi/project-triage-snapshot-2026-02-18.md](i18n/vi/project-triage-snapshot-2026-02-18.md)
-- [i18n/vi/docs-audit-2026-02-24.md](i18n/vi/docs-audit-2026-02-24.md)
 - [i18n/vi/docs-inventory.md](i18n/vi/docs-inventory.md)

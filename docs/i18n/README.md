@@ -2,8 +2,8 @@
 
 Canonical localized documentation trees live here.
 
-Top-level parity status: **all supported locales are 0-gap against `docs/*.md` baseline** (last validated 2026-02-24).
-Narrative depth status: **enhanced bridge rollout completed for `zh-CN`/`ja`/`ru`/`fr`**.
+Top-level parity status: **all supported locales are 0-gap against `docs/*.md` baseline** (last validated 2026-03-12).
+Narrative depth status: **English is the only full runtime-contract tree; non-English locales use hubs plus localized or bridge pages**.
 
 ## Locales
 
@@ -27,5 +27,4 @@ Narrative depth status: **enhanced bridge rollout completed for `zh-CN`/`ja`/`ru
 - Docs-root compatibility shims are limited to paths like `docs/SUMMARY.<locale>.md` when retained.
 
 See overall coverage and conventions in [../i18n-coverage.md](../i18n-coverage.md).
-See remaining localization depth gaps in [../i18n-gap-backlog.md](../i18n-gap-backlog.md).
 For required execution steps, use [../i18n-guide.md](../i18n-guide.md).

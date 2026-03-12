@@ -1,17 +1,15 @@
-# Tài liệu snapshot và triage dự án
+# Tài liệu dự án
 
-Snapshot trạng thái dự án có giới hạn thời gian cho tài liệu lập kế hoạch và công việc vận hành.
+Tài liệu cấp dự án ổn định cho inventory, cấu trúc tài liệu và hướng dẫn cộng tác.
 
-## Snapshot hiện tại
+## Dùng khi nào
 
-- [project-triage-snapshot-2026-02-18.md](../../../project-triage-snapshot-2026-02-18.md)
+- Xem bản đồ phân loại tài liệu hiện tại
+- Kiểm tra quy ước i18n và mức độ phủ
+- Tìm tài liệu contributor-facing không phụ thuộc snapshot theo thời gian
 
-## Phạm vi
+## Tham chiếu hiện tại
 
-Snapshot dự án là các đánh giá có giới hạn thời gian về PR mở, issue và tình trạng tài liệu. Dùng chúng để:
-
-- Xác định các khoảng trống tài liệu được thúc đẩy bởi công việc tính năng
-- Ưu tiên bảo trì tài liệu song song với thay đổi code
-- Theo dõi áp lực PR/issue đang phát triển theo thời gian
-
-Để phân loại tài liệu ổn định (không giới hạn thời gian), dùng [docs-inventory.md](../../../docs-inventory.md).
+- [../../../docs-inventory.md](../../../docs-inventory.md)
+- [../../../i18n-coverage.md](../../../i18n-coverage.md)
+- [../../../i18n-guide.md](../../../i18n-guide.md)

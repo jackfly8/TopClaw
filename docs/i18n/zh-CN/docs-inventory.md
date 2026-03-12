@@ -58,15 +58,12 @@
 - [ci-map.md](ci-map.md)
 - [release-process.md](release-process.md)
 - [cargo-slicer-speedup.md](cargo-slicer-speedup.md)
-- [project-triage-snapshot-2026-02-18.md](project-triage-snapshot-2026-02-18.md)
-- [docs-audit-2026-02-24.md](docs-audit-2026-02-24.md)
 - [doc-template.md](doc-template.md)
 
 ## i18n 治理
 
 - [i18n-guide.md](i18n-guide.md)
 - [i18n-coverage.md](i18n-coverage.md)
-- [i18n-gap-backlog.md](i18n-gap-backlog.md)
 
 ## 使用规则
 

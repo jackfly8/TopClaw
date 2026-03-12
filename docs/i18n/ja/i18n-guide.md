@@ -12,16 +12,10 @@
 - 深度: 強化ブリッジ（セクション導線 + 実行ヒント）
 - 使い方: 構成を把握してから、英語版の規範記述に従って実施します。
 
-## 原文セクションガイド
+## 原文ガイド
 
-- [H2 · Scope](../../i18n-guide.md#scope)
-- [H2 · Canonical Layout](../../i18n-guide.md#canonical-layout)
-- [H2 · Trigger Matrix](../../i18n-guide.md#trigger-matrix)
-- [H2 · Completion Checklist (Mandatory)](../../i18n-guide.md#completion-checklist-mandatory)
-- [H2 · Deferred Translation Policy](../../i18n-guide.md#deferred-translation-policy)
-- [H2 · Agent Workflow Contract](../../i18n-guide.md#agent-workflow-contract)
-- [H2 · Gap Tracking](../../i18n-guide.md#gap-tracking)
-- [H2 · Quick Validation Commands](../../i18n-guide.md#quick-validation-commands)
+- 実際のセクション移動は英語版原文の見出しを基準にしてください。
+- ブリッジ本文と英語版の見出し構成に差分がある場合は、英語版原文を優先します。
 
 ## 実行ヒント
 

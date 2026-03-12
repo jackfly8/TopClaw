@@ -24,30 +24,51 @@ If you are on macOS, install Apple developer tools first:
 xcode-select --install
 ```
 
-Then use the same quick-start path on Linux or macOS:
+Then use the supported one-line installer for your shell:
 
 ```bash
-git clone https://github.com/topway-ai/topclaw.git
-cd topclaw
-./bootstrap.sh --install-system-deps --install-rust --prefer-prebuilt
+curl -fsSL https://raw.githubusercontent.com/topway-ai/topclaw/main/scripts/bootstrap.sh | bash
 topclaw status
 topclaw status --diagnose
 topclaw agent -m "Hello, TopClaw!"
 ```
 
-This path installs standard prerequisites, installs Rust when missing, prefers a prebuilt binary first, and starts onboarding automatically.
+Windows PowerShell:
 
-If you need to test the local checkout instead of the latest release asset, use `./bootstrap.sh --force-source-build`.
+```powershell
+iwr -useb https://raw.githubusercontent.com/topway-ai/topclaw/main/bootstrap.ps1 | iex
+topclaw status
+topclaw status --diagnose
+topclaw agent -m "Hello, TopClaw!"
+```
+
+These hosted installers install standard prerequisites when needed, install Rust when missing, prefer a prebuilt binary first, and start onboarding automatically.
+
+If you need to review the installer first or validate local source changes, use a repository checkout instead:
+
+```bash
+git clone https://github.com/topway-ai/topclaw.git
+cd topclaw
+./bootstrap.sh --install-system-deps --install-rust --prefer-prebuilt
+```
+
+Use `./bootstrap.sh --force-source-build` when you need to test the local checkout instead of the latest release asset.
 
 ## What Bootstrap Does
 
 Recommended first-run command:
 
 ```bash
-./bootstrap.sh --install-system-deps --install-rust --prefer-prebuilt
+curl -fsSL https://raw.githubusercontent.com/topway-ai/topclaw/main/scripts/bootstrap.sh | bash
 ```
 
-What those flags do:
+Windows PowerShell:
+
+```powershell
+iwr -useb https://raw.githubusercontent.com/topway-ai/topclaw/main/bootstrap.ps1 | iex
+```
+
+What the hosted installers do:
 
 1. install missing system dependencies when possible
 2. install Rust if it is not already present
@@ -56,8 +77,8 @@ What those flags do:
 
 Important:
 
-- `--prefer-prebuilt` may install the latest released TopClaw binary, not the exact code in your checkout
-- use `--force-source-build` when you need to validate local source changes
+- the hosted installers prefer the latest released TopClaw binary, not the exact code in a local checkout
+- use a local checkout plus `./bootstrap.sh --force-source-build` when you need to validate local source changes
 
 During onboarding, the default path is now:
 
@@ -144,7 +165,7 @@ High-signal paths:
 - `src/gateway/`: HTTP, SSE, WebSocket, and OpenAI-compatible endpoints
 - `src/runtime/`: native, Docker, and WASM runtime adapters
 - `src/peripherals/` and `src/hardware/`: hardware-facing integrations
-- `examples/`: custom provider, tool, channel, and memory examples
+- `examples/*.rs`: custom provider, tool, channel, and memory examples
 - `tests/`: integration and regression coverage
 - `docs/`: user-facing reference, operations, security, and architecture docs
 
@@ -160,7 +181,7 @@ If you are extending TopClaw, start with these contracts:
 - runtimes: [`src/runtime/traits.rs`](src/runtime/traits.rs)
 - peripherals: [`src/peripherals/traits.rs`](src/peripherals/traits.rs)
 
-Examples of these extension points are available under [`examples/`](examples/).
+Examples of these extension points are available under `examples/*.rs`.
 
 ## Run In Background
 
@@ -208,5 +229,6 @@ topclaw uninstall --purge
 
 ### Other Platforms
 
-- Windows: run `.\bootstrap.ps1`
-- Lower-resource machines: `./bootstrap.sh --prefer-prebuilt`
+- Windows: `iwr -useb https://raw.githubusercontent.com/topway-ai/topclaw/main/bootstrap.ps1 | iex`
+- Linux/macOS: `curl -fsSL https://raw.githubusercontent.com/topway-ai/topclaw/main/scripts/bootstrap.sh | bash`
+- Lower-resource machines from a repo checkout: `./bootstrap.sh --prefer-prebuilt`

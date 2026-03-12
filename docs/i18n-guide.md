@@ -11,12 +11,12 @@ Primary docs surfaces:
 - Root landing: `README.md` (language switch links to `docs/i18n/<locale>/README.md`)
 - Docs hubs: `docs/README.md`, `docs/i18n/<locale>/README.md`
 - Unified TOC: `docs/SUMMARY.md`, `docs/SUMMARY.<locale>.md` (compatibility shims, if present)
-- i18n index and coverage: `docs/i18n/README.md`, `docs/i18n-coverage.md`, `docs/i18n-gap-backlog.md`
+- i18n index and coverage: `docs/i18n/README.md`, `docs/i18n-coverage.md`
 
 Supported locales:
 
-- `en` (source of truth)
-- `zh-CN`, `ja`, `ru`, `fr`, `vi`, `el` (full top-level parity in `docs/i18n/<locale>/`)
+- `en` (source of truth and only full runtime-contract tree)
+- `zh-CN`, `ja`, `ru`, `fr`, `vi`, `el` (canonical localized hubs with top-level parity via localized or bridge pages in `docs/i18n/<locale>/`)
 
 ## Canonical Layout
 
@@ -39,8 +39,8 @@ Use this matrix to decide required i18n follow-through in the same PR.
 | Docs hub language links changed | Update localized hub links in `docs/README.md` and every `docs/i18n/*/README.md` with an "Other languages" section |
 | Unified TOC language entry changed | Update `docs/SUMMARY.md`, every `docs/i18n/*/SUMMARY.md`, and docs-root `docs/SUMMARY*.md` shims if present |
 | Collection index changed (`docs/<collection>/README.md`) | Update matching localized collection indexes under `docs/i18n/<locale>/<collection>/README.md` for locales that keep localized collection trees |
-| Any top-level runtime/governance/security doc changed under `docs/*.md` | Update corresponding file under every `docs/i18n/<locale>/` in the same PR |
-| Locale added/removed/renamed | Update `README.md`, docs hubs, summaries, `docs/i18n/README.md`, `docs/i18n-coverage.md`, and `docs/i18n-gap-backlog.md` |
+| Any top-level runtime/governance/security doc changed under `docs/*.md` | Update the corresponding file under every `docs/i18n/<locale>/` in the same PR; localized files may be full translations or bridge pages, but must still point to the current English source |
+| Locale added/removed/renamed | Update `README.md`, docs hubs, summaries, `docs/i18n/README.md`, and `docs/i18n-coverage.md` |
 
 ## Completion Checklist (Mandatory)
 
@@ -58,12 +58,12 @@ Before merge, verify all items:
 
 3. Top-level docs parity
 - If any file under `docs/*.md` changes, sync localized equivalents for all supported locales.
+- English is the only full runtime-contract source of truth.
 - If full narrative translation is not feasible in the same PR, provide a bridge update (with source link) rather than leaving missing files.
-- Bridge pages must include a source section map (at least level-2 headings) and practical execution hints.
+- Bridge pages must include a source link, usage context, and practical execution hints.
 
 4. Coverage metadata
 - Update `docs/i18n-coverage.md` if support status, canonical path, or coverage level changed.
-- Update `docs/i18n-gap-backlog.md` if baseline count changed.
 - Keep date stamps current for changed localized hubs/summaries.
 
 5. Link integrity
@@ -85,13 +85,12 @@ Do not silently defer user-facing language parity changes.
 When an agent touches docs IA or shared docs wording, the agent must:
 
 1. Apply this guide and complete i18n follow-through in the same PR.
-2. Update `docs/i18n-coverage.md`, `docs/i18n-gap-backlog.md`, and `docs/i18n/README.md` when locale topology or parity state changes.
+2. Update `docs/i18n-coverage.md` and `docs/i18n/README.md` when locale topology or parity state changes.
 3. Include i18n completion notes in PR summary (what was synced, what was bridged, why).
 
-## Gap Tracking
+## Coverage Tracking
 
-- Track baseline parity closure and reopen events in [i18n-gap-backlog.md](i18n-gap-backlog.md).
-- Update [i18n-coverage.md](i18n-coverage.md) after each localization wave.
+- Track localization structure and current bridge/full-page status in [i18n-coverage.md](i18n-coverage.md).
 
 ## Quick Validation Commands
 

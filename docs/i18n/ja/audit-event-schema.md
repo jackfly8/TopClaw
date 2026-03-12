@@ -12,12 +12,10 @@
 - 深度: 強化ブリッジ（セクション導線 + 実行ヒント）
 - 使い方: 構成を把握してから、英語版の規範記述に従って実施します。
 
-## 原文セクションガイド
+## 原文ガイド
 
-- [H2 · Envelope](../../audit-event-schema.md#envelope)
-- [H2 · Event Types](../../audit-event-schema.md#event-types)
-- [H2 · Retention Policy](../../audit-event-schema.md#retention-policy)
-- [H2 · Governance](../../audit-event-schema.md#governance)
+- 実際のセクション移動は英語版原文の見出しを基準にしてください。
+- ブリッジ本文と英語版の見出し構成に差分がある場合は、英語版原文を優先します。
 
 ## 実行ヒント
 

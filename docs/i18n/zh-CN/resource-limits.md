@@ -12,15 +12,10 @@
 - 深度：增强 bridge（章节导览 + 执行提示）
 - 适用：先理解结构，再按英文规范逐条执行。
 
-## 原文章节导览
+## 原文导览
 
-- [H2 · Problem](../../resource-limits.md#problem)
-- [H2 · Proposed Solutions](../../resource-limits.md#proposed-solutions)
-- [H3 · Option 1: cgroups v2 (Linux, Recommended)](../../resource-limits.md#option-1-cgroups-v2-linux-recommended)
-- [H3 · Option 2: tokio::task::deadlock detection](../../resource-limits.md#option-2-tokio-task-deadlock-detection)
-- [H3 · Option 3: Memory monitoring](../../resource-limits.md#option-3-memory-monitoring)
-- [H2 · Config Schema](../../resource-limits.md#config-schema)
-- [H2 · Implementation Priority](../../resource-limits.md#implementation-priority)
+- 直接以英文原文中的实际标题为准进行导航。
+- 如果桥接页中的中文说明与英文标题结构不一致，请优先阅读英文原文。
 
 ## 操作建议
 

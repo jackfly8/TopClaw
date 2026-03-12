@@ -36,4 +36,3 @@
 - 文書インベントリ: [docs-inventory.md](docs-inventory.md)
 - i18n ガイド: [i18n-guide.md](i18n-guide.md)
 - カバレッジ: [i18n-coverage.md](i18n-coverage.md)
-- ギャップ追跡: [i18n-gap-backlog.md](i18n-gap-backlog.md)

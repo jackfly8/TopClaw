@@ -26,7 +26,6 @@ Dernière mise à jour : **24 février 2026**.
 - Index i18n : [i18n/README.md](i18n/README.md)
 - Couverture i18n : [i18n-coverage.md](i18n-coverage.md)
 - Guide i18n : [i18n-guide.md](i18n-guide.md)
-- Suivi des écarts : [i18n-gap-backlog.md](i18n-gap-backlog.md)
 
 ## Catégories
 
@@ -90,6 +89,4 @@ Dernière mise à jour : **24 février 2026**.
 ### 7) État du projet et instantanés
 
 - [docs/i18n/fr/README.md](i18n/fr/README.md)
-- [i18n/fr/project-triage-snapshot-2026-02-18.md](i18n/fr/project-triage-snapshot-2026-02-18.md)
-- [i18n/fr/docs-audit-2026-02-24.md](i18n/fr/docs-audit-2026-02-24.md)
 - [i18n/fr/docs-inventory.md](i18n/fr/docs-inventory.md)

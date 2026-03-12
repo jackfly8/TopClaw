@@ -12,16 +12,10 @@
 - Глубина: усиленный bridge (карта разделов + операционные подсказки)
 - Применение: сначала понять структуру, затем выполнять по английскому нормативному описанию.
 
-## Карта разделов оригинала
+## Навигация по оригиналу
 
-- [H2 · Canonical Layout](../../i18n-coverage.md#canonical-layout)
-- [H2 · Locale Coverage Matrix](../../i18n-coverage.md#locale-coverage-matrix)
-- [H2 · Top-Level Parity Snapshot](../../i18n-coverage.md#top-level-parity-snapshot)
-- [H2 · Root README Completeness](../../i18n-coverage.md#root-readme-completeness)
-- [H2 · Collection Index i18n](../../i18n-coverage.md#collection-index-i18n)
-- [H2 · Localization Rules](../../i18n-coverage.md#localization-rules)
-- [H2 · Adding a New Locale](../../i18n-coverage.md#adding-a-new-locale)
-- [H2 · Review Checklist](../../i18n-coverage.md#review-checklist)
+- Для перехода по разделам опирайтесь на реальные заголовки английского оригинала.
+- Если структура bridge-страницы расходится с текущими заголовками английской версии, приоритет у английского оригинала.
 
 ## Практические рекомендации
 

@@ -26,7 +26,6 @@
 - 国际化文档索引：[i18n/README.md](i18n/README.md)
 - 国际化覆盖图：[i18n-coverage.md](i18n-coverage.md)
 - 国际化执行指南：[i18n-guide.md](i18n-guide.md)
-- 国际化缺口追踪：[i18n-gap-backlog.md](i18n-gap-backlog.md)
 
 ## 分类
 
@@ -90,6 +89,4 @@
 ### 7) 项目状态与快照
 
 - [docs/i18n/zh-CN/README.md](i18n/zh-CN/README.md)
-- [i18n/zh-CN/project-triage-snapshot-2026-02-18.md](i18n/zh-CN/project-triage-snapshot-2026-02-18.md)
-- [i18n/zh-CN/docs-audit-2026-02-24.md](i18n/zh-CN/docs-audit-2026-02-24.md)
 - [i18n/zh-CN/docs-inventory.md](i18n/zh-CN/docs-inventory.md)

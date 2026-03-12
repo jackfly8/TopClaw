@@ -12,17 +12,10 @@
 - 深度：增强 bridge（章节导览 + 执行提示）
 - 适用：先理解结构，再按英文规范逐条执行。
 
-## 原文章节导览
+## 原文导览
 
-- [H2 · Problem](../../sandboxing.md#problem)
-- [H2 · Proposed Solutions](../../sandboxing.md#proposed-solutions)
-- [H3 · Option 1: Firejail Integration (Recommended for Linux)](../../sandboxing.md#option-1-firejail-integration-recommended-for-linux)
-- [H3 · Option 2: Bubblewrap (Portable, no root required)](../../sandboxing.md#option-2-bubblewrap-portable-no-root-required)
-- [H3 · Option 3: Docker-in-Docker (Heavyweight but complete isolation)](../../sandboxing.md#option-3-docker-in-docker-heavyweight-but-complete-isolation)
-- [H3 · Option 4: Landlock (Linux Kernel LSM, Rust native)](../../sandboxing.md#option-4-landlock-linux-kernel-lsm-rust-native)
-- [H2 · Priority Implementation Order](../../sandboxing.md#priority-implementation-order)
-- [H2 · Config Schema Extension](../../sandboxing.md#config-schema-extension)
-- [H2 · Testing Strategy](../../sandboxing.md#testing-strategy)
+- 直接以英文原文中的实际标题为准进行导航。
+- 如果桥接页中的中文说明与英文标题结构不一致，请优先阅读英文原文。
 
 ## 操作建议
 

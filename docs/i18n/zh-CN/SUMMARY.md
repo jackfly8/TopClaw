@@ -36,4 +36,3 @@
 - 文档总清单：[docs-inventory.md](docs-inventory.md)
 - i18n 指南：[i18n-guide.md](i18n-guide.md)
 - 覆盖状态：[i18n-coverage.md](i18n-coverage.md)
-- 缺口追踪：[i18n-gap-backlog.md](i18n-gap-backlog.md)
