@@ -97,7 +97,7 @@ impl GlmProvider {
         if self.api_key_id.is_empty() || self.api_key_secret.is_empty() {
             anyhow::bail!(
                 "GLM API key not set or invalid format. Expected 'id.secret'. \
-                 Run `topclaw onboard` or set GLM_API_KEY env var."
+                 Run `topclaw bootstrap` or set GLM_API_KEY env var."
             );
         }
 

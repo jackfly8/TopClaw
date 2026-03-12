@@ -151,7 +151,7 @@ function Run-Onboarding {
 
     if ($InteractiveOnboard) {
         Write-Info "Running interactive onboarding"
-        & $BinaryPath onboard --interactive
+        & $BinaryPath bootstrap --interactive
         return
     }
 
@@ -164,7 +164,7 @@ function Run-Onboarding {
         throw "Onboarding requires -ApiKey (or TOPCLAW_API_KEY) unless using -InteractiveOnboard."
     }
 
-    $cmd = @("onboard", "--api-key", $resolvedApiKey, "--provider", $Provider)
+    $cmd = @("bootstrap", "--api-key", $resolvedApiKey, "--provider", $Provider)
     if ($Model) {
         $cmd += @("--model", $Model)
     }

@@ -1238,7 +1238,7 @@ run_docker_bootstrap() {
     local onboard_cmd=()
     if [[ "$INTERACTIVE_ONBOARD" == true ]]; then
       info "Launching interactive onboarding in container"
-      onboard_cmd=(onboard --interactive)
+      onboard_cmd=(bootstrap --interactive)
     else
       if [[ -z "$API_KEY" ]]; then
         cat <<'MSG'
@@ -1257,7 +1257,7 @@ MSG
       else
         info "Launching quick onboarding in container (provider: $PROVIDER)"
       fi
-      onboard_cmd=(onboard --api-key "$API_KEY" --provider "$PROVIDER")
+      onboard_cmd=(bootstrap --api-key "$API_KEY" --provider "$PROVIDER")
       if [[ -n "$MODEL" ]]; then
         onboard_cmd+=(--model "$MODEL")
       fi
@@ -1715,7 +1715,7 @@ if [[ "$RUN_ONBOARD" == true ]]; then
 
   if [[ "$INTERACTIVE_ONBOARD" == true ]]; then
     info "Running interactive onboarding"
-    "$TOPCLAW_BIN" onboard --interactive
+    "$TOPCLAW_BIN" bootstrap --interactive
   else
     if [[ -z "$API_KEY" ]]; then
       cat <<'MSG'
@@ -1734,7 +1734,7 @@ MSG
     else
       info "Running quick onboarding (provider: $PROVIDER)"
     fi
-    ONBOARD_CMD=("$TOPCLAW_BIN" onboard --api-key "$API_KEY" --provider "$PROVIDER")
+    ONBOARD_CMD=("$TOPCLAW_BIN" bootstrap --api-key "$API_KEY" --provider "$PROVIDER")
     if [[ -n "$MODEL" ]]; then
       ONBOARD_CMD+=(--model "$MODEL")
     fi

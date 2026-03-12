@@ -20,9 +20,9 @@ If you need to test the local checkout instead of the latest release asset, use 
 | New user on Linux or macOS | [../../README.md](../../README.md) |
 | Want bootstrap details and flags | [../one-click-bootstrap.md](../one-click-bootstrap.md) |
 | Unsure whether to use `agent`, `service`, or `daemon` | [../runtime-model.md](../runtime-model.md) |
-| Already have an API key | `topclaw onboard --api-key "sk-..." --provider openrouter` |
-| Need OAuth or subscription login instead of an API key | Use `topclaw onboard --interactive` and follow the provider login prompt |
-| Want interactive provider and channel setup | `topclaw onboard --interactive` |
+| Already have an API key | `topclaw bootstrap --api-key "sk-..." --provider openrouter` |
+| Need OAuth or subscription login instead of an API key | Use `topclaw bootstrap --interactive` and follow the provider login prompt |
+| Want interactive provider and channel setup | `topclaw bootstrap --interactive` |
 | Need Android/Termux instructions | [../android-setup.md](../android-setup.md) |
 | Need macOS update or uninstall steps | [macos-update-uninstall.md](macos-update-uninstall.md) |
 

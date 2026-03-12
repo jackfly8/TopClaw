@@ -198,7 +198,7 @@ Provide the channel type and a JSON object with the required \
 configuration keys for that channel type.
 
 If you want a guided setup flow instead of hand-writing JSON, use:
-  topclaw onboard --channels-only
+  topclaw bootstrap --channels-only
 
 Supported types: telegram, discord, slack, whatsapp, matrix, imessage, email.
 

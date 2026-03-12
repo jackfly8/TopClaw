@@ -4094,7 +4094,7 @@ async fn bind_telegram_identity(config: &Config, identity: &str) -> Result<()> {
     let mut updated = config.clone();
     let Some(telegram) = updated.channels_config.telegram.as_mut() else {
         anyhow::bail!(
-            "Telegram channel is not configured. Run `topclaw onboard --channels-only` first"
+            "Telegram channel is not configured. Run `topclaw bootstrap --channels-only` first"
         );
     };
 
@@ -4262,7 +4262,7 @@ pub async fn handle_command(command: crate::ChannelCommands, config: &Config) ->
             }
             println!("\nTo start channels: topclaw channel start");
             println!("To check health:    topclaw channel doctor");
-            println!("To configure:      topclaw onboard");
+            println!("To configure:      topclaw bootstrap");
             Ok(())
         }
         crate::ChannelCommands::Add {
@@ -4270,7 +4270,7 @@ pub async fn handle_command(command: crate::ChannelCommands, config: &Config) ->
             config: _,
         } => {
             anyhow::bail!(
-                "Channel type '{channel_type}' — use `topclaw onboard` to configure channels"
+                "Channel type '{channel_type}' — use `topclaw bootstrap` to configure channels"
             );
         }
         crate::ChannelCommands::Remove { name } => {
@@ -4663,7 +4663,7 @@ pub async fn doctor_channels(config: Config) -> Result<()> {
     }
 
     if channels.is_empty() && init_failures.is_empty() {
-        println!("No real-time channels configured. Run `topclaw onboard` first.");
+        println!("No real-time channels configured. Run `topclaw bootstrap` first.");
         return Ok(());
     }
 
@@ -4936,7 +4936,7 @@ pub async fn start_channels(config: Config) -> Result<()> {
     }
 
     if configured_channels.is_empty() && init_failures.is_empty() {
-        println!("No channels configured. Run `topclaw onboard` to set up channels.");
+        println!("No channels configured. Run `topclaw bootstrap` to set up channels.");
         return Ok(());
     }
 

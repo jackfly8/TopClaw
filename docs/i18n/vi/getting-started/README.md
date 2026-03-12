@@ -13,17 +13,17 @@ Dành cho cài đặt lần đầu và làm quen nhanh.
 
 | Tình huống | Lệnh |
 |----------|---------|
-| Có API key, muốn cài nhanh nhất | `topclaw onboard --api-key sk-... --provider openrouter` |
-| Dùng provider OAuth hoặc subscription thay vì API key | Chạy `topclaw onboard --interactive` và làm theo bước đăng nhập |
-| Muốn được hướng dẫn từng bước | `topclaw onboard --interactive` |
-| Đã có config, chỉ cần sửa kênh | `topclaw onboard --channels-only` |
+| Có API key, muốn cài nhanh nhất | `topclaw bootstrap --api-key sk-... --provider openrouter` |
+| Dùng provider OAuth hoặc subscription thay vì API key | Chạy `topclaw bootstrap --interactive` và làm theo bước đăng nhập |
+| Muốn được hướng dẫn từng bước | `topclaw bootstrap --interactive` |
+| Đã có config, chỉ cần sửa kênh | `topclaw bootstrap --channels-only` |
 | Chưa rõ nên dùng `agent`, `service` hay `daemon` | Xem [runtime-model.md](../runtime-model.md) |
 | Dùng xác thực subscription | Xem [Subscription Auth](../../../README.md#subscription-auth-openai-codex--claude-code) |
 
 ## Thiết lập và kiểm tra
 
-- Thiết lập nhanh: `topclaw onboard --api-key "sk-..." --provider openrouter`
-- Thiết lập tương tác: `topclaw onboard --interactive`
+- Thiết lập nhanh: `topclaw bootstrap --api-key "sk-..." --provider openrouter`
+- Thiết lập tương tác: `topclaw bootstrap --interactive`
 - Kiểm tra môi trường: `topclaw status` + `topclaw status --diagnose`
 
 ## Tiếp theo

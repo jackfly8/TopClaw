@@ -2,13 +2,13 @@
 
 This reference is derived from the current CLI surface (`topclaw --help`).
 
-Last verified: **March 9, 2026**.
+Last verified: **March 12, 2026**.
 
 ## Top-Level Commands
 
 | Command | Purpose |
 |---|---|
-| `onboard` | Initialize workspace/config quickly or interactively |
+| `bootstrap` | Initialize workspace/config quickly or interactively |
 | `agent` | Run interactive chat or single-message mode |
 | `gateway` | Start webhook and WhatsApp HTTP gateway |
 | `daemon` | Start supervised runtime (gateway + channels + optional heartbeat/scheduler) |
@@ -32,7 +32,7 @@ Last verified: **March 9, 2026**.
 
 Common aliases:
 
-- `topclaw init` -> `topclaw onboard`
+- `topclaw init` -> `topclaw bootstrap`
 - `topclaw chat` -> `topclaw agent`
 - `topclaw run` -> `topclaw daemon`
 - `topclaw info` -> `topclaw status`
@@ -50,29 +50,31 @@ Common aliases:
 | test one prompt quickly | `topclaw agent -m "Hello, TopClaw!"` |
 | check whether background channels are running | `topclaw service status` |
 | start the background service manually | `topclaw service install`, `topclaw service start` |
-| rerun onboarding | `topclaw onboard --interactive` |
+| rerun onboarding | `topclaw bootstrap --interactive` |
 
 If you only need the common day-1/day-2 commands, the table above is the fastest path. The rest of this page covers the full CLI surface.
 
 ## Command Groups
 
-### `onboard`
+### `bootstrap`
 
-- `topclaw onboard`
-- `topclaw onboard --interactive`
-- `topclaw onboard --channels-only`
-- `topclaw onboard --force`
-- `topclaw onboard --api-key <KEY> --provider <ID> --memory <sqlite|lucid|markdown|none>`
-- `topclaw onboard --api-key <KEY> --provider <ID> --model <MODEL_ID> --memory <sqlite|lucid|markdown|none>`
-- `topclaw onboard --api-key <KEY> --provider <ID> --model <MODEL_ID> --memory <sqlite|lucid|markdown|none> --force`
+- `topclaw bootstrap`
+- `topclaw bootstrap --interactive`
+- `topclaw bootstrap --channels-only`
+- `topclaw bootstrap --force`
+- `topclaw bootstrap --api-key <KEY> --provider <ID> --memory <sqlite|lucid|markdown|none>`
+- `topclaw bootstrap --api-key <KEY> --provider <ID> --model <MODEL_ID> --memory <sqlite|lucid|markdown|none>`
+- `topclaw bootstrap --api-key <KEY> --provider <ID> --model <MODEL_ID> --memory <sqlite|lucid|markdown|none> --force`
 
-`onboard` safety behavior:
+Compatibility aliases: `topclaw onboard`, `topclaw init`
+
+`bootstrap` safety behavior:
 
 - If `config.toml` already exists and you run `--interactive`, onboarding now offers two modes:
   - Full onboarding (overwrite `config.toml`)
   - Provider-only update (update provider/model/API key while preserving existing channels, tunnel, memory, hooks, and other settings)
 - In non-interactive environments, existing `config.toml` causes a safe refusal unless `--force` is passed.
-- Use `topclaw onboard --channels-only` when you only need to rotate channel tokens/allowlists.
+- Use `topclaw bootstrap --channels-only` when you only need to rotate channel tokens/allowlists.
 
 ### `agent`
 

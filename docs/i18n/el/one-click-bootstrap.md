@@ -99,6 +99,10 @@ curl -fsSL https://raw.githubusercontent.com/topway-ai/topclaw/main/scripts/boot
 ```
 Το σενάριο θα δημιουργήσει μια τοπική εικόνα Docker και θα ξεκινήσει τη διαδικασία onboarding. Οι ρυθμίσεις αποθηκεύονται στον κατάλογο `./.topclaw-docker`.
 
+Μέσα στο container, το TopClaw χρησιμοποιεί πλέον το `topclaw bootstrap` ως
+κανονική εντολή αρχικής ρύθμισης. Το `topclaw onboard` παραμένει διαθέσιμο ως
+alias συμβατότητας.
+
 Το CLI container είναι από προεπιλογή το `docker`. Αν το Docker CLI δεν είναι διαθέσιμο και υπάρχει `podman`, το bootstrap κάνει αυτόματο fallback σε `podman`. Μπορείτε επίσης να ορίσετε ρητά το `TOPCLAW_CONTAINER_CLI` (π.χ. `TOPCLAW_CONTAINER_CLI=podman ./bootstrap.sh --docker`).
 
 Με Podman, το bootstrap χρησιμοποιεί `--userns keep-id` και volume labels `:Z` ώστε τα mounts config/workspace να παραμένουν εγγράψιμα μέσα στο container.

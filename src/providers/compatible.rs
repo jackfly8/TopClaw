@@ -1900,7 +1900,7 @@ impl Provider for OpenAiCompatibleProvider {
     ) -> anyhow::Result<String> {
         let credential = self.credential.as_ref().ok_or_else(|| {
             anyhow::anyhow!(
-                "{} API key not set. Run `topclaw onboard` or set the appropriate env var.",
+                "{} API key not set. Run `topclaw bootstrap` or set the appropriate env var.",
                 self.name
             )
         })?;
@@ -2038,7 +2038,7 @@ impl Provider for OpenAiCompatibleProvider {
     ) -> anyhow::Result<String> {
         let credential = self.credential.as_ref().ok_or_else(|| {
             anyhow::anyhow!(
-                "{} API key not set. Run `topclaw onboard` or set the appropriate env var.",
+                "{} API key not set. Run `topclaw bootstrap` or set the appropriate env var.",
                 self.name
             )
         })?;
@@ -2157,7 +2157,7 @@ impl Provider for OpenAiCompatibleProvider {
     ) -> anyhow::Result<ProviderChatResponse> {
         let credential = self.credential.as_ref().ok_or_else(|| {
             anyhow::anyhow!(
-                "{} API key not set. Run `topclaw onboard` or set the appropriate env var.",
+                "{} API key not set. Run `topclaw bootstrap` or set the appropriate env var.",
                 self.name
             )
         })?;
@@ -2292,7 +2292,7 @@ impl Provider for OpenAiCompatibleProvider {
     ) -> anyhow::Result<ProviderChatResponse> {
         let credential = self.credential.as_ref().ok_or_else(|| {
             anyhow::anyhow!(
-                "{} API key not set. Run `topclaw onboard` or set the appropriate env var.",
+                "{} API key not set. Run `topclaw bootstrap` or set the appropriate env var.",
                 self.name
             )
         })?;
