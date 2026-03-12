@@ -50,7 +50,7 @@ permissions:
 jobs:
   docs-quality:
     name: Docs Quality
-    runs-on: [self-hosted, Linux, X64, light, cpu40]
+    runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
@@ -69,7 +69,7 @@ jobs:
 
   deploy-guard:
     name: Docs Deploy Guard
-    runs-on: [self-hosted, Linux, X64, light, cpu40]
+    runs-on: ubuntu-latest
     outputs:
       ready_to_deploy: ${{ steps.guard.outputs.ready_to_deploy }}
       deploy_target: ${{ steps.guard.outputs.deploy_target }}
@@ -116,7 +116,7 @@ jobs:
   build-site:
     name: Build Docs Site
     needs: [docs-quality, deploy-guard]
-    runs-on: [self-hosted, Linux, X64, light, cpu40]
+    runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
@@ -158,7 +158,7 @@ jobs:
     name: Deploy Docs to GitHub Pages
     needs: [deploy-guard, build-site]
     if: needs.deploy-guard.outputs.deploy_target == 'production' && needs.deploy-guard.outputs.ready_to_deploy == 'true'
-    runs-on: [self-hosted, Linux, X64, light, cpu40]
+    runs-on: ubuntu-latest
     permissions:
       contents: read
       pages: write
