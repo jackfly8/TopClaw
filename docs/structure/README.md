@@ -62,7 +62,7 @@ Use compatibility paths for backward links only. New localized edits should targ
 | Security | `docs/security/README.md` | current hardening guidance + proposal boundary |
 | Hardware | `docs/hardware/README.md` | boards, peripherals, datasheets navigation |
 | Contributing | `docs/contributing/README.md` | PR/review/CI policy and process |
-| Project | `docs/project/README.md` | time-bound snapshots and planning audit history |
+| Project | `docs/project/README.md` | current project-level documentation inventory and governance |
 | SOP | `docs/sop/README.md` | SOP runtime contract and procedure docs |
 
 ## 4) Placement Rules
@@ -81,5 +81,4 @@ Use compatibility paths for backward links only. New localized edits should targ
 - i18n docs index: [../i18n/README.md](../i18n/README.md)
 - i18n coverage matrix: [../i18n-coverage.md](../i18n-coverage.md)
 - i18n completion checklist: [../i18n-guide.md](../i18n-guide.md)
-- i18n gap backlog: [../i18n-gap-backlog.md](../i18n-gap-backlog.md)
 - docs inventory/classification: [../docs-inventory.md](../docs-inventory.md)

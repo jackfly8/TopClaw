@@ -14,6 +14,7 @@ Workflow: `.github/workflows/docs-deploy.yml`
 ## Lanes
 
 - `Docs Quality Gate`: markdown quality + added-link checks
+- `Build Docs Site`: static HTML build from tracked Markdown
 - `Docs Preview Artifact`: PR/manual preview package
 - `Deploy Docs to GitHub Pages`: production deployment lane
 
@@ -27,6 +28,7 @@ Workflow: `.github/workflows/docs-deploy.yml`
 
 - `scripts/ci/docs_quality_gate.sh`
 - `scripts/ci/collect_changed_links.py` + lychee added-link checks
+- `scripts/docs/build_site.py` builds the publishable static site artifact
 
 ## Deployment Rules
 
@@ -34,6 +36,7 @@ Workflow: `.github/workflows/docs-deploy.yml`
 - production: deploy to GitHub Pages on `main` push or manual production dispatch from `main`
 - manual production promotion requires `preview_evidence_run_url` when policy requires it
 - `rollback_ref` (manual production only) must resolve to a commit that is an ancestor of production branch (`main`) when policy requires ancestor validation
+- production Pages deployments publish the generated `site/` artifact from `scripts/docs/build_site.py`
 
 ## Failure Handling
 

@@ -12,16 +12,10 @@
 - 深度: 強化ブリッジ（セクション導線 + 実行ヒント）
 - 使い方: 構成を把握してから、英語版の規範記述に従って実施します。
 
-## 原文セクションガイド
+## 原文ガイド
 
-- [H2 · Canonical Layout](../../i18n-coverage.md#canonical-layout)
-- [H2 · Locale Coverage Matrix](../../i18n-coverage.md#locale-coverage-matrix)
-- [H2 · Top-Level Parity Snapshot](../../i18n-coverage.md#top-level-parity-snapshot)
-- [H2 · Root README Completeness](../../i18n-coverage.md#root-readme-completeness)
-- [H2 · Collection Index i18n](../../i18n-coverage.md#collection-index-i18n)
-- [H2 · Localization Rules](../../i18n-coverage.md#localization-rules)
-- [H2 · Adding a New Locale](../../i18n-coverage.md#adding-a-new-locale)
-- [H2 · Review Checklist](../../i18n-coverage.md#review-checklist)
+- 実際のセクション移動は英語版原文の見出しを基準にしてください。
+- ブリッジ本文と英語版の見出し構成に差分がある場合は、英語版原文を優先します。
 
 ## 実行ヒント
 

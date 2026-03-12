@@ -12,20 +12,10 @@ Source anglaise:
 - Profondeur : passerelle enrichie (guidage de sections + conseils d'exécution)
 - Usage : comprendre la structure puis appliquer les étapes selon la source normative anglaise.
 
-## Plan des sections source
+## Navigation de la source
 
-- [H2 · Release Goals](../../release-process.md#release-goals)
-- [H2 · Standard Cadence](../../release-process.md#standard-cadence)
-- [H2 · Workflow Contract](../../release-process.md#workflow-contract)
-- [H2 · Maintainer Procedure](../../release-process.md#maintainer-procedure)
-- [H3 · 1) Preflight on `main`](../../release-process.md#1-preflight-on-main)
-- [H3 · 2) Run verification build (no publish)](../../release-process.md#2-run-verification-build-no-publish)
-- [H3 · 3) Cut release tag](../../release-process.md#3-cut-release-tag)
-- [H3 · 4) Monitor publish run](../../release-process.md#4-monitor-publish-run)
-- [H3 · 5) Post-release validation](../../release-process.md#5-post-release-validation)
-- [H3 · 6) Publish Homebrew Core formula (bot-owned)](../../release-process.md#6-publish-homebrew-core-formula-bot-owned)
-- [H2 · Emergency / Recovery Path](../../release-process.md#emergency-recovery-path)
-- [H2 · Operational Notes](../../release-process.md#operational-notes)
+- Utilisez directement les titres réels du document anglais pour naviguer dans la source.
+- Si la structure de cette passerelle diverge de la version anglaise actuelle, la version anglaise prévaut.
 
 ## Conseils d'exécution
 

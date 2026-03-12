@@ -12,18 +12,10 @@
 - 深度：增强 bridge（章节导览 + 执行提示）
 - 适用：先理解结构，再按英文规范逐条执行。
 
-## 原文章节导览
+## 原文导览
 
-- [H2 · 1. Summary](../../doc-template.md#1-summary)
-- [H2 · 2. Prerequisites](../../doc-template.md#2-prerequisites)
-- [H2 · 3. Procedure](../../doc-template.md#3-procedure)
-- [H3 · 3.1 Baseline Check](../../doc-template.md#3-1-baseline-check)
-- [H3 · 3.2 Main Workflow](../../doc-template.md#3-2-main-workflow)
-- [H3 · 3.3 Verification](../../doc-template.md#3-3-verification)
-- [H2 · 4. Safety, Risk, and Rollback](../../doc-template.md#4-safety-risk-and-rollback)
-- [H2 · 5. Troubleshooting](../../doc-template.md#5-troubleshooting)
-- [H2 · 6. Related Docs](../../doc-template.md#6-related-docs)
-- [H2 · 7. Maintenance Notes](../../doc-template.md#7-maintenance-notes)
+- 直接以英文原文中的实际标题为准进行导航。
+- 如果桥接页中的中文说明与英文标题结构不一致，请优先阅读英文原文。
 
 ## 操作建议
 

@@ -2,7 +2,7 @@
 
 This inventory classifies documentation by intent and canonical location.
 
-Last reviewed: **February 24, 2026**.
+Last reviewed: **March 12, 2026**.
 
 ## Classification Legend
 
@@ -45,8 +45,8 @@ Last reviewed: **February 24, 2026**.
 | `ja` | `docs/i18n/ja/README.md` | Current Guide (localized hub scaffold) |
 | `ru` | `docs/i18n/ru/README.md` | Current Guide (localized hub scaffold) |
 | `fr` | `docs/i18n/fr/README.md` | Current Guide (localized hub scaffold) |
-| `vi` | `docs/i18n/vi/README.md` | Current Guide (full localized tree) |
-| `el` | `docs/i18n/el/README.md` | Current Guide (full localized tree) |
+| `vi` | `docs/i18n/vi/README.md` | Current Guide (localized hub + bridge pages) |
+| `el` | `docs/i18n/el/README.md` | Current Guide (localized hub + bridge pages) |
 
 Compatibility shims such as `docs/SUMMARY.<locale>.md` and `docs/vi/**` remain valid but are non-canonical.
 
@@ -116,18 +116,9 @@ These are valuable context, but **not strict runtime contracts**.
 | `docs/frictionless-security.md` | Proposal |
 | `docs/security-roadmap.md` | Roadmap |
 
-## Snapshot / Audit Docs
-
-| Doc | Type |
-|---|---|
-| `docs/project-triage-snapshot-2026-02-18.md` | Snapshot |
-| `docs/docs-audit-2026-02-24.md` | Snapshot (docs architecture audit) |
-| `docs/i18n-gap-backlog.md` | Snapshot (i18n depth gap tracking) |
-
 ## Maintenance Contract
 
 1. Update `docs/SUMMARY.md` and nearest category index when adding a major doc.
 2. Keep locale navigation parity across all supported locales (`en`, `zh-CN`, `ja`, `ru`, `fr`, `vi`, `el`).
 3. Use `docs/i18n-guide.md` whenever docs IA/shared wording changes.
 4. Keep canonical localized hubs under `docs/i18n/<locale>/`; treat shim paths as compatibility only.
-5. Keep snapshots date-stamped and immutable; add newer snapshots instead of rewriting historical ones.

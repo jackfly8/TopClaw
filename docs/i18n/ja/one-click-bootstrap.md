@@ -12,20 +12,10 @@
 - 深度: 強化ブリッジ（セクション導線 + 実行ヒント）
 - 使い方: 構成を把握してから、英語版の規範記述に従って実施します。
 
-## 原文セクションガイド
+## 原文ガイド
 
-- [H2 · Option 0: Homebrew (macOS/Linuxbrew)](../../one-click-bootstrap.md#option-0-homebrew-macos-linuxbrew)
-- [H2 · Safe update](../../one-click-bootstrap.md#safe-update)
-- [H2 · Option A (Recommended): Clone + local script](../../one-click-bootstrap.md#option-a-recommended-clone-local-script)
-- [H3 · Resource preflight and pre-built flow](../../one-click-bootstrap.md#resource-preflight-and-pre-built-flow)
-- [H2 · Dual-mode bootstrap](../../one-click-bootstrap.md#dual-mode-bootstrap)
-- [H2 · Option B: Remote one-liner](../../one-click-bootstrap.md#option-b-remote-one-liner)
-- [H2 · Optional onboarding modes](../../one-click-bootstrap.md#optional-onboarding-modes)
-- [H3 · Containerized onboarding (Docker)](../../one-click-bootstrap.md#containerized-onboarding-docker)
-- [H3 · Quick onboarding (non-interactive)](../../one-click-bootstrap.md#quick-onboarding-non-interactive)
-- [H3 · Interactive onboarding](../../one-click-bootstrap.md#interactive-onboarding)
-- [H2 · Useful flags](../../one-click-bootstrap.md#useful-flags)
-- [H2 · Related docs](../../one-click-bootstrap.md#related-docs)
+- 実際のセクション移動は英語版原文の見出しを基準にしてください。
+- ブリッジ本文と英語版の見出し構成に差分がある場合は、英語版原文を優先します。
 
 ## 実行ヒント
 

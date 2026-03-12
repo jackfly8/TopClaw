@@ -12,20 +12,10 @@
 - 深度: 強化ブリッジ（セクション導線 + 実行ヒント）
 - 使い方: 構成を把握してから、英語版の規範記述に従って実施します。
 
-## 原文セクションガイド
+## 原文ガイド
 
-- [H2 · Supported Architectures](../../android-setup.md#supported-architectures)
-- [H2 · Installation via Termux](../../android-setup.md#installation-via-termux)
-- [H3 · 1. Install Termux](../../android-setup.md#1-install-termux)
-- [H3 · 2. Download TopClaw](../../android-setup.md#2-download-topclaw)
-- [H3 · 3. Install and Run](../../android-setup.md#3-install-and-run)
-- [H2 · Direct Installation via ADB](../../android-setup.md#direct-installation-via-adb)
-- [H2 · Limitations on Android](../../android-setup.md#limitations-on-android)
-- [H2 · Building from Source](../../android-setup.md#building-from-source)
-- [H2 · Troubleshooting](../../android-setup.md#troubleshooting)
-- [H3 · "Permission denied"](../../android-setup.md#permission-denied)
-- [H3 · "not found" or linker errors](../../android-setup.md#not-found-or-linker-errors)
-- [H3 · Old Android (4.x)](../../android-setup.md#old-android-4-x)
+- 実際のセクション移動は英語版原文の見出しを基準にしてください。
+- ブリッジ本文と英語版の見出し構成に差分がある場合は、英語版原文を優先します。
 
 ## 実行ヒント
 

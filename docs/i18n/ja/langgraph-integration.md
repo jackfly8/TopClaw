@@ -12,26 +12,10 @@
 - 深度: 強化ブリッジ（セクション導線 + 実行ヒント）
 - 使い方: 構成を把握してから、英語版の規範記述に従って実施します。
 
-## 原文セクションガイド
+## 原文ガイド
 
-- [H2 · Background](../../langgraph-integration.md#background)
-- [H2 · Architecture](../../langgraph-integration.md#architecture)
-- [H2 · Quick Start](../../langgraph-integration.md#quick-start)
-- [H3 · Installation](../../langgraph-integration.md#installation)
-- [H3 · Basic Usage](../../langgraph-integration.md#basic-usage)
-- [H2 · Available Tools](../../langgraph-integration.md#available-tools)
-- [H3 · Core Tools](../../langgraph-integration.md#core-tools)
-- [H3 · Extended Tools](../../langgraph-integration.md#extended-tools)
-- [H2 · Custom Tools](../../langgraph-integration.md#custom-tools)
-- [H2 · Provider Configuration](../../langgraph-integration.md#provider-configuration)
-- [H3 · Z.AI / GLM-5](../../langgraph-integration.md#z-ai-glm-5)
-- [H3 · OpenRouter](../../langgraph-integration.md#openrouter)
-- [H3 · Groq](../../langgraph-integration.md#groq)
-- [H3 · Ollama (Local)](../../langgraph-integration.md#ollama-local)
-- [H2 · Discord Bot Integration](../../langgraph-integration.md#discord-bot-integration)
-- [H2 · CLI Usage](../../langgraph-integration.md#cli-usage)
-- [H2 · Comparison with Rust TopClaw](../../langgraph-integration.md#comparison-with-rust-topclaw)
-- [H2 · Troubleshooting](../../langgraph-integration.md#troubleshooting)
+- 実際のセクション移動は英語版原文の見出しを基準にしてください。
+- ブリッジ本文と英語版の見出し構成に差分がある場合は、英語版原文を優先します。
 
 ## 実行ヒント
 

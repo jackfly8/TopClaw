@@ -1,18 +1,15 @@
-# Project Snapshot & Triage Docs
+# Project Docs
 
-Time-bound project status snapshots for planning documentation and operations work.
+Current project-level documentation for structure, inventory, and contributor-facing governance.
 
-## Current Snapshot
+## Use This Section For
 
-- [../project-triage-snapshot-2026-02-18.md](../project-triage-snapshot-2026-02-18.md)
-- [../docs-audit-2026-02-24.md](../docs-audit-2026-02-24.md)
+- Documentation inventory and classification
+- Documentation structure and navigation decisions
+- Stable project-wide contributor guidance
 
-## Scope
+## Current References
 
-Project snapshots are time-bound assessments of open PRs, issues, and documentation health. Use these to:
-
-- Identify documentation gaps driven by feature work
-- Prioritize docs maintenance alongside code changes
-- Track evolving PR/issue pressure over time
-
-For stable documentation classification (not time-bound), use [docs-inventory.md](../docs-inventory.md).
+- [../docs-inventory.md](../docs-inventory.md)
+- [../i18n-coverage.md](../i18n-coverage.md)
+- [../i18n-guide.md](../i18n-guide.md)

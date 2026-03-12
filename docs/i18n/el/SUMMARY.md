@@ -105,12 +105,9 @@
 ### 10) Κατάσταση Έργου και Στιγμιότυπα
 
 - [project/README.md](project/README.md)
-- [project-triage-snapshot-2026-02-18.md](project-triage-snapshot-2026-02-18.md)
-- [docs-audit-2026-02-24.md](docs-audit-2026-02-24.md)
 - [docs-inventory.md](docs-inventory.md)
 - [cargo-slicer-speedup.md](cargo-slicer-speedup.md)
 - [matrix-e2ee-guide.md](matrix-e2ee-guide.md)
 - [doc-template.md](doc-template.md)
 - [i18n-guide.md](i18n-guide.md)
 - [i18n-coverage.md](i18n-coverage.md)
-- [i18n-gap-backlog.md](i18n-gap-backlog.md)

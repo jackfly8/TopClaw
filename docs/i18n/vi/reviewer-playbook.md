@@ -21,37 +21,28 @@ Dùng phần này để phân tuyến nhanh trước khi đọc chi tiết đầ
 1. Để lại một comment dạng checklist hành động được.
 2. Dừng review sâu cho đến khi các vấn đề intake được sửa.
 
-Xem tiếp:
-
-- [Mục 3.1](#31-triage-intake-năm-phút)
+Xem tiếp phần quy trình review tiêu chuẩn ở bên dưới.
 
 ### 1.2 Rủi ro cao hoặc không rõ ràng
 
 1. Mặc định coi là `risk: high`.
 2. Yêu cầu review sâu và bằng chứng rollback rõ ràng.
 
-Xem tiếp:
-
-- [Mục 2](#2-ma-trận-quyết-định-độ-sâu-review)
-- [Mục 3.3](#33-checklist-review-sâu-rủi-ro-cao)
+Xem tiếp phần ma trận quyết định và checklist review sâu ở bên dưới.
 
 ### 1.3 Kết quả tự động hóa sai/ồn ào
 
 1. Áp dụng giao thức ghi đè (`risk: manual`, loại bỏ trùng lặp comment/nhãn).
 2. Tiếp tục review với lý do rõ ràng.
 
-Xem tiếp:
-
-- [Mục 5](#5-giao-thức-ghi-đè-tự-động-hóa)
+Xem tiếp phần giao thức ghi đè tự động hóa ở bên dưới.
 
 ### 1.4 Cần bàn giao review
 
 1. Bàn giao với phạm vi/rủi ro/validation/vấn đề chặn.
 2. Giao hành động tiếp theo cụ thể.
 
-Xem tiếp:
-
-- [Mục 6](#6-giao-thức-bàn-giao)
+Xem tiếp phần bàn giao ở bên dưới.
 
 ---
 

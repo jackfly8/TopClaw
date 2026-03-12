@@ -25,7 +25,7 @@ Use this section for quick operational routing.
 
 Go to:
 
-- [Section 4](#4-mode-a--proxy-only-for-topclaw-internals)
+- [Section 4](#4-mode-a-proxy-only-for-topclaw-internals)
 
 ### 1.2 Proxy only selected services
 
@@ -35,7 +35,7 @@ Go to:
 
 Go to:
 
-- [Section 5](#5-mode-b--proxy-only-for-specific-services)
+- [Section 5](#5-mode-b-proxy-only-for-specific-services)
 
 ### 1.3 Export process-wide proxy environment variables
 
@@ -45,7 +45,7 @@ Go to:
 
 Go to:
 
-- [Section 6](#6-mode-c--proxy-for-full-process-environment)
+- [Section 6](#6-mode-c-proxy-for-full-process-environment)
 
 ### 1.4 Emergency rollback
 
@@ -55,7 +55,7 @@ Go to:
 
 Go to:
 
-- [Section 7](#7-disable--rollback-patterns)
+- [Section 7](#7-disable-rollback-patterns)
 
 ---
 

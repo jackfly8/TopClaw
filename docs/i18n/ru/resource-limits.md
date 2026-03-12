@@ -12,15 +12,10 @@
 - Глубина: усиленный bridge (карта разделов + операционные подсказки)
 - Применение: сначала понять структуру, затем выполнять по английскому нормативному описанию.
 
-## Карта разделов оригинала
+## Навигация по оригиналу
 
-- [H2 · Problem](../../resource-limits.md#problem)
-- [H2 · Proposed Solutions](../../resource-limits.md#proposed-solutions)
-- [H3 · Option 1: cgroups v2 (Linux, Recommended)](../../resource-limits.md#option-1-cgroups-v2-linux-recommended)
-- [H3 · Option 2: tokio::task::deadlock detection](../../resource-limits.md#option-2-tokio-task-deadlock-detection)
-- [H3 · Option 3: Memory monitoring](../../resource-limits.md#option-3-memory-monitoring)
-- [H2 · Config Schema](../../resource-limits.md#config-schema)
-- [H2 · Implementation Priority](../../resource-limits.md#implementation-priority)
+- Для перехода по разделам опирайтесь на реальные заголовки английского оригинала.
+- Если структура bridge-страницы расходится с текущими заголовками английской версии, приоритет у английского оригинала.
 
 ## Практические рекомендации
 

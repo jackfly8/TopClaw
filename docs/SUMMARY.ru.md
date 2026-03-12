@@ -26,7 +26,6 @@
 - Индекс i18n: [i18n/README.md](i18n/README.md)
 - Карта покрытия i18n: [i18n-coverage.md](i18n-coverage.md)
 - Гайд i18n: [i18n-guide.md](i18n-guide.md)
-- Трекинг gap: [i18n-gap-backlog.md](i18n-gap-backlog.md)
 
 ## Разделы
 
@@ -90,6 +89,4 @@
 ### 7) Состояние проекта и снимки
 
 - [docs/i18n/ru/README.md](i18n/ru/README.md)
-- [i18n/ru/project-triage-snapshot-2026-02-18.md](i18n/ru/project-triage-snapshot-2026-02-18.md)
-- [i18n/ru/docs-audit-2026-02-24.md](i18n/ru/docs-audit-2026-02-24.md)
 - [i18n/ru/docs-inventory.md](i18n/ru/docs-inventory.md)

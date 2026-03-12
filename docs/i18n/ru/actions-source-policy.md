@@ -12,14 +12,10 @@
 - Глубина: усиленный bridge (карта разделов + операционные подсказки)
 - Применение: сначала понять структуру, затем выполнять по английскому нормативному описанию.
 
-## Карта разделов оригинала
+## Навигация по оригиналу
 
-- [H2 · Current Policy](../../actions-source-policy.md#current-policy)
-- [H2 · Change Control Export](../../actions-source-policy.md#change-control-export)
-- [H2 · Why This Phase](../../actions-source-policy.md#why-this-phase)
-- [H2 · Agentic Workflow Guardrails](../../actions-source-policy.md#agentic-workflow-guardrails)
-- [H2 · Validation Checklist](../../actions-source-policy.md#validation-checklist)
-- [H2 · Rollback](../../actions-source-policy.md#rollback)
+- Для перехода по разделам опирайтесь на реальные заголовки английского оригинала.
+- Если структура bridge-страницы расходится с текущими заголовками английской версии, приоритет у английского оригинала.
 
 ## Практические рекомендации
 

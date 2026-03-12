@@ -12,15 +12,10 @@
 - 深度：增强 bridge（章节导览 + 执行提示）
 - 适用：先理解结构，再按英文规范逐条执行。
 
-## 原文章节导览
+## 原文导览
 
-- [H2 · Problem](../../audit-logging.md#problem)
-- [H2 · Proposed Audit Log Format](../../audit-logging.md#proposed-audit-log-format)
-- [H2 · Implementation](../../audit-logging.md#implementation)
-- [H2 · Config Schema](../../audit-logging.md#config-schema)
-- [H2 · Audit Query CLI](../../audit-logging.md#audit-query-cli)
-- [H2 · Log Rotation](../../audit-logging.md#log-rotation)
-- [H2 · Implementation Priority](../../audit-logging.md#implementation-priority)
+- 直接以英文原文中的实际标题为准进行导航。
+- 如果桥接页中的中文说明与英文标题结构不一致，请优先阅读英文原文。
 
 ## 操作建议
 

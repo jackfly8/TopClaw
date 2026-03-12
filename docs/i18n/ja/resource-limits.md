@@ -12,15 +12,10 @@
 - 深度: 強化ブリッジ（セクション導線 + 実行ヒント）
 - 使い方: 構成を把握してから、英語版の規範記述に従って実施します。
 
-## 原文セクションガイド
+## 原文ガイド
 
-- [H2 · Problem](../../resource-limits.md#problem)
-- [H2 · Proposed Solutions](../../resource-limits.md#proposed-solutions)
-- [H3 · Option 1: cgroups v2 (Linux, Recommended)](../../resource-limits.md#option-1-cgroups-v2-linux-recommended)
-- [H3 · Option 2: tokio::task::deadlock detection](../../resource-limits.md#option-2-tokio-task-deadlock-detection)
-- [H3 · Option 3: Memory monitoring](../../resource-limits.md#option-3-memory-monitoring)
-- [H2 · Config Schema](../../resource-limits.md#config-schema)
-- [H2 · Implementation Priority](../../resource-limits.md#implementation-priority)
+- 実際のセクション移動は英語版原文の見出しを基準にしてください。
+- ブリッジ本文と英語版の見出し構成に差分がある場合は、英語版原文を優先します。
 
 ## 実行ヒント
 

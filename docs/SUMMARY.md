@@ -95,7 +95,4 @@ This file is the canonical table of contents for the documentation system.
 ### 8) Project
 
 - [project/README.md](project/README.md)
-- [project-triage-snapshot-2026-02-18.md](project-triage-snapshot-2026-02-18.md)
-- [docs-audit-2026-02-24.md](docs-audit-2026-02-24.md)
-- [i18n-gap-backlog.md](i18n-gap-backlog.md)
 - [docs-inventory.md](docs-inventory.md)

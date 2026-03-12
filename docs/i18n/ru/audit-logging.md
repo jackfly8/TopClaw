@@ -12,15 +12,10 @@
 - Глубина: усиленный bridge (карта разделов + операционные подсказки)
 - Применение: сначала понять структуру, затем выполнять по английскому нормативному описанию.
 
-## Карта разделов оригинала
+## Навигация по оригиналу
 
-- [H2 · Problem](../../audit-logging.md#problem)
-- [H2 · Proposed Audit Log Format](../../audit-logging.md#proposed-audit-log-format)
-- [H2 · Implementation](../../audit-logging.md#implementation)
-- [H2 · Config Schema](../../audit-logging.md#config-schema)
-- [H2 · Audit Query CLI](../../audit-logging.md#audit-query-cli)
-- [H2 · Log Rotation](../../audit-logging.md#log-rotation)
-- [H2 · Implementation Priority](../../audit-logging.md#implementation-priority)
+- Для перехода по разделам опирайтесь на реальные заголовки английского оригинала.
+- Если структура bridge-страницы расходится с текущими заголовками английской версии, приоритет у английского оригинала.
 
 ## Практические рекомендации
 

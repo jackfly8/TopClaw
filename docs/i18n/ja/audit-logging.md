@@ -12,15 +12,10 @@
 - 深度: 強化ブリッジ（セクション導線 + 実行ヒント）
 - 使い方: 構成を把握してから、英語版の規範記述に従って実施します。
 
-## 原文セクションガイド
+## 原文ガイド
 
-- [H2 · Problem](../../audit-logging.md#problem)
-- [H2 · Proposed Audit Log Format](../../audit-logging.md#proposed-audit-log-format)
-- [H2 · Implementation](../../audit-logging.md#implementation)
-- [H2 · Config Schema](../../audit-logging.md#config-schema)
-- [H2 · Audit Query CLI](../../audit-logging.md#audit-query-cli)
-- [H2 · Log Rotation](../../audit-logging.md#log-rotation)
-- [H2 · Implementation Priority](../../audit-logging.md#implementation-priority)
+- 実際のセクション移動は英語版原文の見出しを基準にしてください。
+- ブリッジ本文と英語版の見出し構成に差分がある場合は、英語版原文を優先します。
 
 ## 実行ヒント
 

@@ -7,9 +7,11 @@
 ## Πώς να Ξεκινήσετε
 
 1. **Γενική Παρουσίαση**: Ανατρέξτε στο κεντρικό [README.md](../README.md).
-2. **Ταχεία Εγκατάσταση**: Χρησιμοποιήστε τον [Οδηγό ενός κλικ](../one-click-bootstrap.md).
-3. **Μοντέλο Runtime**: Δείτε το [runtime-model.md](../runtime-model.md).
-4. **Αναφορά Εντολών**: Δείτε το [Commands Reference](../commands-reference.md).
+2. **Ταχεία Εγκατάσταση**: Εκτελέστε `curl -fsSL https://raw.githubusercontent.com/topway-ai/topclaw/main/scripts/bootstrap.sh | bash`
+   ή σε PowerShell `iwr -useb https://raw.githubusercontent.com/topway-ai/topclaw/main/bootstrap.ps1 | iex`.
+3. **Bootstrap και επιλογές**: Χρησιμοποιήστε τον [Οδηγό ενός κλικ](../one-click-bootstrap.md).
+4. **Μοντέλο Runtime**: Δείτε το [runtime-model.md](../runtime-model.md).
+5. **Αναφορά Εντολών**: Δείτε το [Commands Reference](../commands-reference.md).
 
 ---
 

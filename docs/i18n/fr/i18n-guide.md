@@ -12,16 +12,10 @@ Source anglaise:
 - Profondeur : passerelle enrichie (guidage de sections + conseils d'exécution)
 - Usage : comprendre la structure puis appliquer les étapes selon la source normative anglaise.
 
-## Plan des sections source
+## Navigation de la source
 
-- [H2 · Scope](../../i18n-guide.md#scope)
-- [H2 · Canonical Layout](../../i18n-guide.md#canonical-layout)
-- [H2 · Trigger Matrix](../../i18n-guide.md#trigger-matrix)
-- [H2 · Completion Checklist (Mandatory)](../../i18n-guide.md#completion-checklist-mandatory)
-- [H2 · Deferred Translation Policy](../../i18n-guide.md#deferred-translation-policy)
-- [H2 · Agent Workflow Contract](../../i18n-guide.md#agent-workflow-contract)
-- [H2 · Gap Tracking](../../i18n-guide.md#gap-tracking)
-- [H2 · Quick Validation Commands](../../i18n-guide.md#quick-validation-commands)
+- Utilisez directement les titres réels du document anglais pour naviguer dans la source.
+- Si la structure de cette passerelle diverge de la version anglaise actuelle, la version anglaise prévaut.
 
 ## Conseils d'exécution
 

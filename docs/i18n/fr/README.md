@@ -47,7 +47,6 @@ Principales surfaces d'architecture publiques :
 - Inventaire documentaire local : [docs-inventory.md](docs-inventory.md)
 - Guide d'exécution i18n : [i18n-guide.md](i18n-guide.md)
 - Couverture i18n : [i18n-coverage.md](i18n-coverage.md)
-- Suivi des écarts i18n : [i18n-gap-backlog.md](i18n-gap-backlog.md)
 
 ## Catégories
 

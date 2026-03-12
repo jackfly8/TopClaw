@@ -36,4 +36,3 @@ Dernière mise à jour : **24 février 2026**.
 - Inventaire documentaire : [docs-inventory.md](docs-inventory.md)
 - Guide i18n : [i18n-guide.md](i18n-guide.md)
 - Couverture : [i18n-coverage.md](i18n-coverage.md)
-- Suivi des écarts : [i18n-gap-backlog.md](i18n-gap-backlog.md)

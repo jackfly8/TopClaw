@@ -12,14 +12,10 @@
 - Глубина: усиленный bridge (карта разделов + операционные подсказки)
 - Применение: сначала понять структуру, затем выполнять по английскому нормативному описанию.
 
-## Карта разделов оригинала
+## Навигация по оригиналу
 
-- [H2 · Prerequisites](../../mattermost-setup.md#prerequisites)
-- [H2 · Configuration](../../mattermost-setup.md#configuration)
-- [H3 · Configuration Fields](../../mattermost-setup.md#configuration-fields)
-- [H2 · Threaded Conversations](../../mattermost-setup.md#threaded-conversations)
-- [H2 · Mention-Only Mode](../../mattermost-setup.md#mention-only-mode)
-- [H2 · Security Note](../../mattermost-setup.md#security-note)
+- Для перехода по разделам опирайтесь на реальные заголовки английского оригинала.
+- Если структура bridge-страницы расходится с текущими заголовками английской версии, приоритет у английского оригинала.
 
 ## Практические рекомендации
 

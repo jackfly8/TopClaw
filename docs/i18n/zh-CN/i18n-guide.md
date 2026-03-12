@@ -12,16 +12,10 @@
 - 深度：增强 bridge（章节导览 + 执行提示）
 - 适用：先理解结构，再按英文规范逐条执行。
 
-## 原文章节导览
+## 原文导览
 
-- [H2 · Scope](../../i18n-guide.md#scope)
-- [H2 · Canonical Layout](../../i18n-guide.md#canonical-layout)
-- [H2 · Trigger Matrix](../../i18n-guide.md#trigger-matrix)
-- [H2 · Completion Checklist (Mandatory)](../../i18n-guide.md#completion-checklist-mandatory)
-- [H2 · Deferred Translation Policy](../../i18n-guide.md#deferred-translation-policy)
-- [H2 · Agent Workflow Contract](../../i18n-guide.md#agent-workflow-contract)
-- [H2 · Gap Tracking](../../i18n-guide.md#gap-tracking)
-- [H2 · Quick Validation Commands](../../i18n-guide.md#quick-validation-commands)
+- 直接以英文原文中的实际标题为准进行导航。
+- 如果桥接页中的中文说明与英文标题结构不一致，请优先阅读英文原文。
 
 ## 操作建议
 

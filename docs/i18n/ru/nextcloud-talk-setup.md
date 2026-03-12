@@ -12,15 +12,10 @@
 - Глубина: усиленный bridge (карта разделов + операционные подсказки)
 - Применение: сначала понять структуру, затем выполнять по английскому нормативному описанию.
 
-## Карта разделов оригинала
+## Навигация по оригиналу
 
-- [H2 · 1. What this integration does](../../nextcloud-talk-setup.md#1-what-this-integration-does)
-- [H2 · 2. Configuration](../../nextcloud-talk-setup.md#2-configuration)
-- [H2 · 3. Gateway endpoint](../../nextcloud-talk-setup.md#3-gateway-endpoint)
-- [H2 · 4. Signature verification contract](../../nextcloud-talk-setup.md#4-signature-verification-contract)
-- [H2 · 5. Message routing behavior](../../nextcloud-talk-setup.md#5-message-routing-behavior)
-- [H2 · 6. Quick validation checklist](../../nextcloud-talk-setup.md#6-quick-validation-checklist)
-- [H2 · 7. Troubleshooting](../../nextcloud-talk-setup.md#7-troubleshooting)
+- Для перехода по разделам опирайтесь на реальные заголовки английского оригинала.
+- Если структура bridge-страницы расходится с текущими заголовками английской версии, приоритет у английского оригинала.
 
 ## Практические рекомендации
 

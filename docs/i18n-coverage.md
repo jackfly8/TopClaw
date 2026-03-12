@@ -2,10 +2,9 @@
 
 This document defines the localization structure for TopClaw docs and tracks current coverage.
 
-Last refreshed: **March 9, 2026**.
+Last refreshed: **March 12, 2026**.
 
 Execution guide: [i18n-guide.md](i18n-guide.md)
-Gap backlog: [i18n-gap-backlog.md](i18n-gap-backlog.md)
 
 ## Canonical Layout
 
@@ -26,8 +25,8 @@ Use these i18n paths:
 | `ja` | `docs/i18n/ja/README.md` | `docs/i18n/ja/README.md` | `docs/i18n/ja/commands-reference.md` | `docs/i18n/ja/config-reference.md` | `docs/i18n/ja/troubleshooting.md` | Full top-level parity (bridge + localized) |
 | `ru` | `docs/i18n/ru/README.md` | `docs/i18n/ru/README.md` | `docs/i18n/ru/commands-reference.md` | `docs/i18n/ru/config-reference.md` | `docs/i18n/ru/troubleshooting.md` | Full top-level parity (bridge + localized) |
 | `fr` | `docs/i18n/fr/README.md` | `docs/i18n/fr/README.md` | `docs/i18n/fr/commands-reference.md` | `docs/i18n/fr/config-reference.md` | `docs/i18n/fr/troubleshooting.md` | Full top-level parity (bridge + localized) |
-| `vi` | `docs/i18n/vi/README.md` | `docs/i18n/vi/README.md` | `docs/i18n/vi/commands-reference.md` | `docs/i18n/vi/config-reference.md` | `docs/i18n/vi/troubleshooting.md` | Full tree localized |
-| `el` | `docs/i18n/el/README.md` | `docs/i18n/el/README.md` | `docs/i18n/el/commands-reference.md` | `docs/i18n/el/config-reference.md` | `docs/i18n/el/troubleshooting.md` | Full tree localized |
+| `vi` | `docs/i18n/vi/README.md` | `docs/i18n/vi/README.md` | `docs/i18n/vi/commands-reference.md` | `docs/i18n/vi/config-reference.md` | `docs/i18n/vi/troubleshooting.md` | Bridge pages + selected translated guides |
+| `el` | `docs/i18n/el/README.md` | `docs/i18n/el/README.md` | `docs/i18n/el/commands-reference.md` | `docs/i18n/el/config-reference.md` | `docs/i18n/el/troubleshooting.md` | Bridge pages + selected translated guides |
 
 ## Top-Level Parity Snapshot
 
@@ -52,8 +51,8 @@ As of 2026-02-24:
 | `ja` | 34 | Bridge pages include topic positioning + source section map + execution hints |
 | `ru` | 34 | Bridge pages include topic positioning + source section map + execution hints |
 | `fr` | 34 | Bridge pages include topic positioning + source section map + execution hints |
-| `vi` | N/A | Existing localization style kept as full localized tree |
-| `el` | N/A | Existing localization style kept as full localized tree |
+| `vi` | 34 | Runtime-contract pages now follow the same bridge-first pattern as other non-English locales; selected guides remain translated |
+| `el` | 34 | Runtime-contract pages now follow the same bridge-first pattern as other non-English locales; selected guides remain translated |
 
 ## Localized Landing Completeness
 
@@ -66,12 +65,12 @@ Not all localized landing pages are full translations of `README.md`:
 | `ja` | Hub-style entry point | ~26% |
 | `ru` | Hub-style entry point | ~26% |
 | `fr` | Near-complete translation | ~90% |
-| `vi` | Near-complete translation | ~90% |
-| `el` | Near-complete translation | ~90% |
+| `vi` | Hub + bridge + selected translated guides | ~55% |
+| `el` | Hub + bridge + selected translated guides | ~55% |
 
 Hub-style entry points provide quick-start orientation and language navigation but do not replicate the full English README content. This is an accurate status record, not a gap to be immediately resolved.
 
-For `zh-CN`, `ja`, `ru`, and `fr`, canonical `docs/i18n/<locale>/` hubs include full top-level parity coverage and maintain language navigation through canonical i18n paths.
+All supported non-English locale hubs maintain canonical `docs/i18n/<locale>/` navigation paths. English remains the only full runtime-contract source of truth; localized runtime-contract files may be bridge pages.
 
 ## Collection Index i18n
 

@@ -2,7 +2,7 @@
 
 This page defines the fastest supported path to install and initialize TopClaw.
 
-Last verified: **March 9, 2026**.
+Last verified: **March 12, 2026**.
 
 ## Safe update
 
@@ -27,7 +27,7 @@ topclaw service restart
 
 If `topclaw update` reports that the current binary location is not writable, fall back to the original install method:
 
-- repo checkout installs: `./bootstrap.sh --prefer-prebuilt`
+- hosted installer installs: `curl -fsSL https://raw.githubusercontent.com/topway-ai/topclaw/main/scripts/bootstrap.sh | bash`
 - source installs: `cargo install --path . --force --locked`
 - package-manager installs: update through that package manager
 
@@ -37,20 +37,16 @@ If `topclaw update` reports that the current binary location is not writable, fa
 brew install topclaw
 ```
 
-## Option A (Recommended): Clone + local script
+## Option A (Recommended): Hosted one-liner
 
 ```bash
-git clone https://github.com/topway-ai/topclaw.git
-cd topclaw
-./bootstrap.sh --install-system-deps --install-rust --prefer-prebuilt
+curl -fsSL https://raw.githubusercontent.com/topway-ai/topclaw/main/scripts/bootstrap.sh | bash
 ```
 
 Windows PowerShell equivalent:
 
 ```powershell
-git clone https://github.com/topway-ai/topclaw.git
-cd topclaw
-.\bootstrap.ps1 -InstallRust -PreferPrebuilt
+iwr -useb https://raw.githubusercontent.com/topway-ai/topclaw/main/bootstrap.ps1 | iex
 ```
 
 What this recommended path does:
@@ -64,6 +60,22 @@ Important:
 
 - `--prefer-prebuilt` may install the latest released TopClaw binary instead of building the exact checkout in your current repository
 - use `--force-source-build` when you need to validate local code changes
+
+For high-security environments, prefer the repo checkout path below so you can review the script before execution.
+
+## Option B: Clone + local script
+
+```bash
+git clone https://github.com/topway-ai/topclaw.git
+cd topclaw
+./bootstrap.sh --install-system-deps --install-rust --prefer-prebuilt
+```
+
+Windows PowerShell equivalent from a checkout:
+
+```powershell
+.\bootstrap.ps1 -InstallRust -PreferPrebuilt
+```
 
 ### Resource preflight and pre-built flow
 
@@ -109,15 +121,7 @@ Notes:
 - `--force-source-build` disables pre-built flow entirely.
 - On Windows, use `bootstrap.ps1` (`-InstallRust`, `-PreferPrebuilt`, `-PrebuiltOnly`, `-ForceSourceBuild`).
 
-## Option B: Remote one-liner
-
-```bash
-curl -fsSL https://raw.githubusercontent.com/topway-ai/topclaw/main/scripts/bootstrap.sh | bash
-```
-
-For high-security environments, prefer Option A so you can review the script before execution.
-
-Legacy compatibility:
+## Option C: Legacy compatibility one-liner
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/topway-ai/topclaw/main/scripts/install.sh | bash
@@ -125,7 +129,7 @@ curl -fsSL https://raw.githubusercontent.com/topway-ai/topclaw/main/scripts/inst
 
 This legacy endpoint prefers forwarding to `scripts/bootstrap.sh` and falls back to legacy source install if unavailable in that revision.
 
-If you run Option B outside a repository checkout, the bootstrap script automatically clones a temporary workspace, builds, installs, and then cleans it up.
+If you run Option A or Option C outside a repository checkout, the bootstrap script automatically clones a temporary workspace, builds, installs, and then cleans it up.
 
 ## Optional onboarding modes
 

@@ -12,12 +12,10 @@ Source anglaise:
 - Profondeur : passerelle enrichie (guidage de sections + conseils d'exécution)
 - Usage : comprendre la structure puis appliquer les étapes selon la source normative anglaise.
 
-## Plan des sections source
+## Navigation de la source
 
-- [H2 · Benchmark Results](../../cargo-slicer-speedup.md#benchmark-results)
-- [H2 · CI Integration](../../cargo-slicer-speedup.md#ci-integration)
-- [H2 · Local Usage](../../cargo-slicer-speedup.md#local-usage)
-- [H2 · How It Works](../../cargo-slicer-speedup.md#how-it-works)
+- Utilisez directement les titres réels du document anglais pour naviguer dans la source.
+- Si la structure de cette passerelle diverge de la version anglaise actuelle, la version anglaise prévaut.
 
 ## Conseils d'exécution
 

@@ -5,6 +5,7 @@
 Đồng bộ lần cuối: **2026-03-11**.
 
 > Lưu ý: Tên lệnh, khóa cấu hình và đường dẫn API giữ nguyên tiếng Anh. Khi có sai khác, tài liệu tiếng Anh là bản gốc.
+> Các tài liệu runtime-contract chi tiết hiện dùng mô hình "trang cầu nối": bản tiếng Việt giúp định hướng, còn hợp đồng hành vi đầy đủ nằm ở tài liệu tiếng Anh.
 
 ## Tổng quan dự án
 
@@ -44,7 +45,6 @@ Bề mặt kiến trúc công khai quan trọng:
 | Khắc phục sự cố cài đặt/chạy/kênh | [troubleshooting.md](troubleshooting.md) |
 | Cấu hình Matrix phòng mã hóa (E2EE) | [matrix-e2ee-guide.md](matrix-e2ee-guide.md) |
 | Xem theo danh mục | [SUMMARY.md](SUMMARY.md) |
-| Xem bản chụp PR/Issue | [project-triage-snapshot-2026-02-18.md](../../project-triage-snapshot-2026-02-18.md) |
 
 ## Tìm nhanh
 
@@ -110,8 +110,6 @@ Bề mặt kiến trúc công khai quan trọng:
 - Danh mục và phân loại tài liệu: [docs-inventory.md](docs-inventory.md)
 - Checklist hoàn thiện i18n: [i18n-guide.md](i18n-guide.md)
 - Bản đồ độ phủ i18n: [i18n-coverage.md](i18n-coverage.md)
-- Backlog thiếu hụt i18n: [i18n-gap-backlog.md](i18n-gap-backlog.md)
-- Snapshot kiểm toán tài liệu (2026-02-24): [docs-audit-2026-02-24.md](docs-audit-2026-02-24.md)
 
 ## Ngôn ngữ khác
 

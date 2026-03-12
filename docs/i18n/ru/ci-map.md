@@ -12,16 +12,10 @@
 - Глубина: усиленный bridge (карта разделов + операционные подсказки)
 - Применение: сначала понять структуру, затем выполнять по английскому нормативному описанию.
 
-## Карта разделов оригинала
+## Навигация по оригиналу
 
-- [H2 · Merge-Blocking vs Optional](../../ci-map.md#merge-blocking-vs-optional)
-- [H3 · Merge-Blocking](../../ci-map.md#merge-blocking)
-- [H3 · Non-Blocking but Important](../../ci-map.md#non-blocking-but-important)
-- [H3 · Optional Repository Automation](../../ci-map.md#optional-repository-automation)
-- [H2 · Trigger Map](../../ci-map.md#trigger-map)
-- [H2 · Fast Triage Guide](../../ci-map.md#fast-triage-guide)
-- [H2 · Maintenance Rules](../../ci-map.md#maintenance-rules)
-- [H2 · Automation Side-Effect Controls](../../ci-map.md#automation-side-effect-controls)
+- Для перехода по разделам опирайтесь на реальные заголовки английского оригинала.
+- Если структура bridge-страницы расходится с текущими заголовками английской версии, приоритет у английского оригинала.
 
 ## Практические рекомендации
 

@@ -12,20 +12,10 @@
 - Глубина: усиленный bridge (карта разделов + операционные подсказки)
 - Применение: сначала понять структуру, затем выполнять по английскому нормативному описанию.
 
-## Карта разделов оригинала
+## Навигация по оригиналу
 
-- [H2 · Quick Start: Add a Board via CLI](../../adding-boards-and-tools.md#quick-start-add-a-board-via-cli)
-- [H2 · Supported Boards](../../adding-boards-and-tools.md#supported-boards)
-- [H2 · Manual Config](../../adding-boards-and-tools.md#manual-config)
-- [H2 · Adding a Datasheet (RAG)](../../adding-boards-and-tools.md#adding-a-datasheet-rag)
-- [H3 · Pin Aliases (Recommended)](../../adding-boards-and-tools.md#pin-aliases-recommended)
-- [H2 · Pin Aliases](../../adding-boards-and-tools.md#pin-aliases)
-- [H2 · Pin Aliases](../../adding-boards-and-tools.md#pin-aliases)
-- [H3 · PDF Datasheets](../../adding-boards-and-tools.md#pdf-datasheets)
-- [H2 · Adding a New Board Type](../../adding-boards-and-tools.md#adding-a-new-board-type)
-- [H2 · Adding a Custom Tool](../../adding-boards-and-tools.md#adding-a-custom-tool)
-- [H2 · CLI Reference](../../adding-boards-and-tools.md#cli-reference)
-- [H2 · Troubleshooting](../../adding-boards-and-tools.md#troubleshooting)
+- Для перехода по разделам опирайтесь на реальные заголовки английского оригинала.
+- Если структура bridge-страницы расходится с текущими заголовками английской версии, приоритет у английского оригинала.
 
 ## Практические рекомендации
 

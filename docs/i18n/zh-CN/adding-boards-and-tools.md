@@ -12,20 +12,10 @@
 - 深度：增强 bridge（章节导览 + 执行提示）
 - 适用：先理解结构，再按英文规范逐条执行。
 
-## 原文章节导览
+## 原文导览
 
-- [H2 · Quick Start: Add a Board via CLI](../../adding-boards-and-tools.md#quick-start-add-a-board-via-cli)
-- [H2 · Supported Boards](../../adding-boards-and-tools.md#supported-boards)
-- [H2 · Manual Config](../../adding-boards-and-tools.md#manual-config)
-- [H2 · Adding a Datasheet (RAG)](../../adding-boards-and-tools.md#adding-a-datasheet-rag)
-- [H3 · Pin Aliases (Recommended)](../../adding-boards-and-tools.md#pin-aliases-recommended)
-- [H2 · Pin Aliases](../../adding-boards-and-tools.md#pin-aliases)
-- [H2 · Pin Aliases](../../adding-boards-and-tools.md#pin-aliases)
-- [H3 · PDF Datasheets](../../adding-boards-and-tools.md#pdf-datasheets)
-- [H2 · Adding a New Board Type](../../adding-boards-and-tools.md#adding-a-new-board-type)
-- [H2 · Adding a Custom Tool](../../adding-boards-and-tools.md#adding-a-custom-tool)
-- [H2 · CLI Reference](../../adding-boards-and-tools.md#cli-reference)
-- [H2 · Troubleshooting](../../adding-boards-and-tools.md#troubleshooting)
+- 直接以英文原文中的实际标题为准进行导航。
+- 如果桥接页中的中文说明与英文标题结构不一致，请优先阅读英文原文。
 
 ## 操作建议
 

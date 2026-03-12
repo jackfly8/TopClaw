@@ -12,18 +12,10 @@
 - Глубина: усиленный bridge (карта разделов + операционные подсказки)
 - Применение: сначала понять структуру, затем выполнять по английскому нормативному описанию.
 
-## Карта разделов оригинала
+## Навигация по оригиналу
 
-- [H2 · Current State: Strong Foundation](../../security-roadmap.md#current-state-strong-foundation)
-- [H2 · What's Missing: OS-Level Containment](../../security-roadmap.md#what-s-missing-os-level-containment)
-- [H2 · Comparison: TopClaw vs PicoClaw vs Production Grade](../../security-roadmap.md#comparison-topclaw-vs-picoclaw-vs-production-grade)
-- [H2 · Implementation Roadmap](../../security-roadmap.md#implementation-roadmap)
-- [H3 · Phase 1: Quick Wins (1-2 weeks)](../../security-roadmap.md#phase-1-quick-wins-1-2-weeks)
-- [H3 · Phase 2: Platform Integration (2-3 weeks)](../../security-roadmap.md#phase-2-platform-integration-2-3-weeks)
-- [H3 · Phase 3: Production Hardening (1-2 weeks)](../../security-roadmap.md#phase-3-production-hardening-1-2-weeks)
-- [H2 · New Config Schema Preview](../../security-roadmap.md#new-config-schema-preview)
-- [H2 · CLI Commands Preview](../../security-roadmap.md#cli-commands-preview)
-- [H2 · Summary](../../security-roadmap.md#summary)
+- Для перехода по разделам опирайтесь на реальные заголовки английского оригинала.
+- Если структура bridge-страницы расходится с текущими заголовками английской версии, приоритет у английского оригинала.
 
 ## Практические рекомендации
 
