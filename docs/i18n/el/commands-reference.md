@@ -2,13 +2,13 @@
 
 Αυτός ο οδηγός περιλαμβάνει το πλήρες σύνολο των εντολών που είναι διαθέσιμες στη διεπαφή γραμμής εντολών (CLI) του TopClaw.
 
-Τελευταία ενημέρωση: 9 Μαρτίου 2026.
+Τελευταία ενημέρωση: 12 Μαρτίου 2026.
 
 ## Σύνοψη Εντολών
 
 | Εντολή | Περιγραφή |
 |:---|:---|
-| `onboard` | Εκκίνηση της διαδικασίας αρχικής διαμόρφωσης και εγγραφής. |
+| `bootstrap` | Εκκίνηση της διαδικασίας αρχικής διαμόρφωσης και εγγραφής. |
 | `agent` | Έναρξη αλληλεπίδρασης με τον πράκτορα AI (Interactive Mode). |
 | `daemon` | Εκτέλεση του TopClaw ως διεργασία παρασκηνίου (Background Process). |
 | `service` | Διαχείριση της υπηρεσίας συστήματος (System Service). |
@@ -25,7 +25,7 @@
 
 Συνηθισμένα aliases:
 
-- `topclaw init` -> `topclaw onboard`
+- `topclaw init` -> `topclaw bootstrap`
 - `topclaw chat` -> `topclaw agent`
 - `topclaw run` -> `topclaw daemon`
 - `topclaw info` -> `topclaw status`
@@ -43,16 +43,18 @@
 | δοκιμάσετε γρήγορα ένα prompt | `topclaw agent -m "Hello, TopClaw!"` |
 | ελέγξετε το background runtime | `topclaw service status` |
 | εγκαταστήσετε/ξεκινήσετε χειροκίνητα το service | `topclaw service install`, `topclaw service start` |
-| ξανατρέξετε το onboarding | `topclaw onboard --interactive` |
+| ξανατρέξετε το onboarding | `topclaw bootstrap --interactive` |
 
 ---
 
 ## Ανάλυση Κύριων Εντολών
 
-### 1. `onboard` (Αρχική Διαμόρφωση)
+### 1. `bootstrap` (Αρχική Διαμόρφωση)
 
-- `topclaw onboard --interactive`: Διαδραστική καθοδήγηση για τη ρύθμιση του συστήματος.
-- `topclaw onboard --channels-only`: Εστιασμένη διαμόρφωση αποκλειστικά για τα κανάλια επικοινωνίας.
+Συμβατά aliases: `topclaw onboard`, `topclaw init`
+
+- `topclaw bootstrap --interactive`: Διαδραστική καθοδήγηση για τη ρύθμιση του συστήματος.
+- `topclaw bootstrap --channels-only`: Εστιασμένη διαμόρφωση αποκλειστικά για τα κανάλια επικοινωνίας.
 
 ### 2. `agent` (Διαδραστική Λειτουργία)
 
@@ -147,6 +149,6 @@ curl -fsSL https://raw.githubusercontent.com/topway-ai/topclaw/main/scripts/inst
 
 Για αναλυτικές πληροφορίες σχετικά με τις παραμέτρους κάθε εντολής, χρησιμοποιήστε το flag `--help`:
 `topclaw <command> --help`
-(π.χ. `topclaw onboard --help`)
+(π.χ. `topclaw bootstrap --help`)
 
 Για always-on channels, προτιμήστε `topclaw service ...`. Το `topclaw channel start` είναι κυρίως για foreground debugging. Δείτε και [runtime-model.md](runtime-model.md).

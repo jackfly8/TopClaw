@@ -341,7 +341,7 @@ impl Provider for OpenRouterProvider {
         temperature: f64,
     ) -> anyhow::Result<String> {
         let credential = self.credential.as_ref()
-            .ok_or_else(|| anyhow::anyhow!("OpenRouter API key not set. Run `topclaw onboard` or set OPENROUTER_API_KEY env var."))?;
+            .ok_or_else(|| anyhow::anyhow!("OpenRouter API key not set. Run `topclaw bootstrap` or set OPENROUTER_API_KEY env var."))?;
 
         let mut messages = Vec::new();
 
@@ -395,7 +395,7 @@ impl Provider for OpenRouterProvider {
         temperature: f64,
     ) -> anyhow::Result<String> {
         let credential = self.credential.as_ref()
-            .ok_or_else(|| anyhow::anyhow!("OpenRouter API key not set. Run `topclaw onboard` or set OPENROUTER_API_KEY env var."))?;
+            .ok_or_else(|| anyhow::anyhow!("OpenRouter API key not set. Run `topclaw bootstrap` or set OPENROUTER_API_KEY env var."))?;
 
         let api_messages: Vec<Message> = messages
             .iter()
@@ -444,7 +444,7 @@ impl Provider for OpenRouterProvider {
     ) -> anyhow::Result<ProviderChatResponse> {
         let credential = self.credential.as_ref().ok_or_else(|| {
             anyhow::anyhow!(
-            "OpenRouter API key not set. Run `topclaw onboard` or set OPENROUTER_API_KEY env var."
+            "OpenRouter API key not set. Run `topclaw bootstrap` or set OPENROUTER_API_KEY env var."
         )
         })?;
 
@@ -501,7 +501,7 @@ impl Provider for OpenRouterProvider {
     ) -> anyhow::Result<ProviderChatResponse> {
         let credential = self.credential.as_ref().ok_or_else(|| {
             anyhow::anyhow!(
-                "OpenRouter API key not set. Run `topclaw onboard` or set OPENROUTER_API_KEY env var."
+                "OpenRouter API key not set. Run `topclaw bootstrap` or set OPENROUTER_API_KEY env var."
             )
         })?;
 

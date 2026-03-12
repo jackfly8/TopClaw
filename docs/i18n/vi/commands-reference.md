@@ -2,13 +2,13 @@
 
 Dựa trên CLI hiện tại (`topclaw --help`).
 
-Xác minh lần cuối: **2026-03-09**.
+Xác minh lần cuối: **2026-03-12**.
 
 ## Lệnh cấp cao nhất
 
 | Lệnh | Mục đích |
 |---|---|
-| `onboard` | Khởi tạo workspace/config nhanh hoặc tương tác |
+| `bootstrap` | Khởi tạo workspace/config nhanh hoặc tương tác |
 | `agent` | Chạy chat tương tác hoặc chế độ gửi tin nhắn đơn |
 | `gateway` | Khởi động gateway webhook và HTTP WhatsApp |
 | `daemon` | Khởi động runtime có giám sát (gateway + channels + heartbeat/scheduler tùy chọn) |
@@ -31,7 +31,7 @@ Xác minh lần cuối: **2026-03-09**.
 
 Bí danh thông dụng:
 
-- `topclaw init` -> `topclaw onboard`
+- `topclaw init` -> `topclaw bootstrap`
 - `topclaw chat` -> `topclaw agent`
 - `topclaw run` -> `topclaw daemon`
 - `topclaw info` -> `topclaw status`
@@ -49,17 +49,19 @@ Bí danh thông dụng:
 | thử nhanh một prompt | `topclaw agent -m "Hello, TopClaw!"` |
 | kiểm tra runtime nền cho channel | `topclaw service status` |
 | cài và khởi động service thủ công | `topclaw service install`, `topclaw service start` |
-| chạy lại onboarding | `topclaw onboard --interactive` |
+| chạy lại onboarding | `topclaw bootstrap --interactive` |
 
 ## Nhóm lệnh
 
-### `onboard`
+### `bootstrap`
 
-- `topclaw onboard`
-- `topclaw onboard --interactive`
-- `topclaw onboard --channels-only`
-- `topclaw onboard --api-key <KEY> --provider <ID> --memory <sqlite|lucid|markdown|none>`
-- `topclaw onboard --api-key <KEY> --provider <ID> --model <MODEL_ID> --memory <sqlite|lucid|markdown|none>`
+Alias tương thích: `topclaw onboard`, `topclaw init`
+
+- `topclaw bootstrap`
+- `topclaw bootstrap --interactive`
+- `topclaw bootstrap --channels-only`
+- `topclaw bootstrap --api-key <KEY> --provider <ID> --memory <sqlite|lucid|markdown|none>`
+- `topclaw bootstrap --api-key <KEY> --provider <ID> --model <MODEL_ID> --memory <sqlite|lucid|markdown|none>`
 
 ### `agent`
 

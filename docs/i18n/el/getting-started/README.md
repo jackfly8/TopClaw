@@ -17,11 +17,11 @@
 
 | Σενάριο Χρήσης | Εντολή CLI |
 |:---|:---|
-| Διαθέτω API Key και επιθυμώ άμεση ρύθμιση | `topclaw onboard --api-key sk-... --provider openrouter` |
-| Χρειάζομαι OAuth ή subscription login αντί για API key | Εκτελέστε `topclaw onboard --interactive` και ακολουθήστε το prompt σύνδεσης |
-| Επιθυμώ διαδραστική καθοδήγηση (Step-by-step) | `topclaw onboard --interactive` |
-| Επιθυμώ μόνο τη ρύθμιση καναλιών επικοινωνίας | `topclaw onboard --channels-only` |
-| Επιθυμώ πλήρη αντικατάσταση υπαρχουσών ρυθμίσεων | `topclaw onboard --force` |
+| Διαθέτω API Key και επιθυμώ άμεση ρύθμιση | `topclaw bootstrap --api-key sk-... --provider openrouter` |
+| Χρειάζομαι OAuth ή subscription login αντί για API key | Εκτελέστε `topclaw bootstrap --interactive` και ακολουθήστε το prompt σύνδεσης |
+| Επιθυμώ διαδραστική καθοδήγηση (Step-by-step) | `topclaw bootstrap --interactive` |
+| Επιθυμώ μόνο τη ρύθμιση καναλιών επικοινωνίας | `topclaw bootstrap --channels-only` |
+| Επιθυμώ πλήρη αντικατάσταση υπαρχουσών ρυθμίσεων | `topclaw bootstrap --force` |
 | Δεν είναι σαφές αν χρειάζομαι `agent`, `service` ή `daemon` | Δείτε το [runtime-model.md](../runtime-model.md) |
 
 ---

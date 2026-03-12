@@ -138,6 +138,9 @@ If you run Option B outside a repository checkout, the bootstrap script automati
 This builds a local TopClaw image and launches onboarding inside a container while
 persisting config/workspace to `./.topclaw-docker`.
 
+Inside the container, TopClaw now runs `topclaw bootstrap` as the canonical setup
+command. `topclaw onboard` remains available as a compatibility alias.
+
 Container CLI defaults to `docker`. If Docker CLI is unavailable and `podman` exists,
 bootstrap auto-falls back to `podman`. You can also set `TOPCLAW_CONTAINER_CLI`
 explicitly (for example: `TOPCLAW_CONTAINER_CLI=podman ./bootstrap.sh --docker`).

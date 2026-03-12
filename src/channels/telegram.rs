@@ -838,7 +838,7 @@ impl TelegramChannel {
             anyhow::bail!(
                 "Missing [channels.telegram] section in config.toml. \
                 Add bot_token and allowed_users under [channels.telegram], \
-                or run `topclaw onboard --channels-only` to configure interactively"
+                or run `topclaw bootstrap --channels-only` to configure interactively"
             );
         };
 

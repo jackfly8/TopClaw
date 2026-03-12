@@ -100,7 +100,7 @@ impl WhatsAppChannel {
                         tracing::warn!(
                             "WhatsApp: ignoring message from unauthorized number: {normalized_from}. \
                             Add to channels.whatsapp.allowed_numbers in config.toml, \
-                            or run `topclaw onboard --channels-only` to configure interactively."
+                            or run `topclaw bootstrap --channels-only` to configure interactively."
                         );
                         continue;
                     }

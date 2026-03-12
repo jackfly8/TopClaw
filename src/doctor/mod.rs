@@ -176,7 +176,7 @@ fn next_step_suggestions(config: &Config, results: &[DiagResult]) -> Vec<String>
     }) {
         push_unique(
             &mut suggestions,
-            "topclaw onboard --interactive".to_string(),
+            "topclaw bootstrap --interactive".to_string(),
         );
     }
 
@@ -228,7 +228,7 @@ fn next_step_suggestions(config: &Config, results: &[DiagResult]) -> Vec<String>
     }) {
         push_unique(
             &mut suggestions,
-            "topclaw onboard --channels-only".to_string(),
+            "topclaw bootstrap --channels-only".to_string(),
         );
     }
 
@@ -784,7 +784,7 @@ fn check_config_semantics(config: &Config, items: &mut Vec<DiagItem>) {
     } else {
         items.push(DiagItem::warn(
             cat,
-            "no channels configured — run `topclaw onboard` to set one up",
+            "no channels configured — run `topclaw bootstrap` to set one up",
         ));
     }
 
@@ -1305,8 +1305,8 @@ mod tests {
 
         let suggestions = next_step_suggestions(&config, &results);
 
-        assert!(suggestions.contains(&"topclaw onboard --interactive".to_string()));
-        assert!(suggestions.contains(&"topclaw onboard --channels-only".to_string()));
+        assert!(suggestions.contains(&"topclaw bootstrap --interactive".to_string()));
+        assert!(suggestions.contains(&"topclaw bootstrap --channels-only".to_string()));
     }
 
     #[test]

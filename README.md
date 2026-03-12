@@ -78,7 +78,7 @@ If you already know which auth path you need:
 API key providers:
 
 ```bash
-topclaw onboard --api-key "sk-..." --provider openrouter
+topclaw bootstrap --api-key "sk-..." --provider openrouter
 ```
 
 OAuth or subscription providers:

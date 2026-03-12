@@ -466,8 +466,8 @@ fn ensure_background_service_for_channels(config: &Config) -> Result<BackgroundS
 // ── Quick setup (zero prompts) ───────────────────────────────────
 
 /// Non-interactive setup: generates a sensible default config instantly.
-/// Use `topclaw onboard` or `topclaw onboard --api-key sk-... --provider openrouter --memory sqlite|lucid`.
-/// Use `topclaw onboard --interactive` for the full wizard.
+/// Use `topclaw bootstrap` or `topclaw bootstrap --api-key sk-... --provider openrouter --memory sqlite|lucid`.
+/// Use `topclaw bootstrap --interactive` for the full wizard.
 fn backend_key_from_choice(choice: usize) -> &'static str {
     selectable_memory_backends()
         .get(choice)
@@ -4059,6 +4059,13 @@ fn channel_menu_choices() -> &'static [ChannelMenuChoice] {
     CHANNEL_MENU_CHOICES
 }
 
+fn default_channel_menu_index() -> usize {
+    channel_menu_choices()
+        .iter()
+        .position(|choice| matches!(choice, ChannelMenuChoice::Telegram))
+        .unwrap_or(0)
+}
+
 #[allow(clippy::too_many_lines)]
 fn setup_channels() -> Result<ChannelsConfig> {
     print_bullet("Channels let you talk to TopClaw from anywhere.");
@@ -4199,7 +4206,7 @@ fn setup_channels() -> Result<ChannelsConfig> {
         let selection = Select::new()
             .with_prompt("  Connect a channel (or Done to continue)")
             .items(&options)
-            .default(options.len() - 1)
+            .default(default_channel_menu_index())
             .interact()?;
 
         let choice = menu_choices
@@ -6400,7 +6407,10 @@ fn print_summary(config: &Config, service_outcome: &BackgroundServiceOutcome) {
                     "    {} Complete provider setup:",
                     style(format!("{step}.")).cyan().bold()
                 );
-                println!("       {}", style("topclaw onboard --interactive").yellow());
+                println!(
+                    "       {}",
+                    style("topclaw bootstrap --interactive").yellow()
+                );
             }
             ProviderNextStep::OpenAiCodexAuth => {
                 println!(
@@ -6478,7 +6488,7 @@ fn print_summary(config: &Config, service_outcome: &BackgroundServiceOutcome) {
         );
         println!(
             "       {}",
-            style("topclaw onboard --channels-only").yellow()
+            style("topclaw bootstrap --channels-only").yellow()
         );
         println!();
         step += 1;
@@ -8106,6 +8116,14 @@ mod tests {
     fn channel_menu_choices_include_signal_and_nextcloud_talk() {
         assert!(channel_menu_choices().contains(&ChannelMenuChoice::Signal));
         assert!(channel_menu_choices().contains(&ChannelMenuChoice::NextcloudTalk));
+    }
+
+    #[test]
+    fn default_channel_menu_prefers_telegram() {
+        let default_choice = channel_menu_choices()
+            .get(default_channel_menu_index())
+            .copied();
+        assert_eq!(default_choice, Some(ChannelMenuChoice::Telegram));
     }
 
     #[test]

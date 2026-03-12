@@ -123,7 +123,7 @@ enum EstopLevelArg {
 #[command(about = "TopClaw command-line interface", long_about = None)]
 #[command(after_help = "\
 Start here:
-  topclaw onboard                  # first-time setup
+  topclaw bootstrap                # first-time setup
   topclaw agent                    # interactive chat
   topclaw daemon                   # always-on runtime
 
@@ -162,7 +162,7 @@ struct Cli {
 #[derive(Subcommand, Debug)]
 enum Commands {
     /// Set up TopClaw for first use
-    #[command(visible_alias = "init")]
+    #[command(name = "bootstrap", visible_alias = "onboard", visible_alias = "init")]
     Onboard {
         /// Run the full interactive wizard (default is quick setup)
         #[arg(long)]
@@ -499,7 +499,7 @@ to messaging platforms. Supported channel types: telegram, discord, \
 slack, whatsapp, matrix, imessage, email.
 
 Examples:
-  topclaw onboard --channels-only   # guided channel setup without touching provider settings
+  topclaw bootstrap --channels-only # guided channel setup without touching provider settings
   topclaw channel list
   topclaw channel doctor
   topclaw channel add telegram '{\"bot_token\":\"123456:ABC...\",\"name\":\"my-bot\",\"allowed_users\":[\"topclaw_user\"]}'
@@ -1387,28 +1387,28 @@ mod tests {
     }
 
     #[test]
-    fn onboard_help_includes_model_flag() {
+    fn bootstrap_help_includes_model_flag() {
         let cmd = Cli::command();
-        let onboard = cmd
+        let bootstrap = cmd
             .get_subcommands()
-            .find(|subcommand| subcommand.get_name() == "onboard")
-            .expect("onboard subcommand must exist");
+            .find(|subcommand| subcommand.get_name() == "bootstrap")
+            .expect("bootstrap subcommand must exist");
 
-        let has_model_flag = onboard
+        let has_model_flag = bootstrap
             .get_arguments()
             .any(|arg| arg.get_id().as_str() == "model" && arg.get_long() == Some("model"));
 
         assert!(
             has_model_flag,
-            "onboard help should include --model for quick setup overrides"
+            "bootstrap help should include --model for quick setup overrides"
         );
     }
 
     #[test]
-    fn onboard_cli_accepts_model_provider_and_api_key_in_quick_mode() {
+    fn bootstrap_cli_accepts_model_provider_and_api_key_in_quick_mode() {
         let cli = Cli::try_parse_from([
             "topclaw",
-            "onboard",
+            "bootstrap",
             "--provider",
             "openrouter",
             "--model",
@@ -1435,7 +1435,7 @@ mod tests {
                 assert_eq!(model.as_deref(), Some("custom-model-946"));
                 assert_eq!(api_key.as_deref(), Some("sk-issue946"));
             }
-            other => panic!("expected onboard command, got {other:?}"),
+            other => panic!("expected bootstrap command, got {other:?}"),
         }
     }
 
@@ -1503,23 +1503,33 @@ mod tests {
     }
 
     #[test]
-    fn onboard_cli_accepts_force_flag() {
-        let cli = Cli::try_parse_from(["topclaw", "onboard", "--force"])
-            .expect("onboard --force should parse");
+    fn bootstrap_cli_accepts_force_flag() {
+        let cli = Cli::try_parse_from(["topclaw", "bootstrap", "--force"])
+            .expect("bootstrap --force should parse");
 
         match cli.command {
             Commands::Onboard { force, .. } => assert!(force),
-            other => panic!("expected onboard command, got {other:?}"),
+            other => panic!("expected bootstrap command, got {other:?}"),
         }
     }
 
     #[test]
-    fn onboard_cli_accepts_init_alias() {
+    fn bootstrap_cli_accepts_onboard_alias() {
+        let cli = Cli::try_parse_from(["topclaw", "onboard"]).expect("onboard alias should parse");
+
+        match cli.command {
+            Commands::Onboard { .. } => {}
+            other => panic!("expected bootstrap command, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn bootstrap_cli_accepts_init_alias() {
         let cli = Cli::try_parse_from(["topclaw", "init"]).expect("init alias should parse");
 
         match cli.command {
             Commands::Onboard { .. } => {}
-            other => panic!("expected onboard command, got {other:?}"),
+            other => panic!("expected bootstrap command, got {other:?}"),
         }
     }
 

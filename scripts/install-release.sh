@@ -65,7 +65,7 @@ Usage: install-release.sh [--no-onboard]
 Installs the latest Linux TopClaw binary from official GitHub releases.
 
 Options:
-  --no-onboard   Install only; do not run `topclaw onboard`
+  --no-onboard   Install only; do not run `topclaw bootstrap`
 
 Environment:
   TOPCLAW_INSTALL_DIR  Override install directory
@@ -141,4 +141,4 @@ if [ "$NO_ONBOARD" -eq 1 ]; then
 fi
 
 echo "==> Starting onboarding"
-exec "$BIN_PATH" onboard
+exec "$BIN_PATH" bootstrap

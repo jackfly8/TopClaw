@@ -124,6 +124,9 @@ Nếu chạy Cách B ngoài thư mục repo, bootstrap script sẽ tự clone wo
 
 Lệnh này build image TopClaw cục bộ và chạy thiết lập trong container, lưu config/workspace vào `./.topclaw-docker`.
 
+Bên trong container, TopClaw hiện dùng `topclaw bootstrap` làm lệnh thiết lập chuẩn.
+`topclaw onboard` vẫn được giữ làm alias tương thích.
+
 CLI container mặc định là `docker`. Nếu Docker CLI không có mà `podman` tồn tại, bootstrap sẽ tự fallback sang `podman`. Bạn cũng có thể đặt `TOPCLAW_CONTAINER_CLI` tường minh (ví dụ: `TOPCLAW_CONTAINER_CLI=podman ./bootstrap.sh --docker`).
 
 Với Podman, bootstrap chạy cùng `--userns keep-id` và volume label `:Z` để mount workspace/config vẫn ghi được trong container.
