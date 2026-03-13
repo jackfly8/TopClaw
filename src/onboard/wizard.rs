@@ -21,6 +21,7 @@ use crate::providers::{
 use anyhow::{bail, Context, Result};
 use console::style;
 use dialoguer::{Confirm, Input, Select};
+use regex::Regex;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::collections::BTreeMap;
@@ -69,6 +70,7 @@ const MODEL_PREVIEW_LIMIT: usize = 20;
 const MODEL_CACHE_FILE: &str = "models_cache.json";
 const MODEL_CACHE_TTL_SECS: u64 = 12 * 60 * 60;
 const CUSTOM_MODEL_SENTINEL: &str = "__custom_model__";
+const OPENROUTER_ONBOARDING_MODEL_LIMIT: usize = 10;
 
 fn has_launchable_channels(channels: &ChannelsConfig) -> bool {
     channels.channels_except_webhook().iter().any(|(_, ok)| *ok)
@@ -1409,6 +1411,137 @@ fn parse_openai_compatible_model_ids(payload: &Value) -> Vec<String> {
     normalize_model_ids(models)
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct OpenRouterModelSummary {
+    id: String,
+    name: String,
+}
+
+fn parse_openrouter_model_summaries(payload: &Value) -> Vec<OpenRouterModelSummary> {
+    let entries = payload
+        .get("data")
+        .and_then(Value::as_array)
+        .or_else(|| payload.as_array());
+
+    let Some(entries) = entries else {
+        return Vec::new();
+    };
+
+    let mut unique = BTreeMap::new();
+    for model in entries {
+        let Some(id) = model.get("id").and_then(Value::as_str).map(str::trim) else {
+            continue;
+        };
+        if id.is_empty() {
+            continue;
+        }
+        let name = model
+            .get("name")
+            .and_then(Value::as_str)
+            .map(str::trim)
+            .filter(|name| !name.is_empty())
+            .unwrap_or(id);
+
+        unique
+            .entry(id.to_ascii_lowercase())
+            .or_insert_with(|| OpenRouterModelSummary {
+                id: id.to_string(),
+                name: name.to_string(),
+            });
+    }
+
+    unique.into_values().collect()
+}
+
+fn normalize_openrouter_ranking_name(name: &str) -> String {
+    let mut normalized = String::with_capacity(name.len());
+    let mut last_was_space = false;
+
+    for ch in name.chars() {
+        let mapped = match ch {
+            ':' | '/' | '-' | '_' => ' ',
+            _ => ch,
+        };
+
+        if mapped.is_ascii_alphanumeric() {
+            normalized.push(mapped.to_ascii_lowercase());
+            last_was_space = false;
+        } else if mapped.is_whitespace() && !last_was_space && !normalized.is_empty() {
+            normalized.push(' ');
+            last_was_space = true;
+        }
+    }
+
+    normalized.trim().to_string()
+}
+
+fn parse_openrouter_rankings_model_names(html: &str, limit: usize) -> Vec<String> {
+    let Some(leaderboard_start) = html.find("LLM Leaderboard") else {
+        return Vec::new();
+    };
+    let leaderboard_html = &html[leaderboard_start..];
+    let link_regex = Regex::new(r#"<a[^>]+href="/[^"/?#]+/[^"?#]+"[^>]*>([^<]+)</a>"#)
+        .expect("valid OpenRouter rankings link regex");
+
+    let mut names = Vec::new();
+    for capture in link_regex.captures_iter(leaderboard_html) {
+        let Some(name) = capture.get(1).map(|value| value.as_str().trim()) else {
+            continue;
+        };
+        if name.is_empty()
+            || name.eq_ignore_ascii_case("Top Apps")
+            || name.eq_ignore_ascii_case("View all")
+        {
+            continue;
+        }
+        if names.iter().any(|existing| existing == name) {
+            continue;
+        }
+        names.push(name.to_string());
+        if names.len() >= limit {
+            break;
+        }
+    }
+
+    names
+}
+
+fn match_openrouter_rankings_to_model_ids(
+    ranked_names: &[String],
+    catalog: &[OpenRouterModelSummary],
+    limit: usize,
+) -> Vec<String> {
+    let mut matched = Vec::new();
+    let mut catalog_by_name = BTreeMap::new();
+    for entry in catalog {
+        catalog_by_name.insert(
+            normalize_openrouter_ranking_name(&entry.name),
+            entry.id.clone(),
+        );
+        catalog_by_name.insert(
+            normalize_openrouter_ranking_name(&entry.id),
+            entry.id.clone(),
+        );
+    }
+
+    for ranked_name in ranked_names {
+        let normalized = normalize_openrouter_ranking_name(ranked_name);
+        if normalized.is_empty() {
+            continue;
+        }
+        if let Some(model_id) = catalog_by_name.get(&normalized) {
+            if !matched.iter().any(|existing| existing == model_id) {
+                matched.push(model_id.clone());
+            }
+        }
+        if matched.len() >= limit {
+            break;
+        }
+    }
+
+    matched
+}
+
 fn parse_gemini_model_ids(payload: &Value) -> Vec<String> {
     let Some(models) = payload.get("models").and_then(Value::as_array) else {
         return Vec::new();
@@ -1491,6 +1624,50 @@ fn fetch_openrouter_models(api_key: Option<&str>) -> Result<Vec<String>> {
         .context("failed to parse OpenRouter model list response")?;
 
     Ok(parse_openai_compatible_model_ids(&payload))
+}
+
+fn fetch_openrouter_top_onboarding_models(api_key: Option<&str>) -> Result<Vec<String>> {
+    let client = build_model_fetch_client()?;
+    let mut models_request = client.get("https://openrouter.ai/api/v1/models");
+    if let Some(api_key) = api_key {
+        models_request = models_request.bearer_auth(api_key);
+    }
+
+    let models_payload: Value = models_request
+        .send()
+        .and_then(reqwest::blocking::Response::error_for_status)
+        .context("model fetch failed: GET https://openrouter.ai/api/v1/models")?
+        .json()
+        .context("failed to parse OpenRouter model list response")?;
+    let catalog = parse_openrouter_model_summaries(&models_payload);
+    if catalog.is_empty() {
+        bail!("OpenRouter returned no models");
+    }
+
+    let rankings_html = client
+        .get("https://openrouter.ai/rankings")
+        .send()
+        .and_then(reqwest::blocking::Response::error_for_status)
+        .context("model fetch failed: GET https://openrouter.ai/rankings")?
+        .text()
+        .context("failed to read OpenRouter rankings page")?;
+
+    let ranked_names =
+        parse_openrouter_rankings_model_names(&rankings_html, OPENROUTER_ONBOARDING_MODEL_LIMIT);
+    if ranked_names.is_empty() {
+        bail!("failed to parse OpenRouter rankings page");
+    }
+
+    let ranked_ids = match_openrouter_rankings_to_model_ids(
+        &ranked_names,
+        &catalog,
+        OPENROUTER_ONBOARDING_MODEL_LIMIT,
+    );
+    if ranked_ids.is_empty() {
+        bail!("failed to match OpenRouter ranking entries to model IDs");
+    }
+
+    Ok(ranked_ids)
 }
 
 fn fetch_anthropic_models(api_key: Option<&str>) -> Result<Vec<String>> {
@@ -2945,6 +3122,57 @@ async fn prompt_for_default_model(
     provider_api_url: Option<&str>,
 ) -> Result<String> {
     let canonical_provider = canonical_provider_name(provider_name);
+    if canonical_provider == "openrouter" {
+        let mut model_options = match fetch_openrouter_top_onboarding_models(
+            (!api_key.trim().is_empty()).then_some(api_key.trim()),
+        ) {
+            Ok(model_ids) => {
+                print_bullet(&format!(
+                    "Fetched the current top {} OpenRouter models.",
+                    model_ids.len()
+                ));
+                build_model_options(model_ids, "OpenRouter top usage")
+            }
+            Err(error) => {
+                print_bullet(&format!(
+                    "Could not fetch OpenRouter top models ({}); using the curated starter list.",
+                    style(error.to_string()).yellow()
+                ));
+                curated_models_for_provider(canonical_provider)
+                    .into_iter()
+                    .take(OPENROUTER_ONBOARDING_MODEL_LIMIT)
+                    .collect()
+            }
+        };
+
+        model_options.truncate(OPENROUTER_ONBOARDING_MODEL_LIMIT);
+        model_options.push((
+            CUSTOM_MODEL_SENTINEL.to_string(),
+            "Custom model ID (type manually)".to_string(),
+        ));
+
+        let model_labels: Vec<String> = model_options
+            .iter()
+            .map(|(model_id, label)| format!("{label} — {}", style(model_id).dim()))
+            .collect();
+
+        let model_idx = Select::new()
+            .with_prompt("  Select your default model")
+            .items(&model_labels)
+            .default(0)
+            .interact()?;
+
+        let selected_model = model_options[model_idx].0.clone();
+        return Ok(if selected_model == CUSTOM_MODEL_SENTINEL {
+            Input::new()
+                .with_prompt("  Enter custom model ID")
+                .default(default_model_for_provider(provider_name))
+                .interact_text()?
+        } else {
+            selected_model
+        });
+    }
+
     let mut model_options: Vec<(String, String)> = curated_models_for_provider(canonical_provider);
 
     let mut live_options: Option<Vec<(String, String)>> = None;
@@ -3871,7 +4099,14 @@ fn channel_menu_choices() -> &'static [ChannelMenuChoice] {
     CHANNEL_MENU_CHOICES
 }
 
-fn default_channel_menu_index() -> usize {
+fn default_channel_menu_index(config: &ChannelsConfig) -> usize {
+    if config.channels().iter().any(|(_, configured)| *configured) {
+        return channel_menu_choices()
+            .iter()
+            .position(|choice| matches!(choice, ChannelMenuChoice::Done))
+            .unwrap_or(0);
+    }
+
     channel_menu_choices()
         .iter()
         .position(|choice| matches!(choice, ChannelMenuChoice::Telegram))
@@ -4018,7 +4253,7 @@ fn setup_channels() -> Result<ChannelsConfig> {
         let selection = Select::new()
             .with_prompt("  Connect a channel (or Done to continue)")
             .items(&options)
-            .default(default_channel_menu_index())
+            .default(default_channel_menu_index(&config))
             .interact()?;
 
         let choice = menu_choices
@@ -7316,6 +7551,64 @@ mod tests {
     }
 
     #[test]
+    fn parse_openrouter_rankings_model_names_extracts_top_models() {
+        let html = r#"
+            <html>
+              <body>
+                <h2>Top Apps</h2>
+                <a href="/some/app">Ignore app card</a>
+                <h2>LLM Leaderboard</h2>
+                <a href="/anthropic/claude-sonnet-4.6">Claude Sonnet 4.6</a>
+                <a href="/google/gemini-2.5-pro">Gemini 2.5 Pro</a>
+                <a href="/openai/gpt-5">GPT-5</a>
+                <a href="/anthropic/claude-sonnet-4.6">Claude Sonnet 4.6</a>
+              </body>
+            </html>
+        "#;
+
+        assert_eq!(
+            parse_openrouter_rankings_model_names(html, 10),
+            vec![
+                "Claude Sonnet 4.6".to_string(),
+                "Gemini 2.5 Pro".to_string(),
+                "GPT-5".to_string()
+            ]
+        );
+    }
+
+    #[test]
+    fn match_openrouter_rankings_to_model_ids_resolves_catalog_names() {
+        let ranked_names = vec![
+            "Claude Sonnet 4.6".to_string(),
+            "Gemini 2.5 Pro".to_string(),
+            "GPT-5".to_string(),
+        ];
+        let catalog = vec![
+            OpenRouterModelSummary {
+                id: "anthropic/claude-sonnet-4.6".to_string(),
+                name: "Claude Sonnet 4.6".to_string(),
+            },
+            OpenRouterModelSummary {
+                id: "google/gemini-2.5-pro".to_string(),
+                name: "Gemini 2.5 Pro".to_string(),
+            },
+            OpenRouterModelSummary {
+                id: "openai/gpt-5".to_string(),
+                name: "GPT-5".to_string(),
+            },
+        ];
+
+        assert_eq!(
+            match_openrouter_rankings_to_model_ids(&ranked_names, &catalog, 10),
+            vec![
+                "anthropic/claude-sonnet-4.6".to_string(),
+                "google/gemini-2.5-pro".to_string(),
+                "openai/gpt-5".to_string(),
+            ]
+        );
+    }
+
+    #[test]
     fn curated_models_for_bedrock_include_verified_model_ids() {
         let ids: Vec<String> = curated_models_for_provider("bedrock")
             .into_iter()
@@ -7964,9 +8257,28 @@ mod tests {
     #[test]
     fn default_channel_menu_prefers_telegram() {
         let default_choice = channel_menu_choices()
-            .get(default_channel_menu_index())
+            .get(default_channel_menu_index(&ChannelsConfig::default()))
             .copied();
         assert_eq!(default_choice, Some(ChannelMenuChoice::Telegram));
+    }
+
+    #[test]
+    fn default_channel_menu_prefers_done_after_one_channel_is_configured() {
+        let mut channels = ChannelsConfig::default();
+        channels.telegram = Some(TelegramConfig {
+            bot_token: "test-token".into(),
+            allowed_users: vec!["topclaw_user".into()],
+            stream_mode: StreamMode::Off,
+            draft_update_interval_ms: 500,
+            interrupt_on_new_message: false,
+            group_reply: None,
+            base_url: None,
+        });
+
+        let default_choice = channel_menu_choices()
+            .get(default_channel_menu_index(&channels))
+            .copied();
+        assert_eq!(default_choice, Some(ChannelMenuChoice::Done));
     }
 
     #[test]
