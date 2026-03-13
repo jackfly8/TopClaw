@@ -93,7 +93,6 @@ use crate::tools::channel_runtime_context::{
 use crate::tools::{self, Tool};
 use crate::util::truncate_with_ellipsis;
 use anyhow::{Context, Result};
-#[cfg(test)]
 use capability_detection::looks_like_remote_repo_review_request;
 use capability_detection::{
     extract_json_object, looks_like_file_read_task, looks_like_file_write_task,
@@ -607,13 +606,42 @@ fn summarize_internal_progress_delta(delta: &str) -> Option<String> {
     if trimmed.starts_with("⏳ Still working") || trimmed.starts_with("🤔 Still thinking") {
         Some(format!("{trimmed}\n"))
     } else if trimmed.contains("Thinking") {
-        Some("Thinking...\n".to_string())
+        None
     } else if trimmed.starts_with('↻') || trimmed.contains("Retrying:") {
-        Some("Retrying...\n".to_string())
-    } else if trimmed.starts_with('⏳') || trimmed.contains("tool call") {
-        Some("Working...\n".to_string())
+        Some("Retrying the previous step...\n".to_string())
+    } else if let Some(rest) = trimmed.strip_prefix("⏳ ") {
+        let (tool_name, detail) = match rest.split_once(':') {
+            Some((name, detail)) => (name.trim(), Some(detail.trim())),
+            None => (rest.split_whitespace().next().unwrap_or("").trim(), None),
+        };
+
+        if tool_name.is_empty() || tool_name.eq_ignore_ascii_case("Still") {
+            Some(format!("{trimmed}\n"))
+        } else if let Some(detail) = detail.filter(|detail| !detail.is_empty()) {
+            Some(format!("Using `{tool_name}`: {detail}\n"))
+        } else {
+            Some(format!("Using `{tool_name}`...\n"))
+        }
+    } else if trimmed.contains("tool call") {
+        Some("Using tools...\n".to_string())
     } else if trimmed.starts_with('✅') || trimmed.starts_with('❌') {
-        Some("Step complete...\n".to_string())
+        let status = if trimmed.starts_with('✅') {
+            "Finished"
+        } else {
+            "Failed"
+        };
+        let rest = trimmed.trim_start_matches(['✅', '❌']).trim_start();
+        let tool_name = rest
+            .split_whitespace()
+            .next()
+            .unwrap_or("")
+            .trim_end_matches(':')
+            .trim();
+        if tool_name.is_empty() {
+            Some(format!("{status} the current step.\n"))
+        } else {
+            Some(format!("{status} `{tool_name}`.\n"))
+        }
     } else {
         None
     }
@@ -780,7 +808,15 @@ fn infer_capability_recovery_plan(
     }
 
     if looks_like_web_task(&msg.content) {
-        return create_capability_recovery_plan(
+        // Repo-review prompts often include a remote origin URL even when the
+        // local workspace is the authoritative source. More broadly, when no
+        // remote-web tool is actually registered, let the normal agent path
+        // continue so the model can choose an available local/tool-less path
+        // instead of hard-failing before tool selection begins.
+        if looks_like_remote_repo_review_request(&msg.content) {
+            return None;
+        }
+        let plan = create_capability_recovery_plan(
             ctx,
             msg,
             excluded_tools,
@@ -805,6 +841,10 @@ fn infer_capability_recovery_plan(
             ],
             "user request appears to require remote web access in a non-CLI channel",
         );
+        return match plan {
+            Some(plan) if matches!(plan.state, CapabilityState::Missing) => None,
+            other => other,
+        };
     }
 
     if looks_like_shell_task(&msg.content) {
@@ -5665,6 +5705,13 @@ mod tests {
         finalized_drafts: tokio::sync::Mutex<Vec<String>>,
     }
 
+    #[derive(Default)]
+    struct TelegramDraftStreamingRecordingChannel {
+        sent_messages: tokio::sync::Mutex<Vec<String>>,
+        draft_updates: tokio::sync::Mutex<Vec<String>>,
+        finalized_drafts: tokio::sync::Mutex<Vec<String>>,
+    }
+
     #[async_trait::async_trait]
     impl Channel for TelegramRecordingChannel {
         fn name(&self) -> &str {
@@ -5745,6 +5792,66 @@ mod tests {
             text: &str,
         ) -> anyhow::Result<()> {
             self.finalized_drafts.lock().await.push(text.to_string());
+            Ok(())
+        }
+    }
+
+    #[async_trait::async_trait]
+    impl Channel for TelegramDraftStreamingRecordingChannel {
+        fn name(&self) -> &str {
+            "telegram"
+        }
+
+        async fn send(&self, message: &SendMessage) -> anyhow::Result<()> {
+            self.sent_messages
+                .lock()
+                .await
+                .push(format!("{}:{}", message.recipient, message.content));
+            Ok(())
+        }
+
+        async fn listen(
+            &self,
+            _tx: tokio::sync::mpsc::Sender<traits::ChannelMessage>,
+        ) -> anyhow::Result<()> {
+            Ok(())
+        }
+
+        fn supports_draft_updates(&self) -> bool {
+            true
+        }
+
+        async fn send_draft(&self, message: &SendMessage) -> anyhow::Result<Option<String>> {
+            self.sent_messages
+                .lock()
+                .await
+                .push(format!("draft:{}:{}", message.recipient, message.content));
+            Ok(Some("draft-1".to_string()))
+        }
+
+        async fn update_draft(
+            &self,
+            recipient: &str,
+            _message_id: &str,
+            text: &str,
+        ) -> anyhow::Result<Option<String>> {
+            self.draft_updates
+                .lock()
+                .await
+                .push(format!("{recipient}:{text}"));
+            Ok(None)
+        }
+
+        async fn finalize_draft(
+            &self,
+            recipient: &str,
+            _message_id: &str,
+            text: &str,
+        ) -> anyhow::Result<()> {
+            self.finalized_drafts
+                .lock()
+                .await
+                .push(format!("{recipient}:{text}"));
             Ok(())
         }
     }
@@ -10093,25 +10200,22 @@ Done reminder set for 1:38 AM."#;
 
     #[test]
     fn summarize_internal_progress_delta_sanitizes_internal_updates() {
-        assert_eq!(
-            summarize_internal_progress_delta("🤔 Thinking...\n"),
-            Some("Thinking...\n".to_string())
-        );
+        assert_eq!(summarize_internal_progress_delta("🤔 Thinking...\n"), None);
         assert_eq!(
             summarize_internal_progress_delta("⏳ shell: ls -la\n"),
-            Some("Working...\n".to_string())
+            Some("Using `shell`: ls -la\n".to_string())
         );
         assert_eq!(
             summarize_internal_progress_delta("💬 Got 1 tool call(s) (2s)\n"),
-            Some("Working...\n".to_string())
+            Some("Using tools...\n".to_string())
         );
         assert_eq!(
             summarize_internal_progress_delta("✅ shell (1s)\n"),
-            Some("Step complete...\n".to_string())
+            Some("Finished `shell`.\n".to_string())
         );
         assert_eq!(
             summarize_internal_progress_delta("↻ Retrying: response implied action\n"),
-            Some("Retrying...\n".to_string())
+            Some("Retrying the previous step...\n".to_string())
         );
         assert_eq!(summarize_internal_progress_delta("plain text"), None);
     }
@@ -10179,7 +10283,7 @@ Done reminder set for 1:38 AM."#;
     }
 
     #[tokio::test]
-    async fn process_channel_message_remote_repo_url_without_web_tools_sends_fallback() {
+    async fn process_channel_message_remote_repo_url_without_web_tools_uses_local_agent_path() {
         let temp = TempDir::new().unwrap();
         let channel_impl = Arc::new(TelegramRecordingChannel::default());
         let channel: Arc<dyn Channel> = channel_impl.clone();
@@ -10240,16 +10344,162 @@ Done reminder set for 1:38 AM."#;
 
         let sent = channel_impl.sent_messages.lock().await;
         assert_eq!(sent.len(), 1);
-        assert!(sent[0].contains("channel web access is not enabled"));
-        assert!(sent[0].contains("Enable `web_fetch`"));
+        assert!(sent[0].contains("response-1"));
 
         let calls = provider_impl
             .calls
             .lock()
             .unwrap_or_else(|e| e.into_inner());
         assert!(
-            calls.is_empty(),
-            "provider should not be called for this fallback"
+            !calls.is_empty(),
+            "provider should still be called so the local workspace path can handle repo review prompts"
+        );
+    }
+
+    #[tokio::test]
+    async fn process_channel_message_web_url_without_web_tools_uses_normal_agent_path() {
+        let temp = TempDir::new().unwrap();
+        let channel_impl = Arc::new(TelegramRecordingChannel::default());
+        let channel: Arc<dyn Channel> = channel_impl.clone();
+
+        let mut channels_by_name = HashMap::new();
+        channels_by_name.insert(channel.name().to_string(), channel);
+
+        let provider_impl = Arc::new(HistoryCaptureProvider::default());
+        let runtime_ctx = Arc::new(ChannelRuntimeContext {
+            channels_by_name: Arc::new(channels_by_name),
+            provider: provider_impl.clone(),
+            default_provider: Arc::new("test-provider".to_string()),
+            memory: Arc::new(NoopMemory),
+            tools_registry: Arc::new(vec![]),
+            observer: Arc::new(NoopObserver),
+            system_prompt: Arc::new("test-system-prompt".to_string()),
+            model: Arc::new("test-model".to_string()),
+            temperature: 0.0,
+            auto_save_memory: false,
+            max_tool_iterations: 5,
+            min_relevance_score: 0.0,
+            conversation_histories: Arc::new(Mutex::new(HashMap::new())),
+            provider_cache: Arc::new(Mutex::new(HashMap::new())),
+            route_overrides: Arc::new(Mutex::new(HashMap::new())),
+            api_key: None,
+            api_url: None,
+            reliability: Arc::new(crate::config::ReliabilityConfig::default()),
+            provider_runtime_options: providers::ProviderRuntimeOptions::default(),
+            workspace_dir: Arc::new(temp.path().to_path_buf()),
+            message_timeout_secs: CHANNEL_MESSAGE_TIMEOUT_SECS,
+            interrupt_on_new_message: false,
+            multimodal: crate::config::MultimodalConfig::default(),
+            hooks: None,
+            non_cli_excluded_tools: Arc::new(Mutex::new(Vec::new())),
+            query_classification: crate::config::QueryClassificationConfig::default(),
+            model_routes: Vec::new(),
+            approval_manager: Arc::new(ApprovalManager::from_config(
+                &crate::config::AutonomyConfig::default(),
+            )),
+        });
+
+        Box::pin(process_channel_message(
+            runtime_ctx,
+            traits::ChannelMessage {
+                id: "web-link-1".to_string(),
+                sender: "alice".to_string(),
+                reply_target: "chat-telegram".to_string(),
+                content: "check https://example.com and tell me the key issues".to_string(),
+                channel: "telegram".to_string(),
+                timestamp: 1,
+                thread_ts: None,
+            },
+            CancellationToken::new(),
+        ))
+        .await;
+
+        let sent = channel_impl.sent_messages.lock().await;
+        assert_eq!(sent.len(), 1);
+        assert!(sent[0].contains("response-1"));
+
+        let calls = provider_impl
+            .calls
+            .lock()
+            .unwrap_or_else(|e| e.into_inner());
+        assert!(
+            !calls.is_empty(),
+            "provider should still be called so the normal tool-selection path can decide what to do"
+        );
+    }
+
+    #[tokio::test]
+    async fn process_channel_message_streaming_surfaces_useful_progress_for_telegram_channel() {
+        let temp = TempDir::new().unwrap();
+        let channel_impl = Arc::new(TelegramDraftStreamingRecordingChannel::default());
+        let channel: Arc<dyn Channel> = channel_impl.clone();
+
+        let mut channels_by_name = HashMap::new();
+        channels_by_name.insert(channel.name().to_string(), channel);
+
+        let runtime_ctx = Arc::new(ChannelRuntimeContext {
+            channels_by_name: Arc::new(channels_by_name),
+            provider: Arc::new(ToolCallingProvider),
+            default_provider: Arc::new("test-provider".to_string()),
+            memory: Arc::new(NoopMemory),
+            tools_registry: Arc::new(vec![Box::new(MockPriceTool)]),
+            observer: Arc::new(NoopObserver),
+            system_prompt: Arc::new("test-system-prompt".to_string()),
+            model: Arc::new("test-model".to_string()),
+            temperature: 0.0,
+            auto_save_memory: false,
+            max_tool_iterations: 10,
+            min_relevance_score: 0.0,
+            conversation_histories: Arc::new(Mutex::new(HashMap::new())),
+            provider_cache: Arc::new(Mutex::new(HashMap::new())),
+            route_overrides: Arc::new(Mutex::new(HashMap::new())),
+            api_key: None,
+            api_url: None,
+            reliability: Arc::new(crate::config::ReliabilityConfig::default()),
+            provider_runtime_options: providers::ProviderRuntimeOptions::default(),
+            workspace_dir: Arc::new(temp.path().to_path_buf()),
+            message_timeout_secs: CHANNEL_MESSAGE_TIMEOUT_SECS,
+            interrupt_on_new_message: false,
+            non_cli_excluded_tools: Arc::new(Mutex::new(Vec::new())),
+            approval_manager: Arc::new(ApprovalManager::from_config(
+                &autonomy_with_mock_price_auto_approve(),
+            )),
+            multimodal: crate::config::MultimodalConfig::default(),
+            hooks: None,
+            query_classification: crate::config::QueryClassificationConfig::default(),
+            model_routes: Vec::new(),
+        });
+
+        Box::pin(process_channel_message(
+            runtime_ctx,
+            traits::ChannelMessage {
+                id: "msg-telegram-no-thinking".to_string(),
+                sender: "alice".to_string(),
+                reply_target: "chat-telegram".to_string(),
+                content: "What is the BTC price now?".to_string(),
+                channel: "telegram".to_string(),
+                timestamp: 1,
+                thread_ts: None,
+            },
+            CancellationToken::new(),
+        ))
+        .await;
+
+        let sent_messages = channel_impl.sent_messages.lock().await;
+        let draft_updates = channel_impl.draft_updates.lock().await;
+        assert!(
+            sent_messages
+                .iter()
+                .chain(draft_updates.iter())
+                .all(|entry| !entry.contains("Thinking") && !entry.contains("Working...\n")),
+            "telegram progress should suppress generic placeholder updates: sent={sent_messages:?} updates={draft_updates:?}"
+        );
+        assert!(
+            sent_messages
+                .iter()
+                .chain(draft_updates.iter())
+                .any(|entry| entry.contains("Using `mock_price`")),
+            "telegram progress should surface the tool being used: sent={sent_messages:?} updates={draft_updates:?}"
         );
     }
 

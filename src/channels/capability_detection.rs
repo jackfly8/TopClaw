@@ -1,4 +1,3 @@
-#[cfg(test)]
 pub(crate) fn looks_like_remote_repo_review_request(user_message: &str) -> bool {
     let trimmed = user_message.trim();
     if trimmed.is_empty() {

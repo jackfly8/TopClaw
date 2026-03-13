@@ -582,7 +582,10 @@ impl TelegramChannel {
     }
 
     fn can_use_native_drafts(chat_id: &str, thread_id: Option<&str>) -> bool {
-        thread_id.is_none() && chat_id.parse::<i64>().is_ok_and(|id| id > 0)
+        let _ = (chat_id, thread_id);
+        // Telegram's sendMessageDraft flow surfaces a pinned draft artifact in
+        // common clients. Keep channel streaming on regular messages/edits only.
+        false
     }
 
     fn build_native_draft_message_id(draft_id: u64) -> String {
@@ -3488,8 +3491,8 @@ mod tests {
     }
 
     #[test]
-    fn native_drafts_are_private_chat_only() {
-        assert!(TelegramChannel::can_use_native_drafts("123", None));
+    fn native_drafts_are_disabled() {
+        assert!(!TelegramChannel::can_use_native_drafts("123", None));
         assert!(!TelegramChannel::can_use_native_drafts("-100123", None));
         assert!(!TelegramChannel::can_use_native_drafts("123", Some("7")));
         assert!(!TelegramChannel::can_use_native_drafts("not-a-chat", None));
