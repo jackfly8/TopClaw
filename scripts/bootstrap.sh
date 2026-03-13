@@ -18,8 +18,8 @@ usage() {
 TopClaw installer bootstrap engine
 
 Usage:
-  ./topclaw_install.sh [options]
-  ./bootstrap.sh [options]         # compatibility entrypoint
+  ./bootstrap.sh [options]
+  ./topclaw_install.sh [options]   # repository-root compatibility wrapper
 
 Modes:
   Default mode installs/builds TopClaw only (requires existing Rust toolchain).
@@ -51,17 +51,17 @@ Options:
   -h, --help                 Show help
 
 Examples:
-  ./topclaw_install.sh
-  ./topclaw_install.sh --guided
-  ./topclaw_install.sh --install-system-deps --install-rust
-  ./topclaw_install.sh --prefer-prebuilt
-  ./topclaw_install.sh --prebuilt-only
-  ./topclaw_install.sh --onboard --api-key "sk-..." --provider openrouter [--model "openrouter/auto"]
-  ./topclaw_install.sh --interactive-onboard
-  ./topclaw_install.sh --docker --docker-config ./config.toml --docker-daemon
+  ./bootstrap.sh
+  ./bootstrap.sh --guided
+  ./bootstrap.sh --install-system-deps --install-rust
+  ./bootstrap.sh --prefer-prebuilt
+  ./bootstrap.sh --prebuilt-only
+  ./bootstrap.sh --onboard --api-key "sk-..." --provider openrouter [--model "openrouter/auto"]
+  ./bootstrap.sh --interactive-onboard
+  ./bootstrap.sh --docker --docker-config ./config.toml --docker-daemon
 
-  # Compatibility entrypoint:
-  ./bootstrap.sh --docker
+  # Repository-root wrapper (kept for compatibility):
+  ./topclaw_install.sh --docker
 
   # Remote one-liner
   curl -fsSL https://raw.githubusercontent.com/topway-ai/topclaw/main/scripts/bootstrap.sh | bash
@@ -1254,9 +1254,9 @@ run_docker_bootstrap() {
 Use either:
   --api-key "sk-..."
 or:
-  TOPCLAW_API_KEY="sk-..." ./topclaw_install.sh --docker
+  TOPCLAW_API_KEY="sk-..." ./bootstrap.sh --docker
 or run interactive:
-  ./topclaw_install.sh --docker --interactive-onboard
+  ./bootstrap.sh --docker --interactive-onboard
 MSG
         exit 1
       fi
@@ -1612,19 +1612,19 @@ if [[ "$DOCKER_MODE" == true ]]; then
     echo "  stop:      $CONTAINER_CLI rm -f $daemon_name"
     echo
     echo "Optional next steps:"
-    echo "  ./topclaw_install.sh --docker --interactive-onboard"
+    echo "  ./bootstrap.sh --docker --interactive-onboard"
   elif [[ "$RUN_ONBOARD" == false ]]; then
     echo "Onboarding was intentionally skipped (pre-seeded config mode)."
     echo
     echo "Next steps:"
-    echo "  ./topclaw_install.sh --docker --docker-config ./config.toml --docker-daemon"
-    echo "  ./topclaw_install.sh --docker --interactive-onboard"
+    echo "  ./bootstrap.sh --docker --docker-config ./config.toml --docker-daemon"
+    echo "  ./bootstrap.sh --docker --interactive-onboard"
   else
     cat <<'DONE'
 Next steps:
-  ./topclaw_install.sh --docker --interactive-onboard
-  ./topclaw_install.sh --docker --api-key "sk-..." --provider openrouter
-  ./topclaw_install.sh --docker --docker-config ./config.toml --docker-daemon
+  ./bootstrap.sh --docker --interactive-onboard
+  ./bootstrap.sh --docker --api-key "sk-..." --provider openrouter
+  ./bootstrap.sh --docker --docker-config ./config.toml --docker-daemon
 DONE
   fi
   exit 0
@@ -1688,7 +1688,7 @@ if [[ "$PREBUILT_INSTALLED" == false && ( "$SKIP_BUILD" == false || "$SKIP_INSTA
   cat <<'MSG' >&2
 Install Rust first: https://rustup.rs/
 or re-run with:
-  ./topclaw_install.sh --install-rust
+  ./bootstrap.sh --install-rust
 MSG
   exit 1
 fi
@@ -1747,9 +1747,9 @@ if [[ "$RUN_ONBOARD" == true ]]; then
 Use either:
   --api-key "sk-..."
 or:
-  TOPCLAW_API_KEY="sk-..." ./topclaw_install.sh --onboard
+  TOPCLAW_API_KEY="sk-..." ./bootstrap.sh --onboard
 or run interactive:
-  ./topclaw_install.sh --interactive-onboard
+  ./bootstrap.sh --interactive-onboard
 MSG
       exit 1
     fi

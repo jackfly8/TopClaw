@@ -24,7 +24,7 @@
 
 Χρησιμοποιήστε το CLI για αυτόματη ρύθμιση:
 ```bash
-topclaw onboard \
+topclaw bootstrap \
   --provider "zai" \
   --api-key "YOUR_ZAI_API_KEY"
 ```

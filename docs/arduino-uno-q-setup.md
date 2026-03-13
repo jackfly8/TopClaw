@@ -106,7 +106,7 @@ If cross-compile fails, use Option A and build on the device.
 ssh arduino@<UNO_Q_IP>
 
 # Quick config
-topclaw onboard --api-key YOUR_OPENROUTER_KEY --provider openrouter
+topclaw bootstrap --api-key YOUR_OPENROUTER_KEY --provider openrouter
 
 # Or create config manually
 mkdir -p ~/.topclaw/workspace
@@ -201,7 +201,7 @@ Now when you message your Telegram bot *"Turn on the LED"* or *"Set pin 13 high"
 | 4 | `sudo apt-get install -y pkg-config libssl-dev` |
 | 5 | `git clone https://github.com/topway-ai/topclaw.git && cd topclaw` |
 | 6 | `cargo build --release --features hardware` |
-| 7 | `topclaw onboard --api-key KEY --provider openrouter` |
+| 7 | `topclaw bootstrap --api-key KEY --provider openrouter` |
 | 8 | Edit `~/.topclaw/config.toml` (add Telegram bot_token) |
 | 9 | `topclaw daemon --host 127.0.0.1 --port 42617` |
 | 10 | Message your Telegram bot — it responds |

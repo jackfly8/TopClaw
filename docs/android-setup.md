@@ -46,7 +46,7 @@ mv topclaw $PREFIX/bin/
 topclaw --version
 
 # Run setup
-topclaw onboard
+topclaw bootstrap
 ```
 
 ## Direct Installation via ADB

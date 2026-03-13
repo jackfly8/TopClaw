@@ -46,7 +46,7 @@ mv topclaw $PREFIX/bin/
 topclaw --version
 
 # Εκτέλεση ρύθμισης
-topclaw onboard
+topclaw bootstrap
 ```
 
 ## Άμεση Εγκατάσταση μέσω ADB

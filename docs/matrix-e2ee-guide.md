@@ -66,7 +66,7 @@ allowed_users = ["*"]
 1. Run channel setup and daemon:
 
 ```bash
-topclaw onboard --channels-only
+topclaw bootstrap --channels-only
 topclaw daemon
 ```
 

@@ -295,16 +295,13 @@ journalctl --user -u topclaw.service -f
 
 If onboarding just finished and you are unsure which command to use next, read [runtime-model.md](runtime-model.md) before starting `daemon` or `channel start` manually.
 
-## Legacy Installer Compatibility
+## Installer Compatibility
 
-Both still work:
+Use the canonical hosted installer:
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/topway-ai/topclaw/main/scripts/bootstrap.sh | bash
-curl -fsSL https://raw.githubusercontent.com/topway-ai/topclaw/main/scripts/install.sh | bash
 ```
-
-`install.sh` is a compatibility entry and forwards/falls back to bootstrap behavior.
 
 ## Still Stuck?
 

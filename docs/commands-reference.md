@@ -30,8 +30,9 @@ Last verified: **March 12, 2026**.
 | `hardware` | Discover and introspect USB hardware |
 | `peripheral` | Configure and flash peripherals |
 
-Common aliases:
+Compatibility shortcuts:
 
+- Prefer the canonical command names above for new docs, scripts, and operator runbooks.
 - `topclaw init` -> `topclaw bootstrap`
 - `topclaw chat` -> `topclaw agent`
 - `topclaw run` -> `topclaw daemon`
@@ -66,7 +67,7 @@ If you only need the common day-1/day-2 commands, the table above is the fastest
 - `topclaw bootstrap --api-key <KEY> --provider <ID> --model <MODEL_ID> --memory <sqlite|lucid|markdown|none>`
 - `topclaw bootstrap --api-key <KEY> --provider <ID> --model <MODEL_ID> --memory <sqlite|lucid|markdown|none> --force`
 
-Compatibility aliases: `topclaw onboard`, `topclaw init`
+Compatibility aliases still accepted for older workflows: `topclaw onboard`, `topclaw init`
 
 `bootstrap` safety behavior:
 

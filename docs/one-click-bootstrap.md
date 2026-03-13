@@ -121,15 +121,7 @@ Notes:
 - `--force-source-build` disables pre-built flow entirely.
 - On Windows, use `bootstrap.ps1` (`-InstallRust`, `-PreferPrebuilt`, `-PrebuiltOnly`, `-ForceSourceBuild`).
 
-## Option C: Legacy compatibility one-liner
-
-```bash
-curl -fsSL https://raw.githubusercontent.com/topway-ai/topclaw/main/scripts/install.sh | bash
-```
-
-This legacy endpoint prefers forwarding to `scripts/bootstrap.sh` and falls back to legacy source install if unavailable in that revision.
-
-If you run Option A or Option C outside a repository checkout, the bootstrap script now tries the latest compatible release asset without cloning first. It only clones a temporary workspace if it needs a source-build fallback, then cleans that workspace up afterward.
+If you run Option A outside a repository checkout, the bootstrap script now tries the latest compatible release asset without cloning first. It only clones a temporary workspace if it needs a source-build fallback, then cleans that workspace up afterward.
 
 ## Optional onboarding modes
 
@@ -143,7 +135,7 @@ This builds a local TopClaw image and launches onboarding inside a container whi
 persisting config/workspace to `./.topclaw-docker`.
 
 Inside the container, TopClaw now runs `topclaw bootstrap` as the canonical setup
-command. `topclaw onboard` remains available as a compatibility alias.
+command. Older aliases still parse, but new docs and scripts should keep using `bootstrap`.
 
 Container CLI defaults to `docker`. If Docker CLI is unavailable and `podman` exists,
 bootstrap auto-falls back to `podman`. You can also set `TOPCLAW_CONTAINER_CLI`
