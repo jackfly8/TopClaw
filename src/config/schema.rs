@@ -1360,13 +1360,12 @@ pub fn default_lark_max_draft_edits() -> u32 {
     20
 }
 
-/// Lark/Feishu configuration for messaging integration.
-/// Lark is the international version; Feishu is the Chinese version.
+/// Lark configuration for messaging integration.
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct LarkConfig {
-    /// App ID from Lark/Feishu developer console
+    /// App ID from the Lark developer console.
     pub app_id: String,
-    /// App Secret from Lark/Feishu developer console
+    /// App Secret from the Lark developer console.
     pub app_secret: String,
     /// Encrypt key for webhook message decryption (optional)
     #[serde(default)]
@@ -1380,9 +1379,6 @@ pub struct LarkConfig {
     /// Group-chat trigger controls.
     #[serde(default)]
     pub group_reply: Option<GroupReplyConfig>,
-    /// Whether to use the Feishu (Chinese) endpoint instead of Lark (International)
-    #[serde(default)]
-    pub use_feishu: bool,
     /// Event receive mode: "websocket" (default) or "webhook"
     #[serde(default)]
     pub receive_mode: LarkReceiveMode,
@@ -6975,7 +6971,6 @@ default_model = "legacy-model"
             verification_token: Some("verify_token".into()),
             allowed_users: vec!["user_123".into(), "user_456".into()],
             group_reply: None,
-            use_feishu: true,
             receive_mode: LarkReceiveMode::Websocket,
             port: None,
             draft_update_interval_ms: default_lark_draft_update_interval_ms(),
@@ -6988,7 +6983,6 @@ default_model = "legacy-model"
         assert_eq!(parsed.encrypt_key.as_deref(), Some("encrypt_key"));
         assert_eq!(parsed.verification_token.as_deref(), Some("verify_token"));
         assert_eq!(parsed.allowed_users.len(), 2);
-        assert!(parsed.use_feishu);
     }
 
     #[test]
@@ -7000,7 +6994,6 @@ default_model = "legacy-model"
             verification_token: Some("verify_token".into()),
             allowed_users: vec!["*".into()],
             group_reply: None,
-            use_feishu: false,
             receive_mode: LarkReceiveMode::Webhook,
             port: Some(9898),
             draft_update_interval_ms: default_lark_draft_update_interval_ms(),
@@ -7010,7 +7003,6 @@ default_model = "legacy-model"
         let parsed: LarkConfig = toml::from_str(&toml_str).unwrap();
         assert_eq!(parsed.app_id, "cli_123456");
         assert_eq!(parsed.app_secret, "secret_abc");
-        assert!(!parsed.use_feishu);
     }
 
     #[test]
@@ -7020,20 +7012,9 @@ default_model = "legacy-model"
         assert!(parsed.encrypt_key.is_none());
         assert!(parsed.verification_token.is_none());
         assert!(parsed.allowed_users.is_empty());
-        assert!(!parsed.use_feishu);
         assert_eq!(
             parsed.effective_group_reply_mode(),
             GroupReplyMode::AllMessages
-        );
-    }
-
-    #[test]
-    async fn lark_config_defaults_to_lark_endpoint() {
-        let json = r#"{"app_id":"cli_123","app_secret":"secret"}"#;
-        let parsed: LarkConfig = serde_json::from_str(json).unwrap();
-        assert!(
-            !parsed.use_feishu,
-            "use_feishu should default to false (Lark)"
         );
     }
 

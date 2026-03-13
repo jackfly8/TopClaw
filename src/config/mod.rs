@@ -199,7 +199,6 @@ mod tests {
             verification_token: None,
             allowed_users: vec![],
             group_reply: None,
-            use_feishu: false,
             receive_mode: crate::config::schema::LarkReceiveMode::Websocket,
             port: None,
             draft_update_interval_ms: crate::config::schema::default_lark_draft_update_interval_ms(

@@ -373,7 +373,6 @@ app_secret = "your_lark_app_secret"
 encrypt_key = ""                    # optional
 verification_token = ""             # optional
 allowed_users = ["*"]
-use_feishu = false
 receive_mode = "websocket"          # or "webhook"
 port = 8081                          # required for webhook mode
 
@@ -399,10 +398,6 @@ mode = "all_messages"               # optional: all_messages | mention_only
 allowed_sender_ids = []             # optional: sender open_ids that bypass mention gate
 ```
 
-Migration note:
-
-- Legacy config `[channels_config.lark] use_feishu = true` is still supported for backward compatibility.
-- Prefer `[channels_config.feishu]` for new setups.
 - Inbound `image` messages are converted to multimodal markers (`[IMAGE:data:image/...;base64,...]`).
 - If image download fails, TopClaw forwards fallback text instead of silently dropping the message.
 

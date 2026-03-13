@@ -5,9 +5,9 @@ use crate::config::schema::{
 };
 use crate::config::{
     AutonomyConfig, BrowserConfig, ChannelsConfig, ComposioConfig, Config, DiscordConfig,
-    HeartbeatConfig, HttpRequestConfig, IMessageConfig, LarkConfig, MatrixConfig, MemoryConfig,
-    ObservabilityConfig, RuntimeConfig, SecretsConfig, SlackConfig, StorageConfig, TelegramConfig,
-    WebFetchConfig, WebSearchConfig, WebhookConfig,
+    FeishuConfig, HeartbeatConfig, HttpRequestConfig, IMessageConfig, LarkConfig, MatrixConfig,
+    MemoryConfig, ObservabilityConfig, RuntimeConfig, SecretsConfig, SlackConfig, StorageConfig,
+    TelegramConfig, WebFetchConfig, WebSearchConfig, WebhookConfig,
 };
 use crate::hardware::{self, HardwareConfig};
 use crate::memory::{
@@ -5450,19 +5450,35 @@ fn setup_channels() -> Result<ChannelsConfig> {
                     );
                 }
 
-                config.lark = Some(LarkConfig {
-                    app_id,
-                    app_secret,
-                    verification_token,
-                    encrypt_key: None,
-                    allowed_users,
-                    group_reply: None,
-                    use_feishu,
-                    receive_mode,
-                    port,
-                    draft_update_interval_ms: 3000,
-                    max_draft_edits: 20,
-                });
+                if use_feishu {
+                    config.feishu = Some(FeishuConfig {
+                        app_id,
+                        app_secret,
+                        verification_token,
+                        encrypt_key: None,
+                        allowed_users,
+                        group_reply: None,
+                        receive_mode,
+                        port,
+                        draft_update_interval_ms: 3000,
+                        max_draft_edits: 20,
+                    });
+                    config.lark = None;
+                } else {
+                    config.lark = Some(LarkConfig {
+                        app_id,
+                        app_secret,
+                        verification_token,
+                        encrypt_key: None,
+                        allowed_users,
+                        group_reply: None,
+                        receive_mode,
+                        port,
+                        draft_update_interval_ms: 3000,
+                        max_draft_edits: 20,
+                    });
+                    config.feishu = None;
+                }
             }
             ChannelMenuChoice::Nostr => {
                 // ── Nostr ──
