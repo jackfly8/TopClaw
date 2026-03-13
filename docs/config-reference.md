@@ -33,7 +33,7 @@ Notes:
 - `model_support_vision = true` forces vision support on (e.g. Ollama running `llava`).
 - `model_support_vision = false` forces vision support off.
 - Unset keeps the provider's built-in default.
-- Environment override: `TOPCLAW_MODEL_SUPPORT_VISION` or `MODEL_SUPPORT_VISION` (values: `true`/`false`/`1`/`0`/`yes`/`no`/`on`/`off`).
+- Environment override: `TOPCLAW_MODEL_SUPPORT_VISION` (values: `true`/`false`/`1`/`0`/`yes`/`no`/`on`/`off`).
 
 ## `[observability]`
 
@@ -73,13 +73,11 @@ runtime_trace_max_entries = 200
 Provider selection can also be controlled by environment variables. Precedence is:
 
 1. `TOPCLAW_PROVIDER` (explicit override, always wins when non-empty)
-2. `PROVIDER` (legacy fallback, only applied when config provider is unset or still `openrouter`)
-3. `default_provider` in `config.toml`
+2. `default_provider` in `config.toml`
 
 Operational note for container users:
 
-- If your `config.toml` sets an explicit custom provider like `custom:https://.../v1`, a default `PROVIDER=openrouter` from Docker/container env will no longer replace it.
-- Use `TOPCLAW_PROVIDER` when you intentionally want runtime env to override a non-default configured provider.
+- Use `TOPCLAW_PROVIDER` when you intentionally want runtime env to override the configured provider.
 - For OpenAI-compatible Responses fallback transport:
   - `TOPCLAW_RESPONSES_WEBSOCKET=1` forces websocket-first mode (`wss://.../responses`) for compatible providers.
   - `TOPCLAW_RESPONSES_WEBSOCKET=0` forces HTTP-only mode.
@@ -320,7 +318,6 @@ Notes:
 - `reasoning_enabled = false` explicitly disables provider-side reasoning for supported providers (currently `ollama`, via request field `think: false`).
 - `reasoning_enabled = true` explicitly requests reasoning for supported providers (`think: true` on `ollama`).
 - Unset keeps provider defaults.
-- Deprecated compatibility alias: `runtime.reasoning_level` is still accepted but should be migrated to `provider.reasoning_level`.
 - `runtime.kind = "wasm"` enables capability-bounded module execution and disables shell/process style execution.
 
 ### `[runtime.wasm]`
@@ -378,7 +375,6 @@ Notes:
 - Supported values: `minimal`, `low`, `medium`, `high`, `xhigh` (case-insensitive).
 - When set, overrides `TOPCLAW_CODEX_REASONING_EFFORT` for OpenAI Codex requests.
 - Unset falls back to `TOPCLAW_CODEX_REASONING_EFFORT` if present, otherwise defaults to `xhigh`.
-- If both `provider.reasoning_level` and deprecated `runtime.reasoning_level` are set, provider-level value wins.
 
 ## `[skills]`
 
@@ -426,7 +422,6 @@ Notes:
 
 Notes:
 
-- Backward compatibility: legacy `enable = true` is accepted as an alias for `enabled = true`.
 - If `enabled = false` or `api_key` is missing, the `composio` tool is not registered.
 - TopClaw requests Composio v3 tools with `toolkit_versions=latest` and executes tools with `version="latest"` to avoid stale default tool revisions.
 - Typical flow: call `connect`, complete browser OAuth, then run `execute` for the desired tool action.
@@ -787,8 +782,6 @@ Notes:
   - `mode = "all_messages"` or `mode = "mention_only"`
   - `allowed_sender_ids = ["..."]` to bypass mention gating in groups
   - `allowed_users` allowlist checks still run first
-- Legacy `mention_only` flags (Telegram/Discord/Mattermost/Lark) remain supported as fallback only.
-  If `group_reply.mode` is set, it takes precedence over legacy `mention_only`.
 - While `topclaw channel start` is running, updates to `default_provider`, `default_model`, `default_temperature`, `api_key`, `api_url`, and `reliability.*` are hot-applied from `config.toml` on the next inbound message.
 
 ### `[channels_config.nostr]`

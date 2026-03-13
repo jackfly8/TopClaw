@@ -104,18 +104,16 @@ pub struct Config {
     /// Path to config.toml - computed from home, not serialized
     #[serde(skip)]
     pub config_path: PathBuf,
-    /// API key for the selected provider. Overridden by `TOPCLAW_API_KEY` or `API_KEY` env vars.
+    /// API key for the selected provider. Overridden by `TOPCLAW_API_KEY`.
     pub api_key: Option<String>,
     /// Base URL override for provider API (e.g. "http://10.0.0.1:11434" for remote Ollama)
     pub api_url: Option<String>,
     /// Default provider ID or alias (e.g. `"openrouter"`, `"ollama"`, `"anthropic"`). Default: `"openrouter"`.
-    #[serde(alias = "model_provider")]
     pub default_provider: Option<String>,
     /// Optional API protocol mode for `custom:` providers.
     #[serde(default)]
     pub provider_api: Option<ProviderApiMode>,
     /// Default model routed through the selected provider (e.g. `"anthropic/claude-sonnet-4-6"`).
-    #[serde(alias = "model")]
     pub default_model: Option<String>,
     /// Optional named provider profiles keyed by id (Codex app-server compatible layout).
     #[serde(default)]
@@ -420,7 +418,7 @@ impl Default for QdrantConfig {
 pub struct MemoryConfig {
     /// "sqlite" | "lucid" | "postgres" | "mariadb" | "qdrant" | "markdown" | "none" (`none` = explicit no-op memory)
     ///
-    /// `postgres` / `mariadb` require `[storage.provider.config]` with `db_url` (`dbURL` alias supported).
+    /// `postgres` / `mariadb` require `[storage.provider.config]` with `db_url`.
     /// `qdrant` uses `[memory.qdrant]` config or `QDRANT_URL` env var.
     pub backend: String,
     /// Auto-save user-stated conversation input to memory (assistant output is excluded)
@@ -852,8 +850,6 @@ impl GroupReplyMode {
 #[derive(Debug, Clone, Default, Serialize, Deserialize, JsonSchema)]
 pub struct GroupReplyConfig {
     /// Optional explicit trigger mode.
-    ///
-    /// If omitted, channel-specific legacy behavior is used for compatibility.
     #[serde(default)]
     pub mode: Option<GroupReplyMode>,
     /// Sender IDs that always trigger group replies.
@@ -866,18 +862,10 @@ pub struct GroupReplyConfig {
 
 fn resolve_group_reply_mode(
     group_reply: Option<&GroupReplyConfig>,
-    legacy_mention_only: Option<bool>,
     default_mode: GroupReplyMode,
 ) -> GroupReplyMode {
     if let Some(mode) = group_reply.and_then(|cfg| cfg.mode) {
         return mode;
-    }
-    if let Some(mention_only) = legacy_mention_only {
-        return if mention_only {
-            GroupReplyMode::MentionOnly
-        } else {
-            GroupReplyMode::AllMessages
-        };
     }
     default_mode
 }
@@ -905,10 +893,6 @@ pub struct TelegramConfig {
     /// cancels the in-flight request and starts a fresh response with preserved history.
     #[serde(default)]
     pub interrupt_on_new_message: bool,
-    /// When true, only respond to messages that @-mention the bot in groups.
-    /// Direct messages are always processed.
-    #[serde(default)]
-    pub mention_only: bool,
     /// Group-chat trigger controls.
     #[serde(default)]
     pub group_reply: Option<GroupReplyConfig>,
@@ -931,11 +915,7 @@ impl ChannelConfig for TelegramConfig {
 impl TelegramConfig {
     #[must_use]
     pub fn effective_group_reply_mode(&self) -> GroupReplyMode {
-        resolve_group_reply_mode(
-            self.group_reply.as_ref(),
-            Some(self.mention_only),
-            GroupReplyMode::AllMessages,
-        )
+        resolve_group_reply_mode(self.group_reply.as_ref(), GroupReplyMode::AllMessages)
     }
 
     #[must_use]
@@ -958,10 +938,6 @@ pub struct DiscordConfig {
     /// The bot still ignores its own messages to prevent feedback loops.
     #[serde(default)]
     pub listen_to_bots: bool,
-    /// When true, only respond to messages that @-mention the bot.
-    /// Other messages in the guild are silently ignored.
-    #[serde(default)]
-    pub mention_only: bool,
     /// Group-chat trigger controls.
     #[serde(default)]
     pub group_reply: Option<GroupReplyConfig>,
@@ -979,11 +955,7 @@ impl ChannelConfig for DiscordConfig {
 impl DiscordConfig {
     #[must_use]
     pub fn effective_group_reply_mode(&self) -> GroupReplyMode {
-        resolve_group_reply_mode(
-            self.group_reply.as_ref(),
-            Some(self.mention_only),
-            GroupReplyMode::AllMessages,
-        )
+        resolve_group_reply_mode(self.group_reply.as_ref(), GroupReplyMode::AllMessages)
     }
 
     #[must_use]
@@ -1022,7 +994,7 @@ impl ChannelConfig for SlackConfig {
 impl SlackConfig {
     #[must_use]
     pub fn effective_group_reply_mode(&self) -> GroupReplyMode {
-        resolve_group_reply_mode(self.group_reply.as_ref(), None, GroupReplyMode::AllMessages)
+        resolve_group_reply_mode(self.group_reply.as_ref(), GroupReplyMode::AllMessages)
     }
 
     #[must_use]
@@ -1047,10 +1019,6 @@ pub struct MattermostConfig {
     /// When false, replies go to the channel root.
     #[serde(default)]
     pub thread_replies: Option<bool>,
-    /// When true, only respond to messages that @-mention the bot.
-    /// Other messages in the channel are silently ignored.
-    #[serde(default)]
-    pub mention_only: Option<bool>,
     /// Group-chat trigger controls.
     #[serde(default)]
     pub group_reply: Option<GroupReplyConfig>,
@@ -1068,11 +1036,7 @@ impl ChannelConfig for MattermostConfig {
 impl MattermostConfig {
     #[must_use]
     pub fn effective_group_reply_mode(&self) -> GroupReplyMode {
-        resolve_group_reply_mode(
-            self.group_reply.as_ref(),
-            Some(self.mention_only.unwrap_or(false)),
-            GroupReplyMode::AllMessages,
-        )
+        resolve_group_reply_mode(self.group_reply.as_ref(), GroupReplyMode::AllMessages)
     }
 
     #[must_use]
@@ -1396,13 +1360,12 @@ pub fn default_lark_max_draft_edits() -> u32 {
     20
 }
 
-/// Lark/Feishu configuration for messaging integration.
-/// Lark is the international version; Feishu is the Chinese version.
+/// Lark configuration for messaging integration.
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct LarkConfig {
-    /// App ID from Lark/Feishu developer console
+    /// App ID from the Lark developer console.
     pub app_id: String,
-    /// App Secret from Lark/Feishu developer console
+    /// App Secret from the Lark developer console.
     pub app_secret: String,
     /// Encrypt key for webhook message decryption (optional)
     #[serde(default)]
@@ -1413,16 +1376,9 @@ pub struct LarkConfig {
     /// Allowed user IDs or union IDs (empty = deny all, "*" = allow all)
     #[serde(default)]
     pub allowed_users: Vec<String>,
-    /// When true, only respond to messages that @-mention the bot in groups.
-    /// Direct messages are always processed.
-    #[serde(default)]
-    pub mention_only: bool,
     /// Group-chat trigger controls.
     #[serde(default)]
     pub group_reply: Option<GroupReplyConfig>,
-    /// Whether to use the Feishu (Chinese) endpoint instead of Lark (International)
-    #[serde(default)]
-    pub use_feishu: bool,
     /// Event receive mode: "websocket" (default) or "webhook"
     #[serde(default)]
     pub receive_mode: LarkReceiveMode,
@@ -1450,11 +1406,7 @@ impl ChannelConfig for LarkConfig {
 impl LarkConfig {
     #[must_use]
     pub fn effective_group_reply_mode(&self) -> GroupReplyMode {
-        resolve_group_reply_mode(
-            self.group_reply.as_ref(),
-            Some(self.mention_only),
-            GroupReplyMode::AllMessages,
-        )
+        resolve_group_reply_mode(self.group_reply.as_ref(), GroupReplyMode::AllMessages)
     }
 
     #[must_use]
@@ -1509,7 +1461,7 @@ impl ChannelConfig for FeishuConfig {
 impl FeishuConfig {
     #[must_use]
     pub fn effective_group_reply_mode(&self) -> GroupReplyMode {
-        resolve_group_reply_mode(self.group_reply.as_ref(), None, GroupReplyMode::AllMessages)
+        resolve_group_reply_mode(self.group_reply.as_ref(), GroupReplyMode::AllMessages)
     }
 
     #[must_use]
@@ -2731,7 +2683,7 @@ fn has_ollama_cloud_credential(config_api_key: Option<&str>) -> bool {
         return true;
     }
 
-    ["OLLAMA_API_KEY", "TOPCLAW_API_KEY", "API_KEY"]
+    ["OLLAMA_API_KEY", "TOPCLAW_API_KEY"]
         .iter()
         .any(|name| {
             std::env::var(name)
@@ -2963,47 +2915,12 @@ impl Config {
         }
     }
 
-    /// Resolve provider reasoning level with backward-compatible runtime alias.
-    ///
-    /// Priority:
-    /// 1) `provider.reasoning_level` (canonical)
-    /// 2) `runtime.reasoning_level` (deprecated compatibility alias)
+    /// Resolve provider reasoning level from the canonical provider config.
     pub fn effective_provider_reasoning_level(&self) -> Option<String> {
-        let provider_level = Self::normalize_reasoning_level_override(
+        Self::normalize_reasoning_level_override(
             self.provider.reasoning_level.as_deref(),
             "provider.reasoning_level",
-        );
-        let runtime_level = Self::normalize_reasoning_level_override(
-            self.runtime.reasoning_level.as_deref(),
-            "runtime.reasoning_level",
-        );
-
-        match (provider_level, runtime_level) {
-            (Some(provider_level), Some(runtime_level)) => {
-                if provider_level == runtime_level {
-                    tracing::warn!(
-                        reasoning_level = %provider_level,
-                        "`runtime.reasoning_level` is deprecated; keep only `provider.reasoning_level`"
-                    );
-                } else {
-                    tracing::warn!(
-                        provider_reasoning_level = %provider_level,
-                        runtime_reasoning_level = %runtime_level,
-                        "`runtime.reasoning_level` is deprecated and ignored when `provider.reasoning_level` is set"
-                    );
-                }
-                Some(provider_level)
-            }
-            (Some(provider_level), None) => Some(provider_level),
-            (None, Some(runtime_level)) => {
-                tracing::warn!(
-                    reasoning_level = %runtime_level,
-                    "`runtime.reasoning_level` is deprecated; using it as compatibility fallback to `provider.reasoning_level`"
-                );
-                Some(runtime_level)
-            }
-            (None, None) => None,
-        }
+        )
     }
 
     fn lookup_model_provider_profile(
@@ -3385,8 +3302,8 @@ impl Config {
 
     /// Apply environment variable overrides to config
     pub fn apply_env_overrides(&mut self) {
-        // API Key: TOPCLAW_API_KEY or API_KEY (generic)
-        if let Ok(key) = std::env::var("TOPCLAW_API_KEY").or_else(|_| std::env::var("API_KEY")) {
+        // API Key: TOPCLAW_API_KEY
+        if let Ok(key) = std::env::var("TOPCLAW_API_KEY") {
             if !key.is_empty() {
                 self.api_key = Some(key);
             }
@@ -3409,32 +3326,15 @@ impl Config {
             }
         }
 
-        // Provider override precedence:
-        // 1) TOPCLAW_PROVIDER always wins when set.
-        // 2) TOPCLAW_MODEL_PROVIDER/MODEL_PROVIDER (Codex app-server style).
-        // 3) Legacy PROVIDER is honored only when config still uses default provider.
+        // Provider override: TOPCLAW_PROVIDER
         if let Ok(provider) = std::env::var("TOPCLAW_PROVIDER") {
             if !provider.is_empty() {
                 self.default_provider = Some(provider);
             }
-        } else if let Ok(provider) =
-            std::env::var("TOPCLAW_MODEL_PROVIDER").or_else(|_| std::env::var("MODEL_PROVIDER"))
-        {
-            if !provider.is_empty() {
-                self.default_provider = Some(provider);
-            }
-        } else if let Ok(provider) = std::env::var("PROVIDER") {
-            let should_apply_legacy_provider =
-                self.default_provider.as_deref().map_or(true, |configured| {
-                    configured.trim().eq_ignore_ascii_case("openrouter")
-                });
-            if should_apply_legacy_provider && !provider.is_empty() {
-                self.default_provider = Some(provider);
-            }
         }
 
-        // Model: TOPCLAW_MODEL or MODEL
-        if let Ok(model) = std::env::var("TOPCLAW_MODEL").or_else(|_| std::env::var("MODEL")) {
+        // Model override: TOPCLAW_MODEL
+        if let Ok(model) = std::env::var("TOPCLAW_MODEL") {
             if !model.is_empty() {
                 self.default_model = Some(model);
             }
@@ -3542,10 +3442,8 @@ impl Config {
             }
         }
 
-        // Reasoning override: TOPCLAW_REASONING_ENABLED or REASONING_ENABLED
-        if let Ok(flag) = std::env::var("TOPCLAW_REASONING_ENABLED")
-            .or_else(|_| std::env::var("REASONING_ENABLED"))
-        {
+        // Reasoning override: TOPCLAW_REASONING_ENABLED
+        if let Ok(flag) = std::env::var("TOPCLAW_REASONING_ENABLED") {
             let normalized = flag.trim().to_ascii_lowercase();
             match normalized.as_str() {
                 "1" | "true" | "yes" | "on" => self.runtime.reasoning_enabled = Some(true),
@@ -3554,32 +3452,8 @@ impl Config {
             }
         }
 
-        // Deprecated reasoning level alias: TOPCLAW_REASONING_LEVEL or REASONING_LEVEL
-        let alias_level = std::env::var("TOPCLAW_REASONING_LEVEL")
-            .ok()
-            .map(|value| ("TOPCLAW_REASONING_LEVEL", value))
-            .or_else(|| {
-                std::env::var("REASONING_LEVEL")
-                    .ok()
-                    .map(|value| ("REASONING_LEVEL", value))
-            });
-        if let Some((env_name, level)) = alias_level {
-            if let Some(normalized) =
-                Self::normalize_reasoning_level_override(Some(&level), env_name)
-            {
-                tracing::warn!(
-                    env_name,
-                    reasoning_level = %normalized,
-                    "{env_name} is deprecated; prefer provider.reasoning_level in config"
-                );
-                self.runtime.reasoning_level = Some(normalized);
-            }
-        }
-
-        // Vision support override: TOPCLAW_MODEL_SUPPORT_VISION or MODEL_SUPPORT_VISION
-        if let Ok(flag) = std::env::var("TOPCLAW_MODEL_SUPPORT_VISION")
-            .or_else(|_| std::env::var("MODEL_SUPPORT_VISION"))
-        {
+        // Vision support override: TOPCLAW_MODEL_SUPPORT_VISION
+        if let Ok(flag) = std::env::var("TOPCLAW_MODEL_SUPPORT_VISION") {
             let normalized = flag.trim().to_ascii_lowercase();
             match normalized.as_str() {
                 "1" | "true" | "yes" | "on" => self.model_support_vision = Some(true),
@@ -3588,37 +3462,29 @@ impl Config {
             }
         }
 
-        // Web search enabled: TOPCLAW_WEB_SEARCH_ENABLED or WEB_SEARCH_ENABLED
-        if let Ok(enabled) = std::env::var("TOPCLAW_WEB_SEARCH_ENABLED")
-            .or_else(|_| std::env::var("WEB_SEARCH_ENABLED"))
-        {
+        // Web search enabled: TOPCLAW_WEB_SEARCH_ENABLED
+        if let Ok(enabled) = std::env::var("TOPCLAW_WEB_SEARCH_ENABLED") {
             self.web_search.enabled = enabled == "1" || enabled.eq_ignore_ascii_case("true");
         }
 
-        // Web search provider: TOPCLAW_WEB_SEARCH_PROVIDER or WEB_SEARCH_PROVIDER
-        if let Ok(provider) = std::env::var("TOPCLAW_WEB_SEARCH_PROVIDER")
-            .or_else(|_| std::env::var("WEB_SEARCH_PROVIDER"))
-        {
+        // Web search provider: TOPCLAW_WEB_SEARCH_PROVIDER
+        if let Ok(provider) = std::env::var("TOPCLAW_WEB_SEARCH_PROVIDER") {
             let provider = provider.trim();
             if !provider.is_empty() {
                 self.web_search.provider = provider.to_string();
             }
         }
 
-        // Brave API key: TOPCLAW_BRAVE_API_KEY or BRAVE_API_KEY
-        if let Ok(api_key) =
-            std::env::var("TOPCLAW_BRAVE_API_KEY").or_else(|_| std::env::var("BRAVE_API_KEY"))
-        {
+        // Brave API key: TOPCLAW_BRAVE_API_KEY
+        if let Ok(api_key) = std::env::var("TOPCLAW_BRAVE_API_KEY") {
             let api_key = api_key.trim();
             if !api_key.is_empty() {
                 self.web_search.brave_api_key = Some(api_key.to_string());
             }
         }
 
-        // Web search max results: TOPCLAW_WEB_SEARCH_MAX_RESULTS or WEB_SEARCH_MAX_RESULTS
-        if let Ok(max_results) = std::env::var("TOPCLAW_WEB_SEARCH_MAX_RESULTS")
-            .or_else(|_| std::env::var("WEB_SEARCH_MAX_RESULTS"))
-        {
+        // Web search max results: TOPCLAW_WEB_SEARCH_MAX_RESULTS
+        if let Ok(max_results) = std::env::var("TOPCLAW_WEB_SEARCH_MAX_RESULTS") {
             if let Ok(max_results) = max_results.parse::<usize>() {
                 if (1..=10).contains(&max_results) {
                     self.web_search.max_results = max_results;
@@ -3626,10 +3492,8 @@ impl Config {
             }
         }
 
-        // Web search timeout: TOPCLAW_WEB_SEARCH_TIMEOUT_SECS or WEB_SEARCH_TIMEOUT_SECS
-        if let Ok(timeout_secs) = std::env::var("TOPCLAW_WEB_SEARCH_TIMEOUT_SECS")
-            .or_else(|_| std::env::var("WEB_SEARCH_TIMEOUT_SECS"))
-        {
+        // Web search timeout: TOPCLAW_WEB_SEARCH_TIMEOUT_SECS
+        if let Ok(timeout_secs) = std::env::var("TOPCLAW_WEB_SEARCH_TIMEOUT_SECS") {
             if let Ok(timeout_secs) = timeout_secs.parse::<u64>() {
                 if timeout_secs > 0 {
                     self.web_search.timeout_secs = timeout_secs;
@@ -3992,7 +3856,6 @@ mod tests {
             stream_mode: StreamMode::Off,
             draft_update_interval_ms: 500,
             interrupt_on_new_message: false,
-            mention_only: false,
             group_reply: None,
             base_url: None,
         });
@@ -4201,23 +4064,6 @@ always_ask = []
     }
 
     #[test]
-    async fn heartbeat_config_parses_delivery_aliases() {
-        let raw = r#"
-enabled = true
-interval_minutes = 10
-message = "Ping"
-channel = "telegram"
-recipient = "42"
-"#;
-        let parsed: HeartbeatConfig = toml::from_str(raw).unwrap();
-        assert!(parsed.enabled);
-        assert_eq!(parsed.interval_minutes, 10);
-        assert_eq!(parsed.message.as_deref(), Some("Ping"));
-        assert_eq!(parsed.target.as_deref(), Some("telegram"));
-        assert_eq!(parsed.to.as_deref(), Some("42"));
-    }
-
-    #[test]
     async fn cron_config_default() {
         let c = CronConfig::default();
         assert!(c.enabled);
@@ -4351,7 +4197,6 @@ default_temperature = 0.7
                     stream_mode: StreamMode::default(),
                     draft_update_interval_ms: default_draft_update_interval_ms(),
                     interrupt_on_new_message: false,
-                    mention_only: false,
                     group_reply: None,
                     base_url: None,
                 }),
@@ -4451,13 +4296,13 @@ default_temperature = 0.7
     }
 
     #[test]
-    async fn storage_provider_dburl_alias_deserializes() {
+    async fn storage_provider_db_url_deserializes() {
         let raw = r#"
 default_temperature = 0.7
 
 [storage.provider.config]
 provider = "postgres"
-dbURL = "postgres://postgres:postgres@localhost:5432/topclaw"
+db_url = "postgres://postgres:postgres@localhost:5432/topclaw"
 schema = "public"
 table = "memories"
 connect_timeout_secs = 12
@@ -4634,42 +4479,6 @@ reasoning_level = "high"
     }
 
     #[test]
-    async fn runtime_reasoning_level_alias_deserializes() {
-        let raw = r#"
-default_temperature = 0.7
-
-[runtime]
-reasoning_level = "xhigh"
-"#;
-
-        let parsed: Config = toml::from_str(raw).unwrap();
-        assert_eq!(parsed.runtime.reasoning_level.as_deref(), Some("xhigh"));
-        assert_eq!(
-            parsed.effective_provider_reasoning_level().as_deref(),
-            Some("xhigh")
-        );
-    }
-
-    #[test]
-    async fn provider_reasoning_level_wins_over_runtime_alias() {
-        let raw = r#"
-default_temperature = 0.7
-
-[provider]
-reasoning_level = "medium"
-
-[runtime]
-reasoning_level = "high"
-"#;
-
-        let parsed: Config = toml::from_str(raw).unwrap();
-        assert_eq!(
-            parsed.effective_provider_reasoning_level().as_deref(),
-            Some("medium")
-        );
-    }
-
-    #[test]
     async fn agent_config_defaults() {
         let cfg = AgentConfig::default();
         assert!(!cfg.compact_context);
@@ -4820,7 +4629,6 @@ tool_dispatcher = "xml"
             stream_mode: StreamMode::Off,
             draft_update_interval_ms: 500,
             interrupt_on_new_message: false,
-            mention_only: false,
             group_reply: None,
             base_url: None,
         });
@@ -4990,7 +4798,6 @@ tool_dispatcher = "xml"
             stream_mode: StreamMode::Partial,
             draft_update_interval_ms: 500,
             interrupt_on_new_message: true,
-            mention_only: false,
             group_reply: None,
             base_url: None,
         };
@@ -5015,7 +4822,6 @@ tool_dispatcher = "xml"
             stream_mode: StreamMode::Off,
             draft_update_interval_ms: 500,
             interrupt_on_new_message: false,
-            mention_only: false,
             group_reply: None,
             base_url: None,
         });
@@ -5040,7 +4846,6 @@ tool_dispatcher = "xml"
             stream_mode: StreamMode::Off,
             draft_update_interval_ms: 500,
             interrupt_on_new_message: false,
-            mention_only: false,
             group_reply: None,
             base_url: None,
         });
@@ -5065,7 +4870,6 @@ tool_dispatcher = "xml"
             stream_mode: StreamMode::Off,
             draft_update_interval_ms: 500,
             interrupt_on_new_message: false,
-            mention_only: false,
             group_reply: None,
             base_url: None,
         });
@@ -5086,7 +4890,6 @@ tool_dispatcher = "xml"
             stream_mode: StreamMode::Off,
             draft_update_interval_ms: 500,
             interrupt_on_new_message: false,
-            mention_only: false,
             group_reply: None,
             base_url: None,
         });
@@ -5119,11 +4922,10 @@ tool_dispatcher = "xml"
     }
 
     #[test]
-    async fn telegram_group_reply_config_overrides_legacy_mention_only() {
+    async fn telegram_group_reply_config_supports_explicit_mode() {
         let json = r#"{
             "bot_token":"tok",
             "allowed_users":["*"],
-            "mention_only":false,
             "group_reply":{
                 "mode":"mention_only",
                 "allowed_sender_ids":["1001","1002"]
@@ -5148,7 +4950,6 @@ tool_dispatcher = "xml"
             guild_id: Some("12345".into()),
             allowed_users: vec![],
             listen_to_bots: false,
-            mention_only: false,
             group_reply: None,
         };
         let json = serde_json::to_string(&dc).unwrap();
@@ -5164,7 +4965,6 @@ tool_dispatcher = "xml"
             guild_id: None,
             allowed_users: vec![],
             listen_to_bots: false,
-            mention_only: false,
             group_reply: None,
         };
         let json = serde_json::to_string(&dc).unwrap();
@@ -5173,24 +4973,20 @@ tool_dispatcher = "xml"
     }
 
     #[test]
-    async fn discord_group_reply_mode_falls_back_to_legacy_mention_only() {
-        let json = r#"{
-            "bot_token":"tok",
-            "mention_only":true
-        }"#;
+    async fn discord_group_reply_mode_defaults_to_all_messages() {
+        let json = r#"{"bot_token":"tok"}"#;
         let parsed: DiscordConfig = serde_json::from_str(json).unwrap();
         assert_eq!(
             parsed.effective_group_reply_mode(),
-            GroupReplyMode::MentionOnly
+            GroupReplyMode::AllMessages
         );
         assert!(parsed.group_reply_allowed_sender_ids().is_empty());
     }
 
     #[test]
-    async fn discord_group_reply_mode_overrides_legacy_mention_only() {
+    async fn discord_group_reply_mode_supports_explicit_override() {
         let json = r#"{
             "bot_token":"tok",
-            "mention_only":true,
             "group_reply":{
                 "mode":"all_messages",
                 "allowed_sender_ids":["111"]
@@ -5513,25 +5309,20 @@ channel_id = "C123"
     }
 
     #[test]
-    async fn mattermost_group_reply_mode_falls_back_to_legacy_mention_only() {
-        let json = r#"{
-            "url":"https://mm.example.com",
-            "bot_token":"token",
-            "mention_only":true
-        }"#;
+    async fn mattermost_group_reply_mode_defaults_to_all_messages() {
+        let json = r#"{"url":"https://mm.example.com","bot_token":"token"}"#;
         let parsed: MattermostConfig = serde_json::from_str(json).unwrap();
         assert_eq!(
             parsed.effective_group_reply_mode(),
-            GroupReplyMode::MentionOnly
+            GroupReplyMode::AllMessages
         );
     }
 
     #[test]
-    async fn mattermost_group_reply_mode_overrides_legacy_mention_only() {
+    async fn mattermost_group_reply_mode_supports_explicit_override() {
         let json = r#"{
             "url":"https://mm.example.com",
             "bot_token":"token",
-            "mention_only":true,
             "group_reply":{
                 "mode":"all_messages",
                 "allowed_sender_ids":["u1","u2"]
@@ -5923,17 +5714,6 @@ enabled = true
         assert_eq!(parsed.entity_id, "default");
     }
 
-    #[test]
-    async fn composio_config_enable_alias_supported() {
-        let toml_str = r"
-enable = true
-";
-        let parsed: ComposioConfig = toml::from_str(toml_str).unwrap();
-        assert!(parsed.enabled);
-        assert!(parsed.api_key.is_none());
-        assert_eq!(parsed.entity_id, "default");
-    }
-
     // ══════════════════════════════════════════════════════════
     // SECRETS CONFIG TESTS
     // ══════════════════════════════════════════════════════════
@@ -6093,14 +5873,14 @@ default_temperature = 0.7
     }
 
     #[test]
-    async fn env_override_api_key_fallback() {
+    async fn env_override_api_key_ignores_generic_alias() {
         let _env_guard = env_override_lock().await;
         let mut config = Config::default();
 
         std::env::remove_var("TOPCLAW_API_KEY");
         std::env::set_var("API_KEY", "sk-fallback-key");
         config.apply_env_overrides();
-        assert_eq!(config.api_key.as_deref(), Some("sk-fallback-key"));
+        assert!(config.api_key.is_none());
 
         std::env::remove_var("API_KEY");
     }
@@ -6115,44 +5895,6 @@ default_temperature = 0.7
         assert_eq!(config.default_provider.as_deref(), Some("anthropic"));
 
         std::env::remove_var("TOPCLAW_PROVIDER");
-    }
-
-    #[test]
-    async fn env_override_model_provider_alias() {
-        let _env_guard = env_override_lock().await;
-        let mut config = Config::default();
-
-        std::env::remove_var("TOPCLAW_PROVIDER");
-        std::env::set_var("TOPCLAW_MODEL_PROVIDER", "openai-codex");
-        config.apply_env_overrides();
-        assert_eq!(config.default_provider.as_deref(), Some("openai-codex"));
-
-        std::env::remove_var("TOPCLAW_MODEL_PROVIDER");
-    }
-
-    #[test]
-    async fn toml_supports_model_provider_and_model_alias_fields() {
-        let raw = r#"
-default_temperature = 0.7
-model_provider = "sub2api"
-model = "gpt-5.3-codex"
-
-[model_providers.sub2api]
-name = "sub2api"
-base_url = "https://api.tonsof.blue/v1"
-wire_api = "responses"
-requires_openai_auth = true
-"#;
-
-        let parsed: Config = toml::from_str(raw).expect("config should parse");
-        assert_eq!(parsed.default_provider.as_deref(), Some("sub2api"));
-        assert_eq!(parsed.default_model.as_deref(), Some("gpt-5.3-codex"));
-        let profile = parsed
-            .model_providers
-            .get("sub2api")
-            .expect("profile should exist");
-        assert_eq!(profile.wire_api.as_deref(), Some("responses"));
-        assert!(profile.requires_openai_auth);
     }
 
     #[test]
@@ -6220,55 +5962,6 @@ requires_openai_auth = true
         std::env::remove_var("TOPCLAW_OPEN_SKILLS_ENABLED");
         std::env::remove_var("TOPCLAW_SKILLS_PROMPT_MODE");
         std::env::remove_var("TOPCLAW_BUILTIN_SKILLS_ENABLED");
-    }
-
-    #[test]
-    async fn env_override_provider_fallback() {
-        let _env_guard = env_override_lock().await;
-        let mut config = Config::default();
-
-        std::env::remove_var("TOPCLAW_PROVIDER");
-        std::env::set_var("PROVIDER", "openai");
-        config.apply_env_overrides();
-        assert_eq!(config.default_provider.as_deref(), Some("openai"));
-
-        std::env::remove_var("PROVIDER");
-    }
-
-    #[test]
-    async fn env_override_provider_fallback_does_not_replace_non_default_provider() {
-        let _env_guard = env_override_lock().await;
-        let mut config = Config {
-            default_provider: Some("custom:https://proxy.example.com/v1".to_string()),
-            ..Config::default()
-        };
-
-        std::env::remove_var("TOPCLAW_PROVIDER");
-        std::env::set_var("PROVIDER", "openrouter");
-        config.apply_env_overrides();
-        assert_eq!(
-            config.default_provider.as_deref(),
-            Some("custom:https://proxy.example.com/v1")
-        );
-
-        std::env::remove_var("PROVIDER");
-    }
-
-    #[test]
-    async fn env_override_zero_claw_provider_overrides_non_default_provider() {
-        let _env_guard = env_override_lock().await;
-        let mut config = Config {
-            default_provider: Some("custom:https://proxy.example.com/v1".to_string()),
-            ..Config::default()
-        };
-
-        std::env::set_var("TOPCLAW_PROVIDER", "openrouter");
-        std::env::set_var("PROVIDER", "anthropic");
-        config.apply_env_overrides();
-        assert_eq!(config.default_provider.as_deref(), Some("openrouter"));
-
-        std::env::remove_var("TOPCLAW_PROVIDER");
-        std::env::remove_var("PROVIDER");
     }
 
     #[test]
@@ -6472,22 +6165,6 @@ provider_api = "not-a-real-mode"
         assert!(error
             .to_string()
             .contains("wire_api must be one of: responses, chat_completions"));
-    }
-
-    #[test]
-    async fn env_override_model_fallback() {
-        let _env_guard = env_override_lock().await;
-        let mut config = Config::default();
-
-        std::env::remove_var("TOPCLAW_MODEL");
-        std::env::set_var("MODEL", "anthropic/claude-3.5-sonnet");
-        config.apply_env_overrides();
-        assert_eq!(
-            config.default_model.as_deref(),
-            Some("anthropic/claude-3.5-sonnet")
-        );
-
-        std::env::remove_var("MODEL");
     }
 
     #[test]
@@ -7001,36 +6678,6 @@ default_model = "legacy-model"
     }
 
     #[test]
-    async fn env_override_reasoning_level_alias() {
-        let _env_guard = env_override_lock().await;
-        let mut config = Config::default();
-        assert_eq!(config.runtime.reasoning_level, None);
-
-        std::env::set_var("TOPCLAW_REASONING_LEVEL", "xhigh");
-        config.apply_env_overrides();
-        assert_eq!(config.runtime.reasoning_level.as_deref(), Some("xhigh"));
-        assert_eq!(
-            config.effective_provider_reasoning_level().as_deref(),
-            Some("xhigh")
-        );
-
-        std::env::remove_var("TOPCLAW_REASONING_LEVEL");
-    }
-
-    #[test]
-    async fn env_override_reasoning_level_alias_invalid_ignored() {
-        let _env_guard = env_override_lock().await;
-        let mut config = Config::default();
-        config.runtime.reasoning_level = Some("medium".to_string());
-
-        std::env::set_var("TOPCLAW_REASONING_LEVEL", "invalid");
-        config.apply_env_overrides();
-        assert_eq!(config.runtime.reasoning_level.as_deref(), Some("medium"));
-
-        std::env::remove_var("TOPCLAW_REASONING_LEVEL");
-    }
-
-    #[test]
     async fn env_override_model_support_vision() {
         let _env_guard = env_override_lock().await;
         let mut config = Config::default();
@@ -7070,11 +6717,11 @@ default_model = "legacy-model"
         let _env_guard = env_override_lock().await;
         let mut config = Config::default();
 
-        std::env::set_var("WEB_SEARCH_ENABLED", "false");
-        std::env::set_var("WEB_SEARCH_PROVIDER", "brave");
-        std::env::set_var("WEB_SEARCH_MAX_RESULTS", "7");
-        std::env::set_var("WEB_SEARCH_TIMEOUT_SECS", "20");
-        std::env::set_var("BRAVE_API_KEY", "brave-test-key");
+        std::env::set_var("TOPCLAW_WEB_SEARCH_ENABLED", "false");
+        std::env::set_var("TOPCLAW_WEB_SEARCH_PROVIDER", "brave");
+        std::env::set_var("TOPCLAW_WEB_SEARCH_MAX_RESULTS", "7");
+        std::env::set_var("TOPCLAW_WEB_SEARCH_TIMEOUT_SECS", "20");
+        std::env::set_var("TOPCLAW_BRAVE_API_KEY", "brave-test-key");
 
         config.apply_env_overrides();
 
@@ -7087,11 +6734,11 @@ default_model = "legacy-model"
             Some("brave-test-key")
         );
 
-        std::env::remove_var("WEB_SEARCH_ENABLED");
-        std::env::remove_var("WEB_SEARCH_PROVIDER");
-        std::env::remove_var("WEB_SEARCH_MAX_RESULTS");
-        std::env::remove_var("WEB_SEARCH_TIMEOUT_SECS");
-        std::env::remove_var("BRAVE_API_KEY");
+        std::env::remove_var("TOPCLAW_WEB_SEARCH_ENABLED");
+        std::env::remove_var("TOPCLAW_WEB_SEARCH_PROVIDER");
+        std::env::remove_var("TOPCLAW_WEB_SEARCH_MAX_RESULTS");
+        std::env::remove_var("TOPCLAW_WEB_SEARCH_TIMEOUT_SECS");
+        std::env::remove_var("TOPCLAW_BRAVE_API_KEY");
     }
 
     #[test]
@@ -7101,16 +6748,16 @@ default_model = "legacy-model"
         let original_max_results = config.web_search.max_results;
         let original_timeout = config.web_search.timeout_secs;
 
-        std::env::set_var("WEB_SEARCH_MAX_RESULTS", "99");
-        std::env::set_var("WEB_SEARCH_TIMEOUT_SECS", "0");
+        std::env::set_var("TOPCLAW_WEB_SEARCH_MAX_RESULTS", "99");
+        std::env::set_var("TOPCLAW_WEB_SEARCH_TIMEOUT_SECS", "0");
 
         config.apply_env_overrides();
 
         assert_eq!(config.web_search.max_results, original_max_results);
         assert_eq!(config.web_search.timeout_secs, original_timeout);
 
-        std::env::remove_var("WEB_SEARCH_MAX_RESULTS");
-        std::env::remove_var("WEB_SEARCH_TIMEOUT_SECS");
+        std::env::remove_var("TOPCLAW_WEB_SEARCH_MAX_RESULTS");
+        std::env::remove_var("TOPCLAW_WEB_SEARCH_TIMEOUT_SECS");
     }
 
     #[test]
@@ -7323,9 +6970,7 @@ default_model = "legacy-model"
             encrypt_key: Some("encrypt_key".into()),
             verification_token: Some("verify_token".into()),
             allowed_users: vec!["user_123".into(), "user_456".into()],
-            mention_only: false,
             group_reply: None,
-            use_feishu: true,
             receive_mode: LarkReceiveMode::Websocket,
             port: None,
             draft_update_interval_ms: default_lark_draft_update_interval_ms(),
@@ -7338,7 +6983,6 @@ default_model = "legacy-model"
         assert_eq!(parsed.encrypt_key.as_deref(), Some("encrypt_key"));
         assert_eq!(parsed.verification_token.as_deref(), Some("verify_token"));
         assert_eq!(parsed.allowed_users.len(), 2);
-        assert!(parsed.use_feishu);
     }
 
     #[test]
@@ -7349,9 +6993,7 @@ default_model = "legacy-model"
             encrypt_key: Some("encrypt_key".into()),
             verification_token: Some("verify_token".into()),
             allowed_users: vec!["*".into()],
-            mention_only: false,
             group_reply: None,
-            use_feishu: false,
             receive_mode: LarkReceiveMode::Webhook,
             port: Some(9898),
             draft_update_interval_ms: default_lark_draft_update_interval_ms(),
@@ -7361,7 +7003,6 @@ default_model = "legacy-model"
         let parsed: LarkConfig = toml::from_str(&toml_str).unwrap();
         assert_eq!(parsed.app_id, "cli_123456");
         assert_eq!(parsed.app_secret, "secret_abc");
-        assert!(!parsed.use_feishu);
     }
 
     #[test]
@@ -7371,21 +7012,9 @@ default_model = "legacy-model"
         assert!(parsed.encrypt_key.is_none());
         assert!(parsed.verification_token.is_none());
         assert!(parsed.allowed_users.is_empty());
-        assert!(!parsed.mention_only);
-        assert!(!parsed.use_feishu);
         assert_eq!(
             parsed.effective_group_reply_mode(),
             GroupReplyMode::AllMessages
-        );
-    }
-
-    #[test]
-    async fn lark_config_defaults_to_lark_endpoint() {
-        let json = r#"{"app_id":"cli_123","app_secret":"secret"}"#;
-        let parsed: LarkConfig = serde_json::from_str(json).unwrap();
-        assert!(
-            !parsed.use_feishu,
-            "use_feishu should default to false (Lark)"
         );
     }
 
@@ -7397,11 +7026,10 @@ default_model = "legacy-model"
     }
 
     #[test]
-    async fn lark_group_reply_mode_overrides_legacy_mention_only() {
+    async fn lark_group_reply_mode_supports_explicit_override() {
         let json = r#"{
             "app_id":"cli_123",
             "app_secret":"secret",
-            "mention_only":true,
             "group_reply":{
                 "mode":"all_messages",
                 "allowed_sender_ids":["ou_1"]

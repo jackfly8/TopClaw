@@ -5,9 +5,9 @@ use crate::config::schema::{
 };
 use crate::config::{
     AutonomyConfig, BrowserConfig, ChannelsConfig, ComposioConfig, Config, DiscordConfig,
-    HeartbeatConfig, HttpRequestConfig, IMessageConfig, LarkConfig, MatrixConfig, MemoryConfig,
-    ObservabilityConfig, RuntimeConfig, SecretsConfig, SlackConfig, StorageConfig, TelegramConfig,
-    WebFetchConfig, WebSearchConfig, WebhookConfig,
+    FeishuConfig, HeartbeatConfig, HttpRequestConfig, IMessageConfig, LarkConfig, MatrixConfig,
+    MemoryConfig, ObservabilityConfig, RuntimeConfig, SecretsConfig, SlackConfig, StorageConfig,
+    TelegramConfig, WebFetchConfig, WebSearchConfig, WebhookConfig,
 };
 use crate::hardware::{self, HardwareConfig};
 use crate::memory::{
@@ -3184,7 +3184,7 @@ fn provider_env_var(name: &str) -> &'static str {
         "gemini" => "GEMINI_API_KEY",
         "nvidia" | "nvidia-nim" | "build.nvidia.com" => "NVIDIA_API_KEY",
         "astrai" => "ASTRAI_API_KEY",
-        _ => "API_KEY",
+        _ => "TOPCLAW_API_KEY",
     }
 }
 
@@ -4122,7 +4122,6 @@ fn setup_channels() -> Result<ChannelsConfig> {
                     stream_mode: StreamMode::Partial,
                     draft_update_interval_ms: 500,
                     interrupt_on_new_message: false,
-                    mention_only: false,
                     group_reply: None,
                     base_url: None,
                 });
@@ -4223,7 +4222,6 @@ fn setup_channels() -> Result<ChannelsConfig> {
                     guild_id: if guild.is_empty() { None } else { Some(guild) },
                     allowed_users,
                     listen_to_bots: false,
-                    mention_only: false,
                     group_reply: None,
                 });
             }
@@ -5260,7 +5258,7 @@ fn setup_channels() -> Result<ChannelsConfig> {
 
                 let receive_mode_choice = Select::new()
                     .with_prompt("  Receive mode")
-                    .items(["Webhook (recommended)", "WebSocket (legacy fallback)"])
+                    .items(["Webhook (recommended)", "WebSocket"])
                     .default(0)
                     .interact()?;
                 let receive_mode = if receive_mode_choice == 0 {
@@ -5452,20 +5450,35 @@ fn setup_channels() -> Result<ChannelsConfig> {
                     );
                 }
 
-                config.lark = Some(LarkConfig {
-                    app_id,
-                    app_secret,
-                    verification_token,
-                    encrypt_key: None,
-                    allowed_users,
-                    mention_only: false,
-                    group_reply: None,
-                    use_feishu,
-                    receive_mode,
-                    port,
-                    draft_update_interval_ms: 3000,
-                    max_draft_edits: 20,
-                });
+                if use_feishu {
+                    config.feishu = Some(FeishuConfig {
+                        app_id,
+                        app_secret,
+                        verification_token,
+                        encrypt_key: None,
+                        allowed_users,
+                        group_reply: None,
+                        receive_mode,
+                        port,
+                        draft_update_interval_ms: 3000,
+                        max_draft_edits: 20,
+                    });
+                    config.lark = None;
+                } else {
+                    config.lark = Some(LarkConfig {
+                        app_id,
+                        app_secret,
+                        verification_token,
+                        encrypt_key: None,
+                        allowed_users,
+                        group_reply: None,
+                        receive_mode,
+                        port,
+                        draft_update_interval_ms: 3000,
+                        max_draft_edits: 20,
+                    });
+                    config.feishu = None;
+                }
             }
             ChannelMenuChoice::Nostr => {
                 // ── Nostr ──
@@ -7887,7 +7900,7 @@ mod tests {
 
     #[test]
     fn provider_env_var_unknown_falls_back() {
-        assert_eq!(provider_env_var("some-new-provider"), "API_KEY");
+        assert_eq!(provider_env_var("some-new-provider"), "TOPCLAW_API_KEY");
     }
 
     #[test]
@@ -7978,7 +7991,6 @@ mod tests {
             channel_id: Some("channel".into()),
             allowed_users: vec!["*".into()],
             thread_replies: Some(true),
-            mention_only: Some(false),
             group_reply: None,
         });
         assert!(has_launchable_channels(&channels));

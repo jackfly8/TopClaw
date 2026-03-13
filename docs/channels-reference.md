@@ -199,7 +199,6 @@ bot_token = "123456:telegram-token"
 allowed_users = ["*"]
 stream_mode = "off"               # optional: off | partial
 draft_update_interval_ms = 500    # optional: edit throttle for partial streaming
-mention_only = false              # legacy fallback; used when group_reply.mode is not set
 interrupt_on_new_message = false  # optional: cancel in-flight same-sender same-chat request
 
 [channels_config.telegram.group_reply]
@@ -220,7 +219,6 @@ bot_token = "discord-bot-token"
 guild_id = "123456789012345678"   # optional
 allowed_users = ["*"]
 listen_to_bots = false
-mention_only = false              # legacy fallback; used when group_reply.mode is not set
 
 [channels_config.discord.group_reply]
 mode = "all_messages"             # optional: all_messages | mention_only
@@ -254,7 +252,6 @@ url = "https://mm.example.com"
 bot_token = "mattermost-token"
 channel_id = "channel-id"          # required for listening
 allowed_users = ["*"]
-mention_only = false               # legacy fallback; used when group_reply.mode is not set
 
 [channels_config.mattermost.group_reply]
 mode = "all_messages"              # optional: all_messages | mention_only
@@ -347,7 +344,7 @@ smtp_tls = true
 username = "bot@example.com"
 password = "email-password"
 from_address = "bot@example.com"
-poll_interval_secs = 60
+idle_timeout_secs = 60
 allowed_senders = ["*"]
 ```
 
@@ -376,8 +373,6 @@ app_secret = "your_lark_app_secret"
 encrypt_key = ""                    # optional
 verification_token = ""             # optional
 allowed_users = ["*"]
-mention_only = false                # legacy fallback; used when group_reply.mode is not set
-use_feishu = false
 receive_mode = "websocket"          # or "webhook"
 port = 8081                          # required for webhook mode
 
@@ -403,10 +398,6 @@ mode = "all_messages"               # optional: all_messages | mention_only
 allowed_sender_ids = []             # optional: sender open_ids that bypass mention gate
 ```
 
-Migration note:
-
-- Legacy config `[channels_config.lark] use_feishu = true` is still supported for backward compatibility.
-- Prefer `[channels_config.feishu]` for new setups.
 - Inbound `image` messages are converted to multimodal markers (`[IMAGE:data:image/...;base64,...]`).
 - If image download fails, TopClaw forwards fallback text instead of silently dropping the message.
 
@@ -458,7 +449,7 @@ allowed_users = ["*"]
 app_id = "qq-app-id"
 app_secret = "qq-app-secret"
 allowed_users = ["*"]
-receive_mode = "webhook" # webhook (default) or websocket (legacy fallback)
+receive_mode = "webhook" # webhook (default) or websocket
 ```
 
 Notes:
@@ -466,7 +457,7 @@ Notes:
 - `webhook` mode is now the default and serves inbound callbacks at `POST /qq`.
 - QQ validation challenge payloads (`op = 13`) are auto-signed using `app_secret`.
 - `X-Bot-Appid` is checked when present and must match `app_id`.
-- Set `receive_mode = "websocket"` to keep the legacy gateway WS receive path.
+- Set `receive_mode = "websocket"` to use the gateway WebSocket receive path.
 
 ### 4.16 Nextcloud Talk
 

@@ -371,29 +371,6 @@ impl LarkChannel {
         }
     }
 
-    /// Build from `LarkConfig` using legacy compatibility:
-    /// when `use_feishu=true`, this instance routes to Feishu endpoints.
-    pub fn from_config(config: &crate::config::schema::LarkConfig) -> Self {
-        let platform = if config.use_feishu {
-            LarkPlatform::Feishu
-        } else {
-            LarkPlatform::Lark
-        };
-        let mut ch = Self::new_with_platform(
-            config.app_id.clone(),
-            config.app_secret.clone(),
-            config.verification_token.clone().unwrap_or_default(),
-            config.port,
-            config.allowed_users.clone(),
-            config.effective_group_reply_mode().requires_mention(),
-            platform,
-        );
-        ch.group_reply_allowed_sender_ids =
-            normalize_group_reply_allowed_sender_ids(config.group_reply_allowed_sender_ids());
-        ch.receive_mode = config.receive_mode.clone();
-        ch
-    }
-
     pub fn from_lark_config(config: &crate::config::schema::LarkConfig) -> Self {
         let mut ch = Self::new_with_platform(
             config.app_id.clone(),
@@ -2369,9 +2346,7 @@ mod tests {
             encrypt_key: None,
             verification_token: Some("vtoken789".into()),
             allowed_users: vec!["ou_user1".into(), "ou_user2".into()],
-            mention_only: false,
             group_reply: None,
-            use_feishu: false,
             receive_mode: LarkReceiveMode::default(),
             port: None,
             draft_update_interval_ms: 3_000,
@@ -2394,9 +2369,7 @@ mod tests {
             encrypt_key: None,
             verification_token: Some("tok".into()),
             allowed_users: vec!["*".into()],
-            mention_only: false,
             group_reply: None,
-            use_feishu: false,
             receive_mode: LarkReceiveMode::Webhook,
             port: Some(9898),
             draft_update_interval_ms: 3_000,
@@ -2416,7 +2389,6 @@ mod tests {
         let parsed: LarkConfig = serde_json::from_str(json).unwrap();
         assert!(parsed.verification_token.is_none());
         assert!(parsed.allowed_users.is_empty());
-        assert!(!parsed.mention_only);
         assert_eq!(parsed.receive_mode, LarkReceiveMode::Websocket);
         assert!(parsed.port.is_none());
     }
@@ -2431,36 +2403,7 @@ mod tests {
             encrypt_key: None,
             verification_token: Some("vtoken789".into()),
             allowed_users: vec!["*".into()],
-            mention_only: false,
             group_reply: None,
-            use_feishu: false,
-            receive_mode: LarkReceiveMode::Webhook,
-            port: Some(9898),
-            draft_update_interval_ms: 3_000,
-            max_draft_edits: 20,
-        };
-
-        let ch = LarkChannel::from_config(&cfg);
-
-        assert_eq!(ch.api_base(), LARK_BASE_URL);
-        assert_eq!(ch.ws_base(), LARK_WS_BASE_URL);
-        assert_eq!(ch.receive_mode, LarkReceiveMode::Webhook);
-        assert_eq!(ch.port, Some(9898));
-    }
-
-    #[test]
-    fn lark_from_lark_config_ignores_legacy_feishu_flag() {
-        use crate::config::schema::{LarkConfig, LarkReceiveMode};
-
-        let cfg = LarkConfig {
-            app_id: "cli_app123".into(),
-            app_secret: "secret456".into(),
-            encrypt_key: None,
-            verification_token: Some("vtoken789".into()),
-            allowed_users: vec!["*".into()],
-            mention_only: false,
-            group_reply: None,
-            use_feishu: true,
             receive_mode: LarkReceiveMode::Webhook,
             port: Some(9898),
             draft_update_interval_ms: 3_000,
@@ -2471,7 +2414,8 @@ mod tests {
 
         assert_eq!(ch.api_base(), LARK_BASE_URL);
         assert_eq!(ch.ws_base(), LARK_WS_BASE_URL);
-        assert_eq!(ch.name(), "lark");
+        assert_eq!(ch.receive_mode, LarkReceiveMode::Webhook);
+        assert_eq!(ch.port, Some(9898));
     }
 
     #[test]

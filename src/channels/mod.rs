@@ -4649,26 +4649,10 @@ fn collect_configured_channels(
 
     #[cfg(feature = "channel-lark")]
     if let Some(ref lk) = config.channels_config.lark {
-        if lk.use_feishu {
-            if config.channels_config.feishu.is_some() {
-                tracing::warn!(
-                    "Both [channels_config.feishu] and legacy [channels_config.lark].use_feishu=true are configured; ignoring legacy Feishu fallback in lark."
-                );
-            } else {
-                tracing::warn!(
-                    "Using legacy [channels_config.lark].use_feishu=true compatibility path; prefer [channels_config.feishu]."
-                );
-                channels.push(ConfiguredChannel {
-                    display_name: "Feishu",
-                    channel: Arc::new(LarkChannel::from_config(lk)),
-                });
-            }
-        } else {
-            channels.push(ConfiguredChannel {
-                display_name: "Lark",
-                channel: Arc::new(LarkChannel::from_lark_config(lk)),
-            });
-        }
+        channels.push(ConfiguredChannel {
+            display_name: "Lark",
+            channel: Arc::new(LarkChannel::from_lark_config(lk)),
+        });
     }
 
     #[cfg(feature = "channel-lark")]
@@ -10761,7 +10745,6 @@ BTC is currently around $65,000 based on latest tool output."#;
             channel_id: Some("channel-1".to_string()),
             allowed_users: vec![],
             thread_replies: Some(true),
-            mention_only: Some(false),
             group_reply: None,
         });
 
