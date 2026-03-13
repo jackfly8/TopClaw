@@ -83,7 +83,7 @@ ssh arduino@<UNO_Q_IP>
 ### 3.1 Αυτόματη Προετοιμασία (Onboarding)
 
 ```bash
-topclaw onboard --api-key <YOUR_API_KEY> --provider <provider_name>
+topclaw bootstrap --api-key <YOUR_API_KEY> --provider <provider_name>
 ```
 
 ### 3.2 Αρχείο Ρυθμίσεων (config.toml)

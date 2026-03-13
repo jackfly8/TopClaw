@@ -266,7 +266,7 @@ impl Default for SandboxBackend {
 
 ### Before (Current)
 ```bash
-$ topclaw onboard
+$ topclaw bootstrap
 [1/9] Workspace Setup...
 [2/9] AI Provider...
 ...
@@ -276,7 +276,7 @@ $ topclaw onboard
 
 ### After (With Frictionless Security)
 ```bash
-$ topclaw onboard
+$ topclaw bootstrap
 [1/9] Workspace Setup...
 [2/9] AI Provider...
 ...
@@ -287,7 +287,7 @@ $ topclaw onboard
 
 ### Advanced User (Explicit Control)
 ```bash
-$ topclaw onboard --security-level paranoid
+$ topclaw bootstrap --security-level paranoid
 [1/9] Workspace Setup...
 ...
 ✓ Security: Paranoid | Landlock + Firejail | Audit signed

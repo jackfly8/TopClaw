@@ -33,7 +33,7 @@ use tokio::fs;
 //
 // Step 1: Workspace - Where to store files
 // Step 2: AI Provider - Choose model and configure provider authentication
-// Step 3: How to reach you - Telegram / Discord / Skip
+// Step 3: How to reach you - connect one or more channels
 //
 // Everything else (Tunnel, Web tools, Hardware, Memory) can be configured later.
 
@@ -137,7 +137,7 @@ pub async fn run_wizard(force: bool) -> Result<Config> {
             .bold()
     );
     println!("  {}", style("─".repeat(40)).dim());
-    let channels_config = setup_channels_simple()?;
+    let channels_config = setup_channels()?;
 
     // ── Build config with sensible defaults for everything else ──────
     // Default: SQLite memory, supervised autonomy, native runtime
@@ -2252,194 +2252,6 @@ async fn persist_workspace_selection(config_path: &Path) -> Result<()> {
         );
     }
     Ok(())
-}
-
-// ── Simplified Channel Setup: Just 3 options ────────────────────────
-
-fn setup_channels_simple() -> Result<ChannelsConfig> {
-    let options = vec![
-        "Skip for now (CLI only, configure later)",
-        "Telegram (most popular, need bot token)",
-        "Discord (need bot token)",
-    ];
-
-    let choice = Select::new()
-        .with_prompt("  How do you want to talk to TopClaw?")
-        .items(&options)
-        .default(0)
-        .interact()?;
-
-    let mut config = ChannelsConfig::default();
-
-    match choice {
-        1 => {
-            // Telegram
-            println!();
-            println!("  {} Telegram Setup", style("→").cyan());
-            print_bullet("1. Open Telegram and message @BotFather");
-            print_bullet("2. Send /newbot and follow the prompts");
-            print_bullet("3. Copy the bot token and paste it below");
-            println!();
-
-            let token: String = Input::new()
-                .with_prompt("  Bot token (from @BotFather)")
-                .interact_text()?;
-
-            if token.trim().is_empty() {
-                println!("  {} Skipped", style("→").dim());
-            } else {
-                // Test connection
-                print!("  {} Testing connection... ", style("⏳").dim());
-                let token_clone = token.clone();
-                let thread_result = std::thread::spawn(move || {
-                    let client = reqwest::blocking::Client::new();
-                    let url = format!("https://api.telegram.org/bot{token_clone}/getMe");
-                    let resp = client.get(&url).send()?;
-                    let ok = resp.status().is_success();
-                    let data: serde_json::Value = resp.json().unwrap_or_default();
-                    let bot_name = data
-                        .get("result")
-                        .and_then(|r| r.get("username"))
-                        .and_then(serde_json::Value::as_str)
-                        .unwrap_or("unknown")
-                        .to_string();
-                    Ok::<_, reqwest::Error>((ok, bot_name))
-                })
-                .join();
-
-                match thread_result {
-                    Ok(Ok((true, bot_name))) => {
-                        println!(
-                            "\r  {} Connected as @{bot_name}        ",
-                            style("✅").green().bold()
-                        );
-                    }
-                    _ => {
-                        println!(
-                            "\r  {} Connection failed — check your token",
-                            style("❌").red().bold()
-                        );
-                        println!("  {} Skipped", style("→").dim());
-                    }
-                }
-
-                // Ask for allowed users (simplified - just ask for your username)
-                let users_str: String = Input::new()
-                    .with_prompt(
-                        "  Your Telegram username (without @), or press Enter for '*' (allow all)",
-                    )
-                    .allow_empty(true)
-                    .interact_text()?;
-
-                let allowed_users = if users_str.trim().is_empty() {
-                    vec!["*".into()]
-                } else {
-                    vec![users_str.trim().to_string()]
-                };
-
-                config.telegram = Some(TelegramConfig {
-                    bot_token: token,
-                    allowed_users,
-                    stream_mode: StreamMode::Partial,
-                    draft_update_interval_ms: 500,
-                    interrupt_on_new_message: false,
-                    mention_only: false,
-                    group_reply: None,
-                    base_url: None,
-                });
-            }
-        }
-        2 => {
-            // Discord
-            println!();
-            println!("  {} Discord Setup", style("→").cyan());
-            print_bullet("1. Go to https://discord.com/developers/applications");
-            print_bullet("2. Create a New Application → Bot → Copy token");
-            print_bullet("3. Enable MESSAGE CONTENT intent under Bot settings");
-            print_bullet("4. Invite bot to your server with messages permission");
-            println!();
-
-            let token: String = Input::new().with_prompt("  Bot token").interact_text()?;
-
-            if token.trim().is_empty() {
-                println!("  {} Skipped", style("→").dim());
-            } else {
-                // Test connection
-                print!("  {} Testing connection... ", style("⏳").dim());
-                let token_clone = token.clone();
-                let thread_result = std::thread::spawn(move || {
-                    let client = reqwest::blocking::Client::new();
-                    let resp = client
-                        .get("https://discord.com/api/v10/users/@me")
-                        .header("Authorization", format!("Bot {token_clone}"))
-                        .send()?;
-                    let ok = resp.status().is_success();
-                    let data: serde_json::Value = resp.json().unwrap_or_default();
-                    let bot_name = data
-                        .get("username")
-                        .and_then(serde_json::Value::as_str)
-                        .unwrap_or("unknown")
-                        .to_string();
-                    Ok::<_, reqwest::Error>((ok, bot_name))
-                })
-                .join();
-
-                match thread_result {
-                    Ok(Ok((true, bot_name))) => {
-                        println!(
-                            "\r  {} Connected as {bot_name}        ",
-                            style("✅").green().bold()
-                        );
-                    }
-                    _ => {
-                        println!(
-                            "\r  {} Connection failed — check your token",
-                            style("❌").red().bold()
-                        );
-                        println!("  {} Skipped", style("→").dim());
-                    }
-                }
-
-                // Ask for allowed users
-                let users_str: String = Input::new()
-                    .with_prompt("  Your Discord user ID, or press Enter for '*' (allow all)")
-                    .allow_empty(true)
-                    .interact_text()?;
-
-                let allowed_users: Vec<String> = if users_str.trim().is_empty() {
-                    vec!["*".into()]
-                } else {
-                    vec![users_str.trim().to_string()]
-                };
-
-                config.discord = Some(DiscordConfig {
-                    bot_token: token,
-                    guild_id: None,
-                    allowed_users,
-                    listen_to_bots: false,
-                    mention_only: false,
-                    group_reply: None,
-                });
-            }
-        }
-        _ => {}
-    }
-
-    // Summary
-    let channels = config.channels();
-    let channels = channels
-        .iter()
-        .filter_map(|(channel, ok)| ok.then_some(channel.name()));
-    let channels: Vec<_> = std::iter::once("Cli").chain(channels).collect();
-    let active = channels.join(", ");
-
-    println!(
-        "  {} Channels: {}",
-        style("✓").green().bold(),
-        style(active).green()
-    );
-
-    Ok(config)
 }
 
 async fn setup_workspace() -> Result<(PathBuf, PathBuf)> {

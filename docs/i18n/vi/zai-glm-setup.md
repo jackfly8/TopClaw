@@ -19,7 +19,7 @@ Nếu bạn cần base URL tùy chỉnh, xem `docs/custom-providers.md`.
 ### Bắt đầu nhanh
 
 ```bash
-topclaw onboard \
+topclaw bootstrap \
   --provider "zai" \
   --api-key "YOUR_ZAI_API_KEY"
 ```

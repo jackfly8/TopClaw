@@ -28,10 +28,10 @@ If you want to rerun onboarding later, run it inside Docker:
 
 ```bash
 # Interactive onboarding (recommended for first-time setup)
-./topclaw_install.sh --docker --interactive-onboard
+./bootstrap.sh --docker --interactive-onboard
 
 # Or non-interactive with API key
-./topclaw_install.sh --docker --api-key "sk-..." --provider openrouter
+./bootstrap.sh --docker --api-key "sk-..." --provider openrouter
 ```
 
 If you seed config with `--docker-config` or start directly with `--docker-daemon`, bootstrap skips onboarding intentionally.
@@ -42,7 +42,7 @@ If you seed config with `--docker-config` or start directly with `--docker-daemo
 
 ```bash
 # Start as a background daemon
-./topclaw_install.sh --docker --docker-daemon
+./bootstrap.sh --docker --docker-daemon
 
 # Check logs
 docker logs -f topclaw-daemon
@@ -106,7 +106,7 @@ TOPCLAW_CONTAINER_CLI=podman ./bootstrap.sh --docker
 
 | Task | Command |
 |------|---------|
-| Start daemon | `./topclaw_install.sh --docker --docker-daemon` |
+| Start daemon | `./bootstrap.sh --docker --docker-daemon` |
 | View daemon logs | `docker logs -f topclaw-daemon` |
 | Stop daemon | `docker rm -f topclaw-daemon` |
 | Run one-off agent | `docker run --rm -it ... topclaw agent -m "message"` |
@@ -154,8 +154,8 @@ docker run --rm -it \
 
 Running `./bootstrap.sh --docker` does not leave a long-running daemon container behind. It runs onboarding in a temporary container unless you explicitly skip onboarding. To start persistent runtime:
 
-1. Run onboarding: `./topclaw_install.sh --docker --interactive-onboard`
-2. Start daemon: `./topclaw_install.sh --docker --docker-daemon`
+1. Run onboarding: `./bootstrap.sh --docker --interactive-onboard`
+2. Start daemon: `./bootstrap.sh --docker --docker-daemon`
 
 ### Container Fails to Start
 

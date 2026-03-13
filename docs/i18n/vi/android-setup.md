@@ -17,6 +17,6 @@ Bản gốc tiếng Anh:
 1. Xác định đúng kiến trúc thiết bị (`uname -m`).
 2. Tải đúng binary theo kiến trúc.
 3. Kiểm tra quyền thực thi (`chmod +x topclaw`).
-4. Chạy `topclaw --version` và `topclaw onboard` để xác minh.
+4. Chạy `topclaw --version` và `topclaw bootstrap` để xác minh.
 
 Nếu cần lệnh chi tiết đầy đủ, dùng bản gốc tiếng Anh ở liên kết trên.

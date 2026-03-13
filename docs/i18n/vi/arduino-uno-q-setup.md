@@ -106,7 +106,7 @@ Nếu cross-compile thất bại, dùng Phương án A và build trực tiếp t
 ssh arduino@<UNO_Q_IP>
 
 # Cấu hình nhanh
-topclaw onboard --api-key YOUR_OPENROUTER_KEY --provider openrouter
+topclaw bootstrap --api-key YOUR_OPENROUTER_KEY --provider openrouter
 
 # Hoặc tạo config thủ công
 mkdir -p ~/.topclaw/workspace
@@ -201,7 +201,7 @@ Giờ khi bạn nhắn tin cho Telegram bot *"Turn on the LED"* hoặc *"Set pin
 | 4 | `sudo apt-get install -y pkg-config libssl-dev` |
 | 5 | `git clone https://github.com/topway-ai/topclaw.git && cd topclaw` |
 | 6 | `cargo build --release --features hardware` |
-| 7 | `topclaw onboard --api-key KEY --provider openrouter` |
+| 7 | `topclaw bootstrap --api-key KEY --provider openrouter` |
 | 8 | Chỉnh sửa `~/.topclaw/config.toml` (thêm Telegram bot_token) |
 | 9 | `topclaw daemon --host 127.0.0.1 --port 42617` |
 | 10 | Nhắn tin cho Telegram bot — nó phản hồi |

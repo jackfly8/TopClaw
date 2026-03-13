@@ -19,7 +19,7 @@ If you need a custom base URL, see `docs/custom-providers.md`.
 ### Quick Start
 
 ```bash
-topclaw onboard \
+topclaw bootstrap \
   --provider "zai" \
   --api-key "YOUR_ZAI_API_KEY"
 ```

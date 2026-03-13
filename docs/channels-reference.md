@@ -427,7 +427,7 @@ via the `SecretStore` when `secrets.encrypt = true` (the default).
 Interactive onboarding support:
 
 ```bash
-topclaw onboard --interactive
+topclaw bootstrap --interactive
 ```
 
 The wizard now includes dedicated **Lark** and **Feishu** steps with:
@@ -520,7 +520,7 @@ allowed_contacts = ["*"]
 2. Run:
 
 ```bash
-topclaw onboard --channels-only
+topclaw bootstrap --channels-only
 topclaw daemon
 ```
 

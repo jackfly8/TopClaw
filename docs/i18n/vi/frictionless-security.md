@@ -268,7 +268,7 @@ impl Default for SandboxBackend {
 ### Trước (hiện tại)
 
 ```bash
-$ topclaw onboard
+$ topclaw bootstrap
 [1/9] Workspace Setup...
 [2/9] AI Provider...
 ...
@@ -279,7 +279,7 @@ $ topclaw onboard
 ### Sau (với bảo mật không gây cản trở)
 
 ```bash
-$ topclaw onboard
+$ topclaw bootstrap
 [1/9] Workspace Setup...
 [2/9] AI Provider...
 ...
@@ -291,7 +291,7 @@ $ topclaw onboard
 ### Người dùng nâng cao (kiểm soát tường minh)
 
 ```bash
-$ topclaw onboard --security-level paranoid
+$ topclaw bootstrap --security-level paranoid
 [1/9] Workspace Setup...
 ...
 ✓ Security: Paranoid | Landlock + Firejail | Audit signed
