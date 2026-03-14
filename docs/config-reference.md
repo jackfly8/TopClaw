@@ -409,7 +409,7 @@ Notes:
   - `trusted_domains`: domain allowlist for future URL installs.
   - `blocked_domains`: domains explicitly denied.
 - Default aliases are preloaded for:
-  - `find-skills` → `https://skills.sh/vercel-labs/skills/find-skills`
+  - `find-skills` → `https://github.com/topway-ai/topclaw/tree/main/skills/find-skills`
   - `skill-creator` → `https://skills.sh/anthropics/skills/skill-creator`
 - For transparency, the curated skill sources are committed under repo `/skills/` and can be installed into each workspace during onboarding or later reviewed installation.
 

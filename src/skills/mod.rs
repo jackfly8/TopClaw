@@ -57,7 +57,7 @@ const CURATED_SKILL_CATALOG: [CuratedSkillCatalogEntry; 11] = [
         slug: "find-skills",
         description: "Discover and install extra skills for recurring tasks.",
         risk: CuratedSkillRisk::Lower,
-        source_url: "https://skills.sh/vercel-labs/skills/find-skills",
+        source_url: "https://github.com/topway-ai/topclaw/tree/main/skills/find-skills",
     },
     CuratedSkillCatalogEntry {
         slug: "skill-creator",
@@ -128,7 +128,7 @@ pub fn curated_skill_catalog() -> &'static [CuratedSkillCatalogEntry] {
 const DEFAULT_PRELOADED_SKILL_SOURCES: [(&str, &str); 11] = [
     (
         "find-skills",
-        "https://skills.sh/vercel-labs/skills/find-skills",
+        "https://github.com/topway-ai/topclaw/tree/main/skills/find-skills",
     ),
     (
         "skill-creator",
@@ -238,7 +238,7 @@ fn resolve_curated_repo_local_source(source: &str) -> Option<PathBuf> {
 const BUILTIN_PRELOADED_SKILLS: [BuiltinPreloadedSkill; 7] = [
     BuiltinPreloadedSkill {
         dir_name: "find-skills",
-        source_url: "https://skills.sh/vercel-labs/skills/find-skills",
+        source_url: "https://github.com/topway-ai/topclaw/tree/main/skills/find-skills",
         files: &[BuiltinPreloadedSkillFile {
             relative_path: "SKILL.md",
             contents: include_str!(concat!(
@@ -2767,64 +2767,10 @@ prompts = ["Do not preload me"]
         assert!(dir
             .path()
             .join("skills")
-            .join("find-skills")
-            .join("SKILL.md")
-            .exists());
-        assert!(dir
-            .path()
-            .join("skills")
-            .join("skill-creator")
-            .join("SKILL.md")
-            .exists());
-        assert!(dir
-            .path()
-            .join("skills")
-            .join("skill-creator")
-            .join("scripts")
-            .join("init_skill.py")
-            .exists());
-        assert!(dir
-            .path()
-            .join("skills")
-            .join("skill-creator")
-            .join("references")
-            .join("workflows.md")
-            .exists());
-        assert!(dir
-            .path()
-            .join("skills")
-            .join("local-file-analyzer")
-            .join("SKILL.md")
-            .exists());
-        assert!(dir
-            .path()
-            .join("skills")
-            .join("workspace-search")
-            .join("SKILL.md")
-            .exists());
-        assert!(dir
-            .path()
-            .join("skills")
-            .join("code-explainer")
-            .join("SKILL.md")
-            .exists());
-        assert!(dir
-            .path()
-            .join("skills")
-            .join("change-summary")
-            .join("SKILL.md")
-            .exists());
-        assert!(dir
-            .path()
-            .join("skills")
-            .join("safe-web-search")
-            .join("SKILL.md")
-            .exists());
-        assert!(dir
-            .path()
-            .join("skills")
             .join(".download-policy.toml")
             .exists());
+        assert!(dir.path().join("skills-disabled").exists());
+        assert!(!dir.path().join("skills").join("find-skills").exists());
     }
 
     #[test]
@@ -2914,6 +2860,21 @@ prompts = ["Do not preload me"]
             .join("international-search.md")
             .exists());
         assert!(installed.join("_meta.json").exists());
+    }
+
+    #[test]
+    fn install_curated_find_skills_uses_repo_curated_copy() {
+        let _env_lock = open_skills_env_lock().lock().unwrap();
+        let _repo_guard = EnvVarGuard::unset(TOPCLAW_CURATED_REPO_ENV);
+        std::env::set_var(TOPCLAW_CURATED_REPO_ENV, env!("CARGO_MANIFEST_DIR"));
+        let dir = tempfile::tempdir().unwrap();
+
+        let installed = install_curated_skill(dir.path(), "find-skills").unwrap();
+        let skill_md = std::fs::read_to_string(installed.join("SKILL.md")).unwrap();
+
+        assert_eq!(installed, dir.path().join("skills").join("find-skills"));
+        assert!(skill_md.contains("TopClaw's `skills install` path"));
+        assert!(!skill_md.contains("npx skills"));
     }
 
     #[test]
@@ -3283,7 +3244,7 @@ description = "Bare minimum"
         let policy = SkillDownloadPolicy::default();
         assert_eq!(
             policy.aliases.get("find-skills"),
-            Some(&"https://skills.sh/vercel-labs/skills/find-skills".to_string())
+            Some(&"https://github.com/topway-ai/topclaw/tree/main/skills/find-skills".to_string())
         );
         assert_eq!(
             policy.aliases.get("skill-creator"),
@@ -3340,7 +3301,7 @@ description = "Bare minimum"
         );
         assert_eq!(
             resolve_skill_source_alias("find-skills", &policy),
-            "https://skills.sh/vercel-labs/skills/find-skills".to_string()
+            "https://github.com/topway-ai/topclaw/tree/main/skills/find-skills".to_string()
         );
         assert_eq!(
             resolve_skill_source_alias("https://example.com/skill.zip", &policy),

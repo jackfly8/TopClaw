@@ -1811,72 +1811,95 @@ fn fetch_openai_compatible_models(
 }
 
 fn fetch_openrouter_models(api_key: Option<&str>) -> Result<Vec<String>> {
+    let fetch_once = |api_key: Option<String>| {
+        run_model_fetch_in_thread(move || {
+            let client = build_model_fetch_client()?;
+            let mut request = client.get("https://openrouter.ai/api/v1/models");
+            if let Some(api_key) = api_key.as_deref() {
+                request = request.bearer_auth(api_key);
+            }
+
+            let payload: Value = request
+                .send()
+                .and_then(reqwest::blocking::Response::error_for_status)
+                .context("model fetch failed: GET https://openrouter.ai/api/v1/models")?
+                .json()
+                .context("failed to parse OpenRouter model list response")?;
+
+            Ok(parse_openai_compatible_model_ids(&payload))
+        })
+    };
+
     let api_key = api_key.map(str::to_string);
-    run_model_fetch_in_thread(move || {
-        let client = build_model_fetch_client()?;
-        let mut request = client.get("https://openrouter.ai/api/v1/models");
-        if let Some(api_key) = api_key.as_deref() {
-            request = request.bearer_auth(api_key);
-        }
-
-        let payload: Value = request
-            .send()
-            .and_then(reqwest::blocking::Response::error_for_status)
-            .context("model fetch failed: GET https://openrouter.ai/api/v1/models")?
-            .json()
-            .context("failed to parse OpenRouter model list response")?;
-
-        Ok(parse_openai_compatible_model_ids(&payload))
-    })
+    match fetch_once(api_key.clone()) {
+        Ok(models) => Ok(models),
+        Err(err) if api_key.is_some() => fetch_once(None).or(Err(err)),
+        Err(err) => Err(err),
+    }
 }
 
 fn fetch_openrouter_top_onboarding_models(api_key: Option<&str>) -> Result<Vec<String>> {
+    let fetch_once = |api_key: Option<String>| {
+        run_model_fetch_in_thread(move || {
+            let client = build_model_fetch_client()?;
+            let mut models_request = client.get("https://openrouter.ai/api/v1/models");
+            if let Some(api_key) = api_key.as_deref() {
+                models_request = models_request.bearer_auth(api_key);
+            }
+
+            let models_payload: Value = models_request
+                .send()
+                .and_then(reqwest::blocking::Response::error_for_status)
+                .context("model fetch failed: GET https://openrouter.ai/api/v1/models")?
+                .json()
+                .context("failed to parse OpenRouter model list response")?;
+            let catalog = parse_openrouter_model_summaries(&models_payload);
+            if catalog.is_empty() {
+                bail!("OpenRouter returned no models");
+            }
+
+            let rankings_html = client
+                .get("https://openrouter.ai/rankings")
+                .send()
+                .and_then(reqwest::blocking::Response::error_for_status)
+                .context("model fetch failed: GET https://openrouter.ai/rankings")?
+                .text()
+                .context("failed to read OpenRouter rankings page")?;
+
+            let ranked_names = parse_openrouter_rankings_model_names(
+                &rankings_html,
+                OPENROUTER_ONBOARDING_MODEL_LIMIT,
+            );
+            if ranked_names.is_empty() {
+                bail!("failed to parse OpenRouter rankings page");
+            }
+
+            let ranked_ids = match_openrouter_rankings_to_model_ids(
+                &ranked_names,
+                &catalog,
+                OPENROUTER_ONBOARDING_MODEL_LIMIT,
+            );
+            if ranked_ids.is_empty() {
+                bail!("failed to match OpenRouter ranking entries to model IDs");
+            }
+
+            Ok(ranked_ids)
+        })
+    };
+
     let api_key = api_key.map(str::to_string);
-    run_model_fetch_in_thread(move || {
-        let client = build_model_fetch_client()?;
-        let mut models_request = client.get("https://openrouter.ai/api/v1/models");
-        if let Some(api_key) = api_key.as_deref() {
-            models_request = models_request.bearer_auth(api_key);
-        }
+    match fetch_once(api_key.clone()) {
+        Ok(model_ids) => Ok(model_ids),
+        Err(err) if api_key.is_some() => fetch_once(None).or(Err(err)),
+        Err(err) => Err(err),
+    }
+}
 
-        let models_payload: Value = models_request
-            .send()
-            .and_then(reqwest::blocking::Response::error_for_status)
-            .context("model fetch failed: GET https://openrouter.ai/api/v1/models")?
-            .json()
-            .context("failed to parse OpenRouter model list response")?;
-        let catalog = parse_openrouter_model_summaries(&models_payload);
-        if catalog.is_empty() {
-            bail!("OpenRouter returned no models");
-        }
-
-        let rankings_html = client
-            .get("https://openrouter.ai/rankings")
-            .send()
-            .and_then(reqwest::blocking::Response::error_for_status)
-            .context("model fetch failed: GET https://openrouter.ai/rankings")?
-            .text()
-            .context("failed to read OpenRouter rankings page")?;
-
-        let ranked_names = parse_openrouter_rankings_model_names(
-            &rankings_html,
-            OPENROUTER_ONBOARDING_MODEL_LIMIT,
-        );
-        if ranked_names.is_empty() {
-            bail!("failed to parse OpenRouter rankings page");
-        }
-
-        let ranked_ids = match_openrouter_rankings_to_model_ids(
-            &ranked_names,
-            &catalog,
-            OPENROUTER_ONBOARDING_MODEL_LIMIT,
-        );
-        if ranked_ids.is_empty() {
-            bail!("failed to match OpenRouter ranking entries to model IDs");
-        }
-
-        Ok(ranked_ids)
-    })
+fn interactive_model_labels(model_options: &[(String, String)]) -> Vec<String> {
+    model_options
+        .iter()
+        .map(|(_, label)| label.clone())
+        .collect()
 }
 
 fn fetch_anthropic_models(api_key: Option<&str>) -> Result<Vec<String>> {
@@ -3366,10 +3389,7 @@ async fn prompt_for_default_model(
             "Custom model ID (type manually)".to_string(),
         ));
 
-        let model_labels: Vec<String> = model_options
-            .iter()
-            .map(|(model_id, label)| format!("{label} — {}", style(model_id).dim()))
-            .collect();
+        let model_labels = interactive_model_labels(&model_options);
 
         let model_idx = Select::new()
             .with_prompt("  Select your default model")
@@ -3543,10 +3563,7 @@ async fn prompt_for_default_model(
         "Custom model ID (type manually)".to_string(),
     ));
 
-    let model_labels: Vec<String> = model_options
-        .iter()
-        .map(|(model_id, label)| format!("{label} — {}", style(model_id).dim()))
-        .collect();
+    let model_labels = interactive_model_labels(&model_options);
 
     let model_idx = Select::new()
         .with_prompt("  Select your default model")
@@ -4328,10 +4345,31 @@ fn default_channel_menu_index(config: &ChannelsConfig) -> usize {
         .unwrap_or(0)
 }
 
+fn channel_choice_is_configured(config: &ChannelsConfig, choice: ChannelMenuChoice) -> bool {
+    match choice {
+        ChannelMenuChoice::Telegram => config.telegram.is_some(),
+        ChannelMenuChoice::Discord => config.discord.is_some(),
+        ChannelMenuChoice::Slack => config.slack.is_some(),
+        ChannelMenuChoice::IMessage => config.imessage.is_some(),
+        ChannelMenuChoice::Matrix => config.matrix.is_some(),
+        ChannelMenuChoice::Signal => config.signal.is_some(),
+        ChannelMenuChoice::WhatsApp => config.whatsapp.is_some(),
+        ChannelMenuChoice::Linq => config.linq.is_some(),
+        ChannelMenuChoice::Irc => config.irc.is_some(),
+        ChannelMenuChoice::Webhook => config.webhook.is_some(),
+        ChannelMenuChoice::NextcloudTalk => config.nextcloud_talk.is_some(),
+        ChannelMenuChoice::DingTalk => config.dingtalk.is_some(),
+        ChannelMenuChoice::QqOfficial => config.qq.is_some(),
+        ChannelMenuChoice::LarkFeishu => config.lark.is_some() || config.feishu.is_some(),
+        ChannelMenuChoice::Nostr => config.nostr.is_some(),
+        ChannelMenuChoice::Done => false,
+    }
+}
+
 #[allow(clippy::too_many_lines)]
 fn setup_channels() -> Result<ChannelsConfig> {
     print_bullet("Channels let you talk to TopClaw from anywhere.");
-    print_bullet("CLI is always available. Connect more channels now.");
+    print_bullet("CLI is always available. Connect one channel now, or choose Done to skip.");
     println!();
 
     let mut config = ChannelsConfig::default();
@@ -6020,6 +6058,11 @@ fn setup_channels() -> Result<ChannelsConfig> {
             }
             ChannelMenuChoice::Done => break,
         }
+
+        if channel_choice_is_configured(&config, choice) {
+            break;
+        }
+
         println!();
     }
 
