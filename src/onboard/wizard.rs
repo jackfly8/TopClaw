@@ -112,16 +112,6 @@ fn format_onboarding_skill_label(entry: &CuratedSkillCatalogEntry) -> String {
     )
 }
 
-fn print_onboarding_skill_summary(entries: &[&CuratedSkillCatalogEntry]) {
-    for entry in entries {
-        println!(
-            "    {:<24} {}",
-            entry.slug,
-            onboarding_skill_short_description(entry)
-        );
-    }
-}
-
 fn print_onboarding_skill_controls() {
     println!(
         "  {}",
@@ -171,11 +161,10 @@ fn prompt_skill_selection_report(
 fn prompt_skill_selection_instruction(
     title: &str,
     help_text: &str,
-    entries: &[&CuratedSkillCatalogEntry],
+    _entries: &[&CuratedSkillCatalogEntry],
 ) {
     println!("  {}", style(help_text).dim());
     print_onboarding_skill_controls();
-    print_onboarding_skill_summary(entries);
     println!(
         "  {}",
         style(format!(
@@ -1672,6 +1661,28 @@ fn normalize_openrouter_ranking_name(name: &str) -> String {
     normalized.trim().to_string()
 }
 
+fn openrouter_model_name_aliases(entry: &OpenRouterModelSummary) -> Vec<String> {
+    let mut aliases = Vec::new();
+    let mut push_alias = |value: &str| {
+        let normalized = normalize_openrouter_ranking_name(value);
+        if !normalized.is_empty() && !aliases.iter().any(|existing| existing == &normalized) {
+            aliases.push(normalized);
+        }
+    };
+
+    push_alias(&entry.name);
+    push_alias(&entry.id);
+
+    if let Some((_, rest)) = entry.name.split_once(':') {
+        push_alias(rest);
+    }
+    if let Some(last_segment) = entry.id.rsplit('/').next() {
+        push_alias(last_segment);
+    }
+
+    aliases
+}
+
 fn parse_openrouter_rankings_model_names(html: &str, limit: usize) -> Vec<String> {
     let Some(leaderboard_start) = html.find("LLM Leaderboard") else {
         return Vec::new();
@@ -1711,14 +1722,9 @@ fn match_openrouter_rankings_to_model_ids(
     let mut matched = Vec::new();
     let mut catalog_by_name = BTreeMap::new();
     for entry in catalog {
-        catalog_by_name.insert(
-            normalize_openrouter_ranking_name(&entry.name),
-            entry.id.clone(),
-        );
-        catalog_by_name.insert(
-            normalize_openrouter_ranking_name(&entry.id),
-            entry.id.clone(),
-        );
+        for alias in openrouter_model_name_aliases(entry) {
+            catalog_by_name.insert(alias, entry.id.clone());
+        }
     }
 
     for ranked_name in ranked_names {
@@ -1726,9 +1732,20 @@ fn match_openrouter_rankings_to_model_ids(
         if normalized.is_empty() {
             continue;
         }
-        if let Some(model_id) = catalog_by_name.get(&normalized) {
-            if !matched.iter().any(|existing| existing == model_id) {
-                matched.push(model_id.clone());
+        let resolved = catalog_by_name.get(&normalized).cloned().or_else(|| {
+            catalog_by_name
+                .iter()
+                .find(|(alias, _)| {
+                    alias.starts_with(&normalized)
+                        || normalized.starts_with(alias.as_str())
+                        || alias.contains(&normalized)
+                })
+                .map(|(_, model_id)| model_id.clone())
+        });
+
+        if let Some(model_id) = resolved {
+            if !matched.iter().any(|existing| existing == &model_id) {
+                matched.push(model_id);
             }
         }
         if matched.len() >= limit {
@@ -7862,6 +7879,38 @@ mod tests {
                 "anthropic/claude-sonnet-4.6".to_string(),
                 "google/gemini-2.5-pro".to_string(),
                 "openai/gpt-5".to_string(),
+            ]
+        );
+    }
+
+    #[test]
+    fn match_openrouter_rankings_to_model_ids_handles_provider_prefixed_names() {
+        let ranked_names = vec![
+            "Grok 4.1 Fast".to_string(),
+            "MiniMax M2.5".to_string(),
+            "Claude Sonnet 4.5".to_string(),
+        ];
+        let catalog = vec![
+            OpenRouterModelSummary {
+                id: "x-ai/grok-4.1-fast".to_string(),
+                name: "xAI: Grok 4.1 Fast".to_string(),
+            },
+            OpenRouterModelSummary {
+                id: "minimax/minimax-m2.5".to_string(),
+                name: "MiniMax: MiniMax M2.5".to_string(),
+            },
+            OpenRouterModelSummary {
+                id: "anthropic/claude-sonnet-4.5-20250929".to_string(),
+                name: "Anthropic: Claude Sonnet 4.5 (20250929)".to_string(),
+            },
+        ];
+
+        assert_eq!(
+            match_openrouter_rankings_to_model_ids(&ranked_names, &catalog, 10),
+            vec![
+                "x-ai/grok-4.1-fast".to_string(),
+                "minimax/minimax-m2.5".to_string(),
+                "anthropic/claude-sonnet-4.5-20250929".to_string(),
             ]
         );
     }
