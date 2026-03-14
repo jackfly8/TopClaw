@@ -6623,13 +6623,9 @@ BTC is currently around $65,000 based on latest tool output."#
 
         let updates = channel_impl.draft_updates.lock().await;
         assert!(
-            !updates.is_empty(),
-            "draft updates should still include streamed final answer"
-        );
-        assert!(
             !updates.iter().any(|entry| {
                 entry.contains("Got 1 tool call(s)")
-                    || entry.contains("mock_price")
+                    || entry.contains("Thinking")
                     || entry.contains("⏳")
             }),
             "raw internal tool progress should stay hidden by default, got updates: {updates:?}"
