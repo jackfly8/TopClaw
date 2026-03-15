@@ -415,10 +415,11 @@ fn channel_delivery_instructions(channel_name: &str) -> Option<&'static str> {
              - If work was performed, summarize outcome first, then brief verification or next-step notes\n\
              - Do not roleplay as a chat bot or social assistant; sound like an operator-facing coding tool\n\
              - Include media markers for files or URLs that should be sent as attachments\n\
-             - Use **bold** for key terms, section titles, and important info (renders as <b>)\n\
-             - Use *italic* for emphasis (renders as <i>)\n\
+             - Use markdown-style **bold** for key terms, section titles, and important info\n\
+             - Use markdown-style *italic* for emphasis\n\
              - Use `backticks` for inline code, commands, or technical terms\n\
              - Use triple backticks for code blocks\n\
+             - Do not emit raw HTML tags like <b> or <i> in the reply body\n\
              - Avoid decorative emoji except when the user clearly prefers them\n\
              - Be concise and direct. Skip filler phrases like 'Great question!' or 'Certainly!'\n\
              - Structure longer answers with bold headers, not raw markdown ## headers\n\
@@ -10350,6 +10351,74 @@ Done reminder set for 1:38 AM."#;
             !calls.is_empty(),
             "provider should still be called so the local workspace path can handle repo review prompts"
         );
+    }
+
+    #[tokio::test]
+    async fn process_channel_message_exported_github_improvement_prompt_does_not_fall_back_to_shell(
+    ) {
+        let temp = TempDir::new().unwrap();
+        let channel_impl = Arc::new(TelegramRecordingChannel::default());
+        let channel: Arc<dyn Channel> = channel_impl.clone();
+
+        let mut channels_by_name = HashMap::new();
+        channels_by_name.insert(channel.name().to_string(), channel);
+
+        let provider_impl = Arc::new(HistoryCaptureProvider::default());
+        let runtime_ctx = Arc::new(ChannelRuntimeContext {
+            channels_by_name: Arc::new(channels_by_name),
+            provider: provider_impl.clone(),
+            default_provider: Arc::new("test-provider".to_string()),
+            memory: Arc::new(NoopMemory),
+            tools_registry: Arc::new(vec![]),
+            observer: Arc::new(NoopObserver),
+            system_prompt: Arc::new("test-system-prompt".to_string()),
+            model: Arc::new("test-model".to_string()),
+            temperature: 0.0,
+            auto_save_memory: false,
+            max_tool_iterations: 5,
+            min_relevance_score: 0.0,
+            conversation_histories: Arc::new(Mutex::new(HashMap::new())),
+            provider_cache: Arc::new(Mutex::new(HashMap::new())),
+            route_overrides: Arc::new(Mutex::new(HashMap::new())),
+            api_key: None,
+            api_url: None,
+            reliability: Arc::new(crate::config::ReliabilityConfig::default()),
+            provider_runtime_options: providers::ProviderRuntimeOptions::default(),
+            workspace_dir: Arc::new(temp.path().to_path_buf()),
+            message_timeout_secs: CHANNEL_MESSAGE_TIMEOUT_SECS,
+            interrupt_on_new_message: false,
+            multimodal: crate::config::MultimodalConfig::default(),
+            hooks: None,
+            non_cli_excluded_tools: Arc::new(Mutex::new(vec!["shell".to_string()])),
+            query_classification: crate::config::QueryClassificationConfig::default(),
+            model_routes: Vec::new(),
+            approval_manager: Arc::new(ApprovalManager::from_config(
+                &crate::config::AutonomyConfig::default(),
+            )),
+        });
+
+        Box::pin(process_channel_message(
+            runtime_ctx,
+            traits::ChannelMessage {
+                id: "repo-link-exported-1".to_string(),
+                sender: "topclaw_user".to_string(),
+                reply_target: "chat-telegram".to_string(),
+                content: "https://github.com/topway-ai/topclaw This is your codebase, tell me what improvements you can do make yourself better and smarter?".to_string(),
+                channel: "telegram".to_string(),
+                timestamp: 1,
+                thread_ts: None,
+            },
+            CancellationToken::new(),
+        ))
+        .await;
+
+        let sent = channel_impl.sent_messages.lock().await;
+        assert_eq!(sent.len(), 1);
+        assert!(
+            !sent[0].contains("I can’t use `shell`"),
+            "prompt should stay on the normal agent path instead of shell recovery"
+        );
+        assert!(sent[0].contains("response-1"));
     }
 
     #[tokio::test]

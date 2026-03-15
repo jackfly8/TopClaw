@@ -117,10 +117,9 @@ pub(crate) fn looks_like_shell_task(user_message: &str) -> bool {
     let lower = trimmed.to_ascii_lowercase();
     let english_hints = [
         "run ", "execute ", "terminal", "shell", "command", "build", "compile", "test", "cargo ",
-        "npm ", "pnpm ", "yarn ", "pip ", "python ", "pytest", "make ", "cmake", "docker ",
-        "kubectl ",
+        "npm ", "pnpm ", "yarn ", "pip ", "python ", "pytest", "cmake", "docker ", "kubectl ",
     ];
-    if english_hints.iter().any(|hint| lower.contains(hint)) {
+    if english_hints.iter().any(|hint| lower.contains(hint)) || contains_make_command_hint(&lower) {
         return true;
     }
 
@@ -135,6 +134,17 @@ pub(crate) fn looks_like_shell_task(user_message: &str) -> bool {
         "跑一下",
     ];
     cjk_hints.iter().any(|hint| trimmed.contains(hint))
+}
+
+fn contains_make_command_hint(lower: &str) -> bool {
+    lower.starts_with("make ")
+        || lower.contains("\nmake ")
+        || lower.contains("`make ")
+        || lower.contains("'make ")
+        || lower.contains("\"make ")
+        || lower.contains(" run make ")
+        || lower.contains(" execute make ")
+        || lower.contains(" command make ")
 }
 
 pub(crate) fn looks_like_file_read_task(user_message: &str) -> bool {
@@ -268,6 +278,27 @@ pub(crate) fn should_try_llm_capability_recovery(user_message: &str) -> bool {
         "技能",
     ];
     cjk_hints.iter().any(|hint| trimmed.contains(hint))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{contains_make_command_hint, looks_like_shell_task};
+
+    #[test]
+    fn shell_detection_keeps_real_make_command_requests() {
+        assert!(contains_make_command_hint("make test"));
+        assert!(looks_like_shell_task("run make test in this repo"));
+    }
+
+    #[test]
+    fn shell_detection_ignores_plain_english_make_phrasing() {
+        assert!(!contains_make_command_hint(
+            "what improvements you can do make yourself better and smarter?"
+        ));
+        assert!(!looks_like_shell_task(
+            "https://github.com/topway-ai/topclaw This is your codebase, tell me what improvements you can do make yourself better and smarter?"
+        ));
+    }
 }
 
 pub(crate) fn extract_json_object(text: &str) -> Option<&str> {
