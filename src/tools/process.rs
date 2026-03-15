@@ -896,17 +896,19 @@ mod tests {
     #[tokio::test]
     async fn list_shows_spawned_process() {
         let tool = make_tool();
-        tool.execute(json!({
-            "action": "spawn",
-            "program": "echo",
-            "args": ["list_test"]
-        }))
-        .await
-        .unwrap();
+        let spawn_result = tool
+            .execute(json!({
+                "action": "spawn",
+                "program": "sleep",
+                "args": ["1"]
+            }))
+            .await
+            .unwrap();
+        assert!(spawn_result.success);
 
         let result = tool.execute(json!({"action": "list"})).await.unwrap();
         assert!(result.success);
-        assert!(result.output.contains("list_test"));
+        assert!(result.output.contains("sleep 1"));
     }
 
     #[tokio::test]
