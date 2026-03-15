@@ -968,83 +968,93 @@ pub(crate) async fn run_tool_call_loop(
                         ApprovalResponse::Yes,
                         channel_name,
                     );
-                } else if mgr.needs_approval(&tool_name) {
-                    let request = ApprovalRequest {
-                        tool_name: tool_name.clone(),
-                        arguments: tool_args.clone(),
-                    };
+                } else {
                     let batched_non_cli_investigation = channel_name != "cli"
                         && non_cli_approval_context.is_some()
                         && qualifies_for_non_cli_investigation_batch(&tool_name, &tool_args);
-                    let approval_reason = if batched_non_cli_investigation {
-                        Some(
-                            "interactive approval required for low-risk investigation tools in this supervised non-cli turn"
-                                .to_string(),
-                        )
-                    } else {
-                        Some(
-                            "interactive approval required for supervised non-cli tool execution"
-                                .to_string(),
-                        )
-                    };
-                    let display_tool_name = tool_name.clone();
 
-                    let decision = if channel_name == "cli" {
-                        mgr.prompt_cli(&request)
-                    } else if let Some(ctx) = non_cli_approval_context.as_ref() {
-                        let pending = mgr.create_non_cli_pending_request(
+                    if batched_non_cli_investigation {
+                        mgr.record_decision(
                             &tool_name,
-                            &ctx.sender,
+                            &tool_args,
+                            ApprovalResponse::Yes,
                             channel_name,
-                            &ctx.reply_target,
-                            approval_reason,
                         );
-
-                        let _ = ctx.prompt_tx.send(NonCliApprovalPrompt {
-                            request_id: pending.request_id.clone(),
+                    } else if mgr.needs_approval(&tool_name) {
+                        let request = ApprovalRequest {
                             tool_name: tool_name.clone(),
-                            display_tool_name,
                             arguments: tool_args.clone(),
-                        });
+                        };
+                        let approval_reason = if batched_non_cli_investigation {
+                            Some(
+                                "interactive approval required for low-risk investigation tools in this supervised non-cli turn"
+                                    .to_string(),
+                            )
+                        } else {
+                            Some(
+                                "interactive approval required for supervised non-cli tool execution"
+                                    .to_string(),
+                            )
+                        };
+                        let display_tool_name = tool_name.clone();
 
-                        return Err(NonCliApprovalPending {
-                            request_id: pending.request_id,
-                            tool_name: tool_name.clone(),
+                        let decision = if channel_name == "cli" {
+                            mgr.prompt_cli(&request)
+                        } else if let Some(ctx) = non_cli_approval_context.as_ref() {
+                            let pending = mgr.create_non_cli_pending_request(
+                                &tool_name,
+                                &ctx.sender,
+                                channel_name,
+                                &ctx.reply_target,
+                                approval_reason,
+                            );
+
+                            let _ = ctx.prompt_tx.send(NonCliApprovalPrompt {
+                                request_id: pending.request_id.clone(),
+                                tool_name: tool_name.clone(),
+                                display_tool_name,
+                                arguments: tool_args.clone(),
+                            });
+
+                            return Err(NonCliApprovalPending {
+                                request_id: pending.request_id,
+                                tool_name: tool_name.clone(),
+                            }
+                            .into());
+                        } else {
+                            ApprovalResponse::No
+                        };
+
+                        mgr.record_decision(&tool_name, &tool_args, decision, channel_name);
+
+                        if decision == ApprovalResponse::No {
+                            let denied = "Denied by user.".to_string();
+                            runtime_trace::record_event(
+                                "tool_call_result",
+                                Some(channel_name),
+                                Some(provider_name),
+                                Some(model),
+                                Some(&turn_id),
+                                Some(false),
+                                Some(&denied),
+                                serde_json::json!({
+                                    "iteration": iteration + 1,
+                                    "tool": tool_name.clone(),
+                                    "arguments": scrub_credentials(&tool_args.to_string()),
+                                }),
+                            );
+                            ordered_results[idx] = Some((
+                                tool_name.clone(),
+                                call.tool_call_id.clone(),
+                                ToolExecutionOutcome {
+                                    output: denied.clone(),
+                                    success: false,
+                                    error_reason: Some(denied),
+                                    duration: Duration::ZERO,
+                                },
+                            ));
+                            continue;
                         }
-                        .into());
-                    } else {
-                        ApprovalResponse::No
-                    };
-
-                    mgr.record_decision(&tool_name, &tool_args, decision, channel_name);
-
-                    if decision == ApprovalResponse::No {
-                        let denied = "Denied by user.".to_string();
-                        runtime_trace::record_event(
-                            "tool_call_result",
-                            Some(channel_name),
-                            Some(provider_name),
-                            Some(model),
-                            Some(&turn_id),
-                            Some(false),
-                            Some(&denied),
-                            serde_json::json!({
-                                "iteration": iteration + 1,
-                                "tool": tool_name.clone(),
-                                "arguments": scrub_credentials(&tool_args.to_string()),
-                            }),
-                        );
-                        ordered_results[idx] = Some((
-                            tool_name.clone(),
-                            call.tool_call_id.clone(),
-                            ToolExecutionOutcome {
-                                output: denied.clone(),
-                                success: false,
-                                error_reason: Some(denied),
-                                duration: Duration::ZERO,
-                            },
-                        ));
-                        continue;
                     }
                 }
             }
@@ -3140,7 +3150,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn run_tool_call_loop_fails_fast_on_non_cli_readonly_investigation_approval() {
+    async fn run_tool_call_loop_executes_non_cli_investigation_batch_without_prompt() {
         let provider = ScriptedProvider::from_text_responses(vec![
             r#"<tool_call>
 {"name":"task_plan","arguments":{"action":"create","value":"plan"}}
@@ -3170,57 +3180,43 @@ mod tests {
         ];
         let observer = NoopObserver;
 
-        let result_task = tokio::spawn({
-            async move {
-                run_tool_call_loop_with_non_cli_approval_context(
-                    &provider,
-                    &mut history,
-                    &tools_registry,
-                    &observer,
-                    "mock-provider",
-                    "mock-model",
-                    0.0,
-                    true,
-                    Some(approval_mgr.as_ref()),
-                    "telegram",
-                    Some(NonCliApprovalContext {
-                        sender: "alice".to_string(),
-                        reply_target: "chat-investigation".to_string(),
-                        prompt_tx,
-                    }),
-                    &crate::config::MultimodalConfig::default(),
-                    4,
-                    None,
-                    None,
-                    None,
-                    &[],
-                )
-                .await
-            }
-        });
+        let result = run_tool_call_loop_with_non_cli_approval_context(
+            &provider,
+            &mut history,
+            &tools_registry,
+            &observer,
+            "mock-provider",
+            "mock-model",
+            0.0,
+            true,
+            Some(approval_mgr.as_ref()),
+            "telegram",
+            Some(NonCliApprovalContext {
+                sender: "alice".to_string(),
+                reply_target: "chat-investigation".to_string(),
+                prompt_tx,
+            }),
+            &crate::config::MultimodalConfig::default(),
+            4,
+            None,
+            None,
+            None,
+            &[],
+        )
+        .await
+        .expect("investigation batch should execute without non-cli approval prompts");
 
-        let prompt = prompt_rx
-            .recv()
-            .await
-            .expect("first approval prompt should arrive");
-        assert_eq!(prompt.tool_name, "task_plan");
-        assert_eq!(prompt.display_tool_name, "task_plan");
-
-        let result = result_task.await.expect("tool loop task should complete");
-        let err = result.expect_err("approval should fail fast");
-        let pending =
-            is_non_cli_approval_pending(&err).expect("pending approval error should be returned");
-        assert_eq!(pending.tool_name, "task_plan");
-        assert_eq!(task_plan_calls.load(Ordering::SeqCst), 0);
-        assert_eq!(glob_calls.load(Ordering::SeqCst), 0);
+        assert_eq!(result, "done");
+        assert_eq!(task_plan_calls.load(Ordering::SeqCst), 1);
+        assert_eq!(glob_calls.load(Ordering::SeqCst), 1);
         assert!(
             prompt_rx.try_recv().is_err(),
-            "tool loop should stop after the first pending approval prompt"
+            "non-cli investigation tools should not emit approval prompts"
         );
     }
 
     #[tokio::test]
-    async fn run_tool_call_loop_stops_before_second_non_cli_approval_prompt() {
+    async fn run_tool_call_loop_prompts_only_when_non_investigation_tool_follows_batch() {
         let provider = ScriptedProvider::from_text_responses(vec![
             r#"<tool_call>
 {"name":"task_plan","arguments":{"action":"create","value":"plan"}}
@@ -3250,51 +3246,49 @@ mod tests {
         ];
         let observer = NoopObserver;
 
-        let result_task = tokio::spawn({
-            async move {
-                run_tool_call_loop_with_non_cli_approval_context(
-                    &provider,
-                    &mut history,
-                    &tools_registry,
-                    &observer,
-                    "mock-provider",
-                    "mock-model",
-                    0.0,
-                    true,
-                    Some(approval_mgr.as_ref()),
-                    "telegram",
-                    Some(NonCliApprovalContext {
-                        sender: "alice".to_string(),
-                        reply_target: "chat-shell".to_string(),
-                        prompt_tx,
-                    }),
-                    &crate::config::MultimodalConfig::default(),
-                    4,
-                    None,
-                    None,
-                    None,
-                    &[],
-                )
-                .await
-            }
+        let result_task = tokio::spawn(async move {
+            run_tool_call_loop_with_non_cli_approval_context(
+                &provider,
+                &mut history,
+                &tools_registry,
+                &observer,
+                "mock-provider",
+                "mock-model",
+                0.0,
+                true,
+                Some(approval_mgr.as_ref()),
+                "telegram",
+                Some(NonCliApprovalContext {
+                    sender: "alice".to_string(),
+                    reply_target: "chat-shell".to_string(),
+                    prompt_tx,
+                }),
+                &crate::config::MultimodalConfig::default(),
+                4,
+                None,
+                None,
+                None,
+                &[],
+            )
+            .await
         });
 
         let first_prompt = prompt_rx
             .recv()
             .await
-            .expect("first approval prompt should arrive");
-        assert_eq!(first_prompt.tool_name, "task_plan");
+            .expect("shell approval prompt should arrive after task_plan executes");
+        assert_eq!(first_prompt.tool_name, "shell");
 
         let result = result_task.await.expect("tool loop task should complete");
         let err = result.expect_err("approval should fail fast");
         let pending =
             is_non_cli_approval_pending(&err).expect("pending approval error should be returned");
-        assert_eq!(pending.tool_name, "task_plan");
-        assert_eq!(task_plan_calls.load(Ordering::SeqCst), 0);
+        assert_eq!(pending.tool_name, "shell");
+        assert_eq!(task_plan_calls.load(Ordering::SeqCst), 1);
         assert_eq!(shell_calls.load(Ordering::SeqCst), 0);
         assert!(
             prompt_rx.try_recv().is_err(),
-            "second prompt should not be emitted before the user retries the request"
+            "only the first non-investigation tool should prompt before the user retries"
         );
     }
 
