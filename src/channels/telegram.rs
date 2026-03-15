@@ -1939,6 +1939,11 @@ Allowlist Telegram username (without '@') or numeric user ID.",
             let bytes = line.as_bytes();
             let len = bytes.len();
             while i < len {
+                if let Some((tag, consumed)) = Self::consume_supported_raw_html_tag(&line[i..]) {
+                    line_out.push_str(tag);
+                    i += consumed;
+                    continue;
+                }
                 // Bold: **text** or __text__
                 if i + 1 < len && bytes[i] == b'*' && bytes[i + 1] == b'*' {
                     if let Some(end) = line[i + 2..].find("**") {
@@ -2054,6 +2059,73 @@ Allowlist Telegram username (without '@') or numeric user ID.",
         final_out.trim_end_matches('\n').to_string()
     }
 
+    fn consume_supported_raw_html_tag(input: &str) -> Option<(&'static str, usize)> {
+        const RAW_TAGS: [(&str, &str); 18] = [
+            ("<b>", "<b>"),
+            ("</b>", "</b>"),
+            ("<strong>", "<b>"),
+            ("</strong>", "</b>"),
+            ("<i>", "<i>"),
+            ("</i>", "</i>"),
+            ("<em>", "<i>"),
+            ("</em>", "</i>"),
+            ("<u>", "<u>"),
+            ("</u>", "</u>"),
+            ("<s>", "<s>"),
+            ("</s>", "</s>"),
+            ("<strike>", "<s>"),
+            ("</strike>", "</s>"),
+            ("<del>", "<s>"),
+            ("</del>", "</s>"),
+            ("<code>", "<code>"),
+            ("</code>", "</code>"),
+        ];
+
+        RAW_TAGS
+            .iter()
+            .find_map(|(pattern, replacement)| {
+                input
+                    .starts_with(pattern)
+                    .then_some((*replacement, pattern.len()))
+            })
+            .or_else(|| {
+                [("<pre>", "<pre>"), ("</pre>", "</pre>")].iter().find_map(
+                    |(pattern, replacement)| {
+                        input
+                            .starts_with(pattern)
+                            .then_some((*replacement, pattern.len()))
+                    },
+                )
+            })
+    }
+
+    fn strip_supported_raw_html_tags(text: &str) -> String {
+        [
+            "<b>",
+            "</b>",
+            "<strong>",
+            "</strong>",
+            "<i>",
+            "</i>",
+            "<em>",
+            "</em>",
+            "<u>",
+            "</u>",
+            "<s>",
+            "</s>",
+            "<strike>",
+            "</strike>",
+            "<del>",
+            "</del>",
+            "<code>",
+            "</code>",
+            "<pre>",
+            "</pre>",
+        ]
+        .into_iter()
+        .fold(text.to_string(), |acc, tag| acc.replace(tag, ""))
+    }
+
     fn escape_html(s: &str) -> String {
         s.replace('&', "&amp;")
             .replace('<', "&lt;")
@@ -2117,7 +2189,7 @@ Allowlist Telegram username (without '@') or numeric user ID.",
 
             let mut plain_body = serde_json::json!({
                 "chat_id": chat_id,
-                "text": text,
+                "text": Self::strip_supported_raw_html_tags(&text),
             });
 
             // Add message_thread_id for forum topic support
@@ -2944,7 +3016,7 @@ impl Channel for TelegramChannel {
         let plain_body = serde_json::json!({
             "chat_id": chat_id,
             "message_id": id,
-            "text": text,
+            "text": Self::strip_supported_raw_html_tags(text),
         });
 
         let resp = self
@@ -3616,6 +3688,24 @@ mod tests {
         assert_eq!(rendered, "<pre><code>let x = 1;</code></pre>");
         assert!(!rendered.contains("language-"));
         assert!(!rendered.contains("onclick"));
+    }
+
+    #[test]
+    fn telegram_markdown_to_html_preserves_supported_raw_html_tags() {
+        let rendered = TelegramChannel::markdown_to_telegram_html(
+            "<b>TopClaw here.</b>\n\n<i>Direct answer.</i>",
+        );
+        assert_eq!(rendered, "<b>TopClaw here.</b>\n\n<i>Direct answer.</i>");
+    }
+
+    #[test]
+    fn telegram_plain_fallback_strips_supported_raw_html_tags() {
+        assert_eq!(
+            TelegramChannel::strip_supported_raw_html_tags(
+                "<b>TopClaw here.</b>\n\n<i>Direct answer.</i>"
+            ),
+            "TopClaw here.\n\nDirect answer."
+        );
     }
 
     #[test]
