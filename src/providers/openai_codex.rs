@@ -499,8 +499,12 @@ fn extract_stream_error_message(event: &Value) -> Option<String> {
     None
 }
 
+fn decode_response_body_lossy(bytes: &[u8]) -> String {
+    String::from_utf8_lossy(bytes).into_owned()
+}
+
 async fn decode_responses_body(response: reqwest::Response) -> anyhow::Result<String> {
-    let body = response.text().await?;
+    let body = decode_response_body_lossy(&response.bytes().await?);
 
     if let Some(text) = parse_sse_text(&body)? {
         return Ok(text);
@@ -944,6 +948,12 @@ data: [DONE]
 "#;
 
         assert_eq!(parse_sse_text(payload).unwrap().as_deref(), Some("Done"));
+    }
+
+    #[test]
+    fn decode_response_body_lossy_handles_invalid_utf8() {
+        let decoded = decode_response_body_lossy(b"data: hello\xffworld");
+        assert_eq!(decoded, "data: hello\u{fffd}world");
     }
 
     #[test]

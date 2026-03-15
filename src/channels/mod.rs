@@ -648,6 +648,32 @@ fn summarize_internal_progress_delta(delta: &str) -> Option<String> {
     }
 }
 
+fn is_generic_progress_heartbeat(summary: &str) -> bool {
+    let trimmed = summary.trim();
+    trimmed.starts_with("⏳ Still working") || trimmed.starts_with("🤔 Still thinking")
+}
+
+fn contextualize_progress_heartbeat(
+    summary: &str,
+    last_meaningful_summary: Option<&str>,
+) -> String {
+    if !is_generic_progress_heartbeat(summary) {
+        return summary.to_string();
+    }
+
+    let Some(previous) = last_meaningful_summary
+        .map(str::trim)
+        .filter(|value| !value.is_empty() && !is_generic_progress_heartbeat(value))
+    else {
+        return summary.to_string();
+    };
+
+    format!(
+        "⏳ Still working: {}\n",
+        previous.trim_end_matches('.').trim_end_matches('\n')
+    )
+}
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 enum CapabilityRecoveryKind {
     WebAccess,
@@ -3084,10 +3110,12 @@ semantic_match={:.2} (threshold {:.2}), category={}.",
         Some(tokio::spawn(async move {
             let mut accumulated = String::new();
             let mut last_sanitized_progress: Option<String> = None;
+            let mut last_meaningful_progress: Option<String> = None;
             while let Some(delta) = rx.recv().await {
                 if delta == crate::agent::loop_::DRAFT_CLEAR_SENTINEL {
                     accumulated.clear();
                     last_sanitized_progress = None;
+                    last_meaningful_progress = None;
                     continue;
                 }
                 let (is_internal_progress, visible_delta) = split_internal_progress_delta(&delta);
@@ -3095,8 +3123,15 @@ semantic_match={:.2} (threshold {:.2}), category={}.",
                     let Some(summary) = summarize_internal_progress_delta(visible_delta) else {
                         continue;
                     };
+                    let summary = contextualize_progress_heartbeat(
+                        &summary,
+                        last_meaningful_progress.as_deref(),
+                    );
                     if last_sanitized_progress.as_deref() == Some(summary.as_str()) {
                         continue;
+                    }
+                    if !is_generic_progress_heartbeat(&summary) {
+                        last_meaningful_progress = Some(summary.clone());
                     }
                     accumulated.push_str(&summary);
                     last_sanitized_progress = Some(summary);
@@ -6284,6 +6319,10 @@ BTC is currently around $65,000 based on latest tool output."#
 
     struct MockEchoTool;
 
+    struct SlowMockPriceTool {
+        delay: Duration,
+    }
+
     #[async_trait::async_trait]
     impl Tool for MockEchoTool {
         fn name(&self) -> &str {
@@ -6313,6 +6352,26 @@ BTC is currently around $65,000 based on latest tool output."#
                     .to_string(),
                 error: None,
             })
+        }
+    }
+
+    #[async_trait::async_trait]
+    impl Tool for SlowMockPriceTool {
+        fn name(&self) -> &str {
+            "mock_price"
+        }
+
+        fn description(&self) -> &str {
+            "Return a mocked BTC price after a delay"
+        }
+
+        fn parameters_schema(&self) -> serde_json::Value {
+            MockPriceTool.parameters_schema()
+        }
+
+        async fn execute(&self, args: serde_json::Value) -> anyhow::Result<ToolResult> {
+            tokio::time::sleep(self.delay).await;
+            MockPriceTool.execute(args).await
         }
     }
 
@@ -10226,6 +10285,25 @@ Done reminder set for 1:38 AM."#;
     }
 
     #[test]
+    fn contextualize_progress_heartbeat_reuses_last_meaningful_summary() {
+        assert_eq!(
+            contextualize_progress_heartbeat(
+                "⏳ Still working (15s)...\n",
+                Some("Using `task_plan`: fetch repo metadata\n"),
+            ),
+            "⏳ Still working: Using `task_plan`: fetch repo metadata\n".to_string()
+        );
+    }
+
+    #[test]
+    fn contextualize_progress_heartbeat_leaves_generic_update_without_context() {
+        assert_eq!(
+            contextualize_progress_heartbeat("⏳ Still working (15s)...\n", None),
+            "⏳ Still working (15s)...\n".to_string()
+        );
+    }
+
+    #[test]
     fn looks_like_remote_repo_review_request_matches_repo_audit_prompts() {
         assert!(looks_like_remote_repo_review_request(
             "review this repo https://github.com/topway-ai/topclaw"
@@ -10565,6 +10643,80 @@ Done reminder set for 1:38 AM."#;
                 .chain(draft_updates.iter())
                 .any(|entry| entry.contains("Using `mock_price`")),
             "telegram progress should surface the tool being used: sent={sent_messages:?} updates={draft_updates:?}"
+        );
+    }
+
+    #[tokio::test]
+    async fn process_channel_message_streaming_contextualizes_heartbeat_for_telegram_channel() {
+        let temp = TempDir::new().unwrap();
+        let channel_impl = Arc::new(TelegramDraftStreamingRecordingChannel::default());
+        let channel: Arc<dyn Channel> = channel_impl.clone();
+
+        let mut channels_by_name = HashMap::new();
+        channels_by_name.insert(channel.name().to_string(), channel);
+
+        let runtime_ctx = Arc::new(ChannelRuntimeContext {
+            channels_by_name: Arc::new(channels_by_name),
+            provider: Arc::new(ToolCallingProvider),
+            default_provider: Arc::new("test-provider".to_string()),
+            memory: Arc::new(NoopMemory),
+            tools_registry: Arc::new(vec![Box::new(SlowMockPriceTool {
+                delay: Duration::from_secs(CHANNEL_PROGRESS_HEARTBEAT_SECS + 1),
+            })]),
+            observer: Arc::new(NoopObserver),
+            system_prompt: Arc::new("test-system-prompt".to_string()),
+            model: Arc::new("test-model".to_string()),
+            temperature: 0.0,
+            auto_save_memory: false,
+            max_tool_iterations: 10,
+            min_relevance_score: 0.0,
+            conversation_histories: Arc::new(Mutex::new(HashMap::new())),
+            provider_cache: Arc::new(Mutex::new(HashMap::new())),
+            route_overrides: Arc::new(Mutex::new(HashMap::new())),
+            api_key: None,
+            api_url: None,
+            reliability: Arc::new(crate::config::ReliabilityConfig::default()),
+            provider_runtime_options: providers::ProviderRuntimeOptions::default(),
+            workspace_dir: Arc::new(temp.path().to_path_buf()),
+            message_timeout_secs: CHANNEL_MESSAGE_TIMEOUT_SECS + CHANNEL_PROGRESS_HEARTBEAT_SECS,
+            interrupt_on_new_message: false,
+            non_cli_excluded_tools: Arc::new(Mutex::new(Vec::new())),
+            approval_manager: Arc::new(ApprovalManager::from_config(
+                &autonomy_with_mock_price_auto_approve(),
+            )),
+            multimodal: crate::config::MultimodalConfig::default(),
+            hooks: None,
+            query_classification: crate::config::QueryClassificationConfig::default(),
+            model_routes: Vec::new(),
+        });
+
+        Box::pin(process_channel_message(
+            runtime_ctx,
+            traits::ChannelMessage {
+                id: "msg-telegram-contextual-heartbeat".to_string(),
+                sender: "alice".to_string(),
+                reply_target: "chat-telegram".to_string(),
+                content: "What is the BTC price now?".to_string(),
+                channel: "telegram".to_string(),
+                timestamp: 1,
+                thread_ts: None,
+            },
+            CancellationToken::new(),
+        ))
+        .await;
+
+        let draft_updates = channel_impl.draft_updates.lock().await;
+        assert!(
+            draft_updates
+                .iter()
+                .any(|entry| entry.contains("⏳ Still working: Using `mock_price`")),
+            "telegram heartbeat should reuse the latest meaningful progress instead of a generic timer: updates={draft_updates:?}"
+        );
+        assert!(
+            draft_updates
+                .iter()
+                .all(|entry| !entry.contains("⏳ Still working (")),
+            "telegram heartbeat should avoid generic timer-only progress once a concrete step is known: updates={draft_updates:?}"
         );
     }
 
