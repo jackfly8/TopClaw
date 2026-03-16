@@ -754,9 +754,12 @@ pub async fn run_gateway(host: &str, port: u16, config: Config) -> Result<()> {
     ));
 
     // ── Tunnel ────────────────────────────────────────────────
+    #[cfg(feature = "tunnel")]
     let tunnel = crate::tunnel::create_tunnel(&config.tunnel)?;
+    #[cfg(feature = "tunnel")]
     let mut tunnel_url: Option<String> = None;
 
+    #[cfg(feature = "tunnel")]
     if let Some(ref tun) = tunnel {
         println!("🔗 Starting {} tunnel...", tun.name());
         match tun.start(host, actual_port).await {
@@ -770,6 +773,9 @@ pub async fn run_gateway(host: &str, port: u16, config: Config) -> Result<()> {
             }
         }
     }
+
+    #[cfg(not(feature = "tunnel"))]
+    let tunnel_url: Option<String> = None;
 
     println!("🦀 TopClaw Gateway listening on http://{display_addr}");
     if let Some(ref url) = tunnel_url {
