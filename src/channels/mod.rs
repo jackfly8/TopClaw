@@ -165,7 +165,7 @@ const MAX_CHANNEL_HISTORY: usize = 50;
 /// reducing noise in memory recall.
 const AUTOSAVE_MIN_MESSAGE_CHARS: usize = 20;
 
-/// Maximum characters per injected workspace file (matches `OpenClaw` default).
+/// Maximum characters per injected workspace file.
 const BOOTSTRAP_MAX_CHARS: usize = 20_000;
 
 const DEFAULT_CHANNEL_INITIAL_BACKOFF_SECS: u64 = 2;
@@ -4081,8 +4081,8 @@ async fn run_message_dispatch_loop(
     }
 }
 
-/// Load OpenClaw format bootstrap files into the prompt.
-fn load_openclaw_bootstrap_files(
+/// Load bootstrap files into the prompt (TopClaw default format).
+fn load_bootstrap_files(
     prompt: &mut String,
     workspace_dir: &std::path::Path,
     max_chars_per_file: usize,
@@ -4109,7 +4109,7 @@ fn load_openclaw_bootstrap_files(
 
 /// Load workspace identity files and build a system prompt.
 ///
-/// Follows the `OpenClaw` framework structure by default:
+/// Follows the TopClaw bootstrap structure by default:
 /// 1. Tooling — tool list + descriptions
 /// 2. Safety — guardrail reminder
 /// 3. Skills — full skill instructions and tool metadata
@@ -4250,28 +4250,28 @@ pub fn build_system_prompt_with_mode(
                 }
                 Ok(None) => {
                     // No AIEOS identity loaded (shouldn't happen if is_aieos_configured returned true)
-                    // Fall back to OpenClaw bootstrap files
+                    // Fall back to default bootstrap files
                     let max_chars = bootstrap_max_chars.unwrap_or(BOOTSTRAP_MAX_CHARS);
-                    load_openclaw_bootstrap_files(&mut prompt, workspace_dir, max_chars);
+                    load_bootstrap_files(&mut prompt, workspace_dir, max_chars);
                 }
                 Err(e) => {
-                    // Log error but don't fail - fall back to OpenClaw
+                    // Log error but don't fail - fall back to default format
                     eprintln!(
-                        "Warning: Failed to load AIEOS identity: {e}. Using OpenClaw format."
+                        "Warning: Failed to load AIEOS identity: {e}. Using default bootstrap files."
                     );
                     let max_chars = bootstrap_max_chars.unwrap_or(BOOTSTRAP_MAX_CHARS);
-                    load_openclaw_bootstrap_files(&mut prompt, workspace_dir, max_chars);
+                    load_bootstrap_files(&mut prompt, workspace_dir, max_chars);
                 }
             }
         } else {
-            // OpenClaw format
+            // Default bootstrap format
             let max_chars = bootstrap_max_chars.unwrap_or(BOOTSTRAP_MAX_CHARS);
-            load_openclaw_bootstrap_files(&mut prompt, workspace_dir, max_chars);
+            load_bootstrap_files(&mut prompt, workspace_dir, max_chars);
         }
     } else {
-        // No identity config - use OpenClaw format
+        // No identity config - use default bootstrap format
         let max_chars = bootstrap_max_chars.unwrap_or(BOOTSTRAP_MAX_CHARS);
-        load_openclaw_bootstrap_files(&mut prompt, workspace_dir, max_chars);
+        load_bootstrap_files(&mut prompt, workspace_dir, max_chars);
     }
 
     // ── 6. Date & Time ──────────────────────────────────────────
@@ -4351,7 +4351,7 @@ fn inject_workspace_file(
             }
         }
         Err(_) => {
-            // Missing-file marker (matches OpenClaw behavior)
+            // Missing-file marker (matches default bootstrap behavior)
             let _ = writeln!(prompt, "### {filename}\n\n[File not found: {filename}]\n");
         }
     }
@@ -11337,7 +11337,7 @@ BTC is currently around $65,000 based on latest tool output."#;
         assert!(prompt.contains("**Style:** concise"));
         assert!(prompt.contains("**Formality Level:** casual"));
 
-        // Should NOT contain OpenClaw bootstrap file headers
+        // Should NOT contain bootstrap file headers
         assert!(!prompt.contains("### SOUL.md"));
         assert!(!prompt.contains("### IDENTITY.md"));
         assert!(!prompt.contains("[File not found"));
@@ -11367,7 +11367,7 @@ BTC is currently around $65,000 based on latest tool output."#;
     }
 
     #[test]
-    fn aieos_fallback_to_openclaw_on_parse_error() {
+    fn aieos_fallback_to_bootstrap_on_parse_error() {
         use crate::config::IdentityConfig;
 
         let config = IdentityConfig {
@@ -11379,13 +11379,13 @@ BTC is currently around $65,000 based on latest tool output."#;
         let ws = make_workspace();
         let prompt = build_system_prompt(ws.path(), "model", &[], &[], Some(&config), None);
 
-        // Should fall back to OpenClaw format when AIEOS file is not found
+        // Should fall back to bootstrap format when AIEOS file is not found
         // (Error is logged to stderr with filename, not included in prompt)
         assert!(prompt.contains("### SOUL.md"));
     }
 
     #[test]
-    fn aieos_empty_uses_openclaw() {
+    fn aieos_empty_uses_bootstrap() {
         use crate::config::IdentityConfig;
 
         // Format is "aieos" but neither path nor inline is set
@@ -11398,17 +11398,17 @@ BTC is currently around $65,000 based on latest tool output."#;
         let ws = make_workspace();
         let prompt = build_system_prompt(ws.path(), "model", &[], &[], Some(&config), None);
 
-        // Should use OpenClaw format (not configured for AIEOS)
+        // Should use bootstrap format (not configured for AIEOS)
         assert!(prompt.contains("### SOUL.md"));
         assert!(prompt.contains("Be helpful"));
     }
 
     #[test]
-    fn openclaw_format_uses_bootstrap_files() {
+    fn bootstrap_format_uses_bootstrap_files() {
         use crate::config::IdentityConfig;
 
         let config = IdentityConfig {
-            format: "openclaw".into(),
+            format: "bootstrap".into(),
             aieos_path: Some("identity.json".into()),
             aieos_inline: None,
         };
@@ -11416,19 +11416,19 @@ BTC is currently around $65,000 based on latest tool output."#;
         let ws = make_workspace();
         let prompt = build_system_prompt(ws.path(), "model", &[], &[], Some(&config), None);
 
-        // Should use OpenClaw format even if aieos_path is set
+        // Should use bootstrap format even if aieos_path is set
         assert!(prompt.contains("### SOUL.md"));
         assert!(prompt.contains("Be helpful"));
         assert!(!prompt.contains("## Identity"));
     }
 
     #[test]
-    fn none_identity_config_uses_openclaw() {
+    fn none_identity_config_uses_bootstrap() {
         let ws = make_workspace();
         // Pass None for identity config
         let prompt = build_system_prompt(ws.path(), "model", &[], &[], None, None);
 
-        // Should use OpenClaw format
+        // Should use bootstrap format
         assert!(prompt.contains("### SOUL.md"));
         assert!(prompt.contains("Be helpful"));
     }

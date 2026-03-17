@@ -1908,7 +1908,7 @@ Allowlist Telegram username (without '@') or numeric user ID.",
 
     /// Convert Markdown to Telegram HTML format.
     /// Telegram HTML supports: <b>, <i>, <u>, <s>, <code>, <pre>, <a href="...">
-    /// This mirrors OpenClaw's markdownToTelegramHtml approach.
+    /// This mirrors the markdownToTelegramHtml approach.
     fn markdown_to_telegram_html(text: &str) -> String {
         let lines: Vec<&str> = text.split('\n').collect();
         let mut result_lines: Vec<String> = Vec::new();

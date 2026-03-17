@@ -230,7 +230,7 @@ impl Provider for GlmProvider {
         let url = format!("{}/chat/completions", self.base_url);
 
         let response = self
-            .client
+            .http_client()
             .post(&url)
             .header("Authorization", format!("Bearer {token}"))
             .json(&request)
@@ -262,7 +262,7 @@ impl Provider for GlmProvider {
         let url = format!("{}/chat/completions", self.base_url);
         // GET will likely return 405 but establishes the TLS + HTTP/2 connection pool.
         let _ = self
-            .client
+            .http_client()
             .get(&url)
             .header("Authorization", format!("Bearer {token}"))
             .send()

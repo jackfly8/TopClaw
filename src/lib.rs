@@ -114,7 +114,6 @@ pub mod hooks;
 pub(crate) mod identity;
 pub mod integrations;
 pub mod memory;
-pub mod migration;
 pub(crate) mod multimodal;
 pub mod observability;
 pub mod onboard;
@@ -276,21 +275,6 @@ pub enum SkillCommands {
     Remove {
         /// Skill name to remove
         name: String,
-    },
-}
-
-/// Migration subcommands for importing state from older or external layouts.
-#[derive(Subcommand, Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
-pub enum MigrateCommands {
-    /// Import memory from an `OpenClaw` workspace into this `TopClaw` workspace
-    Openclaw {
-        /// Optional path to `OpenClaw` workspace (defaults to ~/.openclaw/workspace)
-        #[arg(long)]
-        source: Option<std::path::PathBuf>,
-
-        /// Validate and preview migration without writing any data
-        #[arg(long)]
-        dry_run: bool,
     },
 }
 

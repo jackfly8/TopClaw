@@ -1540,7 +1540,7 @@ pub async fn run(
         .map(|b| b.board.clone())
         .collect();
 
-    // ── Build system prompt from workspace MD files (OpenClaw framework) ──
+    // ── Build system prompt from workspace MD files ──
     let skills = crate::skills::load_skills_with_config(&config.workspace_dir, &config);
     let mut tool_descs: Vec<(&str, &str)> = vec![
         (

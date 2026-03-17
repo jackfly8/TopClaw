@@ -244,7 +244,7 @@ pub struct Config {
     #[serde(default)]
     pub proxy: ProxyConfig,
 
-    /// Identity format configuration: OpenClaw or AIEOS (`[identity]`).
+    /// Identity format configuration: bootstrap or AIEOS (`[identity]`).
     #[serde(default)]
     pub identity: IdentityConfig,
 
@@ -344,7 +344,7 @@ impl std::fmt::Debug for Config {
 
 // ── Transcription ────────────────────────────────────────────────
 
-// ── Identity (AIEOS / OpenClaw format) ──────────────────────────
+// ── Identity (AIEOS / bootstrap format) ──────────────────────────
 
 // ── Cost tracking and budget enforcement ───────────────────────────
 

@@ -1,4 +1,4 @@
-//! Identity system supporting OpenClaw (markdown) and AIEOS (JSON) formats.
+//! Identity system supporting TopClaw bootstrap (markdown) and AIEOS (JSON) formats.
 //!
 //! AIEOS (AI Entity Object Specification) is a standardization framework for
 //! portable AI identity. This module handles loading and converting AIEOS v1.1
@@ -1254,9 +1254,9 @@ mod tests {
     }
 
     #[test]
-    fn is_aieos_configured_false_openclaw_format() {
+    fn is_aieos_configured_false_bootstrap_format() {
         let config = IdentityConfig {
-            format: "openclaw".into(),
+            format: "bootstrap".into(),
             aieos_path: Some("identity.json".into()),
             aieos_inline: None,
         };

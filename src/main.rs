@@ -37,7 +37,7 @@ use anyhow::{bail, Context, Result};
 use clap::{Parser, Subcommand, ValueEnum};
 use topclaw::{
     agent, auth, backup, channels, config, cron, daemon, doctor, gateway, hardware, integrations,
-    memory, migration, observability, onboard, peripherals, providers, security, self_improvement,
+    memory, observability, onboard, peripherals, providers, security, self_improvement,
     service, skills, update, Config,
 };
 use tracing::{info, warn};
@@ -515,12 +515,6 @@ Examples:
     Skills {
         #[command(subcommand)]
         skill_command: SkillCommands,
-    },
-
-    /// Import data from other runtimes
-    Migrate {
-        #[command(subcommand)]
-        migrate_command: MigrateCommands,
     },
 
     /// Manage provider authentication profiles
@@ -1331,10 +1325,6 @@ async fn main() -> Result<()> {
         } => integrations::handle_command(integration_command, &config),
 
         Commands::Skills { skill_command } => skills::handle_command(skill_command, &config),
-
-        Commands::Migrate { migrate_command } => {
-            migration::handle_command(migrate_command, &config).await
-        }
 
         Commands::Memory { memory_command } => {
             memory::cli::handle_command(memory_command, &config).await

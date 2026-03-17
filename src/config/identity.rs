@@ -2,15 +2,15 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
 fn default_identity_format() -> String {
-    "openclaw".into()
+    "bootstrap".into()
 }
 
 /// Identity format configuration (`[identity]` section).
 ///
-/// Supports `"openclaw"` (default) or `"aieos"` identity documents.
+/// Supports `"bootstrap"` (default, markdown files) or `"aieos"` (JSON) identity documents.
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct IdentityConfig {
-    /// Identity format: "openclaw" (default) or "aieos"
+    /// Identity format: "bootstrap" (default, markdown) or "aieos" (JSON)
     #[serde(default = "default_identity_format")]
     pub format: String,
     /// Path to AIEOS JSON file (relative to workspace)
