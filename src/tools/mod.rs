@@ -15,6 +15,10 @@
 //! To add a new tool, implement [`Tool`] in a new submodule and register it in
 //! [`all_tools_with_runtime`]. See `AGENTS.md` §7.3 for the full change playbook.
 
+// ============================================================================
+// SECTION 1: Module Declarations and Imports
+// ============================================================================
+
 pub mod agents_ipc;
 pub mod apply_patch;
 #[cfg(feature = "browser-native")]
@@ -176,7 +180,11 @@ fn boxed_registry_from_arcs(tools: Vec<Arc<dyn Tool>>) -> Vec<Box<dyn Tool>> {
     tools.into_iter().map(ArcDelegatingTool::boxed).collect()
 }
 
-/// Create the default tool registry
+// ============================================================================
+// SECTION 2: Tool Registry Functions
+// ============================================================================
+
+/// Create default tool registry (shell, file operations)
 pub fn default_tools(security: Arc<SecurityPolicy>) -> Vec<Box<dyn Tool>> {
     default_tools_with_runtime(security, Arc::new(NativeRuntime::new()))
 }
@@ -564,6 +572,10 @@ pub fn all_tools_with_runtime(
 
     boxed_registry_from_arcs(tool_arcs)
 }
+
+// ============================================================================
+// SECTION 3: Tests
+// ============================================================================
 
 #[cfg(test)]
 mod tests {
