@@ -24,7 +24,6 @@ Last verified: **March 12, 2026**.
 | `channel` | Manage channels and channel health checks |
 | `integrations` | Inspect integration details |
 | `skills` | List/install/remove skills |
-| `migrate` | Import from external runtimes (currently OpenClaw) |
 | `config` | Export machine-readable config schema |
 | `completions` | Generate shell completion scripts to stdout |
 | `hardware` | Discover and introspect USB hardware |
@@ -337,10 +336,6 @@ The audit blocks or escalates findings for:
 Use `skills audit` to manually validate a candidate skill directory (or an installed skill by name) before sharing it or trusting its source.
 
 Skill manifests (`SKILL.toml`) support `prompts` and `[[tools]]`; both are injected into the agent system prompt at runtime, so the model can follow skill instructions without manually reading skill files.
-
-### `migrate`
-
-- `topclaw migrate openclaw [--source <path>] [--dry-run]`
 
 ### `config`
 
