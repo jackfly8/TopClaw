@@ -6966,13 +6966,14 @@ dependencies = [
 
 [[package]]
 name = "topclaw"
-version = "2026.3.17"
+version = "2026.3.18"
 dependencies = [
  "anyhow",
  "async-imap",
  "async-trait",
  "axum",
  "base64",
+ "bytes",
  "chacha20poly1305",
  "chrono",
  "chrono-tz",

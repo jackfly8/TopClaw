@@ -32,8 +32,9 @@ use tracing::{debug, error, info, warn};
 use uuid::Uuid;
 
 use crate::config::schema::{
-    default_idle_timeout, default_imap_folder, default_imap_port, default_smtp_port, EmailConfig,
+    default_idle_timeout, default_imap_folder, default_imap_port, default_smtp_port, default_true,
 };
+pub use crate::config::schema::EmailConfig;
 use super::traits::{Channel, ChannelMessage, SendMessage};
 
 impl Default for EmailConfig {

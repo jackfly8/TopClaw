@@ -15,7 +15,7 @@ mod webhook_ingress;
 pub mod ws;
 
 use crate::channels::{
-    Channel, LinqChannel, NextcloudTalkChannel, QQChannel, SendMessage, WatiChannel,
+    LinqChannel, NextcloudTalkChannel, QQChannel, WatiChannel,
     WhatsAppChannel,
 };
 
@@ -28,11 +28,9 @@ use crate::security::pairing::{constant_time_eq, is_public_bind, PairingGuard};
 use crate::security::SecurityPolicy;
 use crate::tools::traits::ToolSpec;
 use crate::tools::{self, Tool};
-use crate::util::truncate_with_ellipsis;
 use anyhow::{Context, Result};
 use axum::{
-    body::Bytes,
-    extract::{ConnectInfo, Query, Request, State},
+    extract::{ConnectInfo, Request, State},
     http::{header, HeaderMap, StatusCode},
     middleware::{self, Next},
     response::{IntoResponse, Json, Response},
@@ -620,7 +618,7 @@ pub async fn run_gateway(host: &str, port: u16, config: Config) -> Result<()> {
         });
 
     // WhatsApp channel (if configured)
-    let whatsapp_channel: Option<Arc<WhatsAppChannel>> = config
+    let _whatsapp_channel: Option<Arc<WhatsAppChannel>> = config
         .channels_config
         .whatsapp
         .as_ref()
@@ -639,7 +637,7 @@ pub async fn run_gateway(host: &str, port: u16, config: Config) -> Result<()> {
 
     // WhatsApp app secret for webhook signature verification
     // Priority: environment variable > config file
-    let whatsapp_app_secret: Option<Arc<str>> = std::env::var("TOPCLAW_WHATSAPP_APP_SECRET")
+    let _whatsapp_app_secret: Option<Arc<str>> = std::env::var("TOPCLAW_WHATSAPP_APP_SECRET")
         .ok()
         .and_then(|secret| {
             let secret = secret.trim();
@@ -667,7 +665,7 @@ pub async fn run_gateway(host: &str, port: u16, config: Config) -> Result<()> {
 
     // Linq signing secret for webhook signature verification
     // Priority: environment variable > config file
-    let linq_signing_secret: Option<Arc<str>> = std::env::var("TOPCLAW_LINQ_SIGNING_SECRET")
+    let _linq_signing_secret: Option<Arc<str>> = std::env::var("TOPCLAW_LINQ_SIGNING_SECRET")
         .ok()
         .and_then(|secret| {
             let secret = secret.trim();
@@ -696,7 +694,7 @@ pub async fn run_gateway(host: &str, port: u16, config: Config) -> Result<()> {
         });
 
     // QQ channel (if configured)
-    let qq_channel: Option<Arc<QQChannel>> = config.channels_config.qq.as_ref().map(|qq_cfg| {
+    let _qq_channel: Option<Arc<QQChannel>> = config.channels_config.qq.as_ref().map(|qq_cfg| {
         Arc::new(QQChannel::new(
             qq_cfg.app_id.clone(),
             qq_cfg.app_secret.clone(),
@@ -721,7 +719,7 @@ pub async fn run_gateway(host: &str, port: u16, config: Config) -> Result<()> {
 
     // Nextcloud Talk webhook secret for signature verification
     // Priority: environment variable > config file
-    let nextcloud_talk_webhook_secret: Option<Arc<str>> =
+    let _nextcloud_talk_webhook_secret: Option<Arc<str>> =
         std::env::var("TOPCLAW_NEXTCLOUD_TALK_WEBHOOK_SECRET")
             .ok()
             .and_then(|secret| {
@@ -950,7 +948,7 @@ pub async fn run_gateway(host: &str, port: u16, config: Config) -> Result<()> {
         ));
 
     // Build channel webhook routers conditionally based on features
-    let mut channel_routes: Router<AppState> = Router::new();
+    let channel_routes: Router<AppState> = Router::new();
 
     // ── WhatsApp ─────────────────────────────────────────────────────────────
     #[cfg(feature = "channel-whatsapp")]
@@ -1120,7 +1118,7 @@ async fn handle_pair(
         .and_then(|v| v.to_str().ok())
         .unwrap_or("");
 
-    match state.pairing.try_pair(code, &rate_key).await {
+    match state.pairing.try_pair(code, &rate_key) {
         Ok(Some(token)) => {
             tracing::info!("🔐 New client paired successfully");
             if let Err(err) = persist_pairing_tokens(state.config.clone(), &state.pairing).await {
@@ -2161,6 +2159,7 @@ async fn handle_qq_webhook(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use bytes::Bytes;
     use crate::channels::traits::ChannelMessage;
     use crate::memory::{Memory, MemoryCategory, MemoryEntry};
     use crate::providers::Provider;
@@ -2192,14 +2191,23 @@ mod tests {
             trusted_proxy_cidrs: Arc::new(Vec::new()),
             rate_limiter: Arc::new(GatewayRateLimiter::new(100, 100, 100)),
             idempotency_store: Arc::new(IdempotencyStore::new(Duration::from_secs(300), 1000)),
+            #[cfg(feature = "channel-whatsapp")]
             whatsapp: None,
+            #[cfg(feature = "channel-whatsapp")]
             whatsapp_app_secret: None,
+            #[cfg(feature = "channel-linq")]
             linq: None,
+            #[cfg(feature = "channel-linq")]
             linq_signing_secret: None,
+            #[cfg(feature = "channel-nextcloud-talk")]
             nextcloud_talk: None,
+            #[cfg(feature = "channel-nextcloud-talk")]
             nextcloud_talk_webhook_secret: None,
+            #[cfg(feature = "channel-wati")]
             wati: None,
+            #[cfg(feature = "channel-qq")]
             qq: None,
+            #[cfg(feature = "channel-qq")]
             qq_webhook_enabled: false,
             observer: Arc::new(crate::observability::NoopObserver),
             tools_registry: Arc::new(Vec::new()),
@@ -2288,14 +2296,23 @@ mod tests {
             trusted_proxy_cidrs: Arc::new(Vec::new()),
             rate_limiter: Arc::new(GatewayRateLimiter::new(100, 100, 100)),
             idempotency_store: Arc::new(IdempotencyStore::new(Duration::from_secs(300), 1000)),
+            #[cfg(feature = "channel-whatsapp")]
             whatsapp: None,
+            #[cfg(feature = "channel-whatsapp")]
             whatsapp_app_secret: None,
+            #[cfg(feature = "channel-linq")]
             linq: None,
+            #[cfg(feature = "channel-linq")]
             linq_signing_secret: None,
+            #[cfg(feature = "channel-nextcloud-talk")]
             nextcloud_talk: None,
+            #[cfg(feature = "channel-nextcloud-talk")]
             nextcloud_talk_webhook_secret: None,
+            #[cfg(feature = "channel-wati")]
             wati: None,
+            #[cfg(feature = "channel-qq")]
             qq: None,
+            #[cfg(feature = "channel-qq")]
             qq_webhook_enabled: false,
             observer: Arc::new(crate::observability::NoopObserver),
             tools_registry: Arc::new(Vec::new()),
@@ -2345,14 +2362,23 @@ mod tests {
             trusted_proxy_cidrs: Arc::new(Vec::new()),
             rate_limiter: Arc::new(GatewayRateLimiter::new(100, 100, 100)),
             idempotency_store: Arc::new(IdempotencyStore::new(Duration::from_secs(300), 1000)),
+            #[cfg(feature = "channel-whatsapp")]
             whatsapp: None,
+            #[cfg(feature = "channel-whatsapp")]
             whatsapp_app_secret: None,
+            #[cfg(feature = "channel-linq")]
             linq: None,
+            #[cfg(feature = "channel-linq")]
             linq_signing_secret: None,
+            #[cfg(feature = "channel-nextcloud-talk")]
             nextcloud_talk: None,
+            #[cfg(feature = "channel-nextcloud-talk")]
             nextcloud_talk_webhook_secret: None,
+            #[cfg(feature = "channel-wati")]
             wati: None,
+            #[cfg(feature = "channel-qq")]
             qq: None,
+            #[cfg(feature = "channel-qq")]
             qq_webhook_enabled: false,
             observer,
             tools_registry: Arc::new(Vec::new()),
@@ -2388,14 +2414,23 @@ mod tests {
             trusted_proxy_cidrs: Arc::new(Vec::new()),
             rate_limiter: Arc::new(GatewayRateLimiter::new(100, 100, 100)),
             idempotency_store: Arc::new(IdempotencyStore::new(Duration::from_secs(300), 1000)),
+            #[cfg(feature = "channel-whatsapp")]
             whatsapp: None,
+            #[cfg(feature = "channel-whatsapp")]
             whatsapp_app_secret: None,
+            #[cfg(feature = "channel-linq")]
             linq: None,
+            #[cfg(feature = "channel-linq")]
             linq_signing_secret: None,
+            #[cfg(feature = "channel-nextcloud-talk")]
             nextcloud_talk: None,
+            #[cfg(feature = "channel-nextcloud-talk")]
             nextcloud_talk_webhook_secret: None,
+            #[cfg(feature = "channel-wati")]
             wati: None,
+            #[cfg(feature = "channel-qq")]
             qq: None,
+            #[cfg(feature = "channel-qq")]
             qq_webhook_enabled: false,
             observer: Arc::new(crate::observability::NoopObserver),
             tools_registry: Arc::new(Vec::new()),
@@ -2447,14 +2482,23 @@ mod tests {
             trusted_proxy_cidrs: Arc::new(Vec::new()),
             rate_limiter: Arc::new(GatewayRateLimiter::new(100, 100, 100)),
             idempotency_store: Arc::new(IdempotencyStore::new(Duration::from_secs(300), 1000)),
+            #[cfg(feature = "channel-whatsapp")]
             whatsapp: None,
+            #[cfg(feature = "channel-whatsapp")]
             whatsapp_app_secret: None,
+            #[cfg(feature = "channel-linq")]
             linq: None,
+            #[cfg(feature = "channel-linq")]
             linq_signing_secret: None,
+            #[cfg(feature = "channel-nextcloud-talk")]
             nextcloud_talk: None,
+            #[cfg(feature = "channel-nextcloud-talk")]
             nextcloud_talk_webhook_secret: None,
+            #[cfg(feature = "channel-wati")]
             wati: None,
+            #[cfg(feature = "channel-qq")]
             qq: None,
+            #[cfg(feature = "channel-qq")]
             qq_webhook_enabled: false,
             observer: Arc::new(crate::observability::NoopObserver),
             tools_registry: Arc::new(Vec::new()),
@@ -2476,7 +2520,7 @@ mod tests {
             header::AUTHORIZATION,
             HeaderValue::from_str(&format!("Bearer {paired_token}")).unwrap(),
         );
-        let authorized = handle_metrics(State(state), test_connect_info(), headers)
+        let authorized = handle_metrics(State(state.clone()), test_connect_info(), headers)
             .await
             .into_response();
         assert_eq!(authorized.status(), StatusCode::OK);
@@ -2729,7 +2773,7 @@ mod tests {
 
         let guard = PairingGuard::new(true, &[]);
         let code = guard.pairing_code().unwrap();
-        let token = guard.try_pair(&code, "test_client").await.unwrap().unwrap();
+        let token = guard.try_pair(&code, "test_client").unwrap().unwrap();
         assert!(guard.is_authenticated(&token));
 
         let shared_config = Arc::new(Mutex::new(config));
@@ -3016,14 +3060,23 @@ Reminder set successfully."#;
             trusted_proxy_cidrs: Arc::new(Vec::new()),
             rate_limiter: Arc::new(GatewayRateLimiter::new(100, 100, 100)),
             idempotency_store: Arc::new(IdempotencyStore::new(Duration::from_secs(300), 1000)),
+            #[cfg(feature = "channel-whatsapp")]
             whatsapp: None,
+            #[cfg(feature = "channel-whatsapp")]
             whatsapp_app_secret: None,
+            #[cfg(feature = "channel-linq")]
             linq: None,
+            #[cfg(feature = "channel-linq")]
             linq_signing_secret: None,
+            #[cfg(feature = "channel-nextcloud-talk")]
             nextcloud_talk: None,
+            #[cfg(feature = "channel-nextcloud-talk")]
             nextcloud_talk_webhook_secret: None,
+            #[cfg(feature = "channel-wati")]
             wati: None,
+            #[cfg(feature = "channel-qq")]
             qq: None,
+            #[cfg(feature = "channel-qq")]
             qq_webhook_enabled: false,
             observer: Arc::new(crate::observability::NoopObserver),
             tools_registry: Arc::new(Vec::new()),
@@ -3085,14 +3138,23 @@ Reminder set successfully."#;
             trusted_proxy_cidrs: Arc::new(Vec::new()),
             rate_limiter: Arc::new(GatewayRateLimiter::new(100, 100, 100)),
             idempotency_store: Arc::new(IdempotencyStore::new(Duration::from_secs(300), 1000)),
+            #[cfg(feature = "channel-whatsapp")]
             whatsapp: None,
+            #[cfg(feature = "channel-whatsapp")]
             whatsapp_app_secret: None,
+            #[cfg(feature = "channel-linq")]
             linq: None,
+            #[cfg(feature = "channel-linq")]
             linq_signing_secret: None,
+            #[cfg(feature = "channel-nextcloud-talk")]
             nextcloud_talk: None,
+            #[cfg(feature = "channel-nextcloud-talk")]
             nextcloud_talk_webhook_secret: None,
+            #[cfg(feature = "channel-wati")]
             wati: None,
+            #[cfg(feature = "channel-qq")]
             qq: None,
+            #[cfg(feature = "channel-qq")]
             qq_webhook_enabled: false,
             observer: Arc::new(crate::observability::NoopObserver),
             tools_registry: Arc::new(Vec::new()),
@@ -3135,14 +3197,23 @@ Reminder set successfully."#;
             trusted_proxy_cidrs: Arc::new(Vec::new()),
             rate_limiter: Arc::new(GatewayRateLimiter::new(100, 100, 100)),
             idempotency_store: Arc::new(IdempotencyStore::new(Duration::from_secs(300), 1000)),
+            #[cfg(feature = "channel-whatsapp")]
             whatsapp: None,
+            #[cfg(feature = "channel-whatsapp")]
             whatsapp_app_secret: None,
+            #[cfg(feature = "channel-linq")]
             linq: None,
+            #[cfg(feature = "channel-linq")]
             linq_signing_secret: None,
+            #[cfg(feature = "channel-nextcloud-talk")]
             nextcloud_talk: None,
+            #[cfg(feature = "channel-nextcloud-talk")]
             nextcloud_talk_webhook_secret: None,
+            #[cfg(feature = "channel-wati")]
             wati: None,
+            #[cfg(feature = "channel-qq")]
             qq: None,
+            #[cfg(feature = "channel-qq")]
             qq_webhook_enabled: false,
             observer: Arc::new(crate::observability::NoopObserver),
             tools_registry: Arc::new(Vec::new()),
@@ -3185,14 +3256,23 @@ Reminder set successfully."#;
             trusted_proxy_cidrs: Arc::new(Vec::new()),
             rate_limiter: Arc::new(GatewayRateLimiter::new(100, 100, 100)),
             idempotency_store: Arc::new(IdempotencyStore::new(Duration::from_secs(300), 1000)),
+            #[cfg(feature = "channel-whatsapp")]
             whatsapp: None,
+            #[cfg(feature = "channel-whatsapp")]
             whatsapp_app_secret: None,
+            #[cfg(feature = "channel-linq")]
             linq: None,
+            #[cfg(feature = "channel-linq")]
             linq_signing_secret: None,
+            #[cfg(feature = "channel-nextcloud-talk")]
             nextcloud_talk: None,
+            #[cfg(feature = "channel-nextcloud-talk")]
             nextcloud_talk_webhook_secret: None,
+            #[cfg(feature = "channel-wati")]
             wati: None,
+            #[cfg(feature = "channel-qq")]
             qq: None,
+            #[cfg(feature = "channel-qq")]
             qq_webhook_enabled: false,
             observer: Arc::new(crate::observability::NoopObserver),
             tools_registry: Arc::new(Vec::new()),
@@ -3240,14 +3320,23 @@ Reminder set successfully."#;
             trusted_proxy_cidrs: Arc::new(Vec::new()),
             rate_limiter: Arc::new(GatewayRateLimiter::new(100, 100, 100)),
             idempotency_store: Arc::new(IdempotencyStore::new(Duration::from_secs(300), 1000)),
+            #[cfg(feature = "channel-whatsapp")]
             whatsapp: None,
+            #[cfg(feature = "channel-whatsapp")]
             whatsapp_app_secret: None,
+            #[cfg(feature = "channel-linq")]
             linq: None,
+            #[cfg(feature = "channel-linq")]
             linq_signing_secret: None,
+            #[cfg(feature = "channel-nextcloud-talk")]
             nextcloud_talk: None,
+            #[cfg(feature = "channel-nextcloud-talk")]
             nextcloud_talk_webhook_secret: None,
+            #[cfg(feature = "channel-wati")]
             wati: None,
+            #[cfg(feature = "channel-qq")]
             qq: None,
+            #[cfg(feature = "channel-qq")]
             qq_webhook_enabled: false,
             observer: Arc::new(crate::observability::NoopObserver),
             tools_registry: Arc::new(Vec::new()),
@@ -3300,14 +3389,23 @@ Reminder set successfully."#;
             trusted_proxy_cidrs: Arc::new(Vec::new()),
             rate_limiter: Arc::new(GatewayRateLimiter::new(100, 100, 100)),
             idempotency_store: Arc::new(IdempotencyStore::new(Duration::from_secs(300), 1000)),
+            #[cfg(feature = "channel-whatsapp")]
             whatsapp: None,
+            #[cfg(feature = "channel-whatsapp")]
             whatsapp_app_secret: None,
+            #[cfg(feature = "channel-linq")]
             linq: None,
+            #[cfg(feature = "channel-linq")]
             linq_signing_secret: None,
+            #[cfg(feature = "channel-nextcloud-talk")]
             nextcloud_talk: None,
+            #[cfg(feature = "channel-nextcloud-talk")]
             nextcloud_talk_webhook_secret: None,
+            #[cfg(feature = "channel-wati")]
             wati: None,
+            #[cfg(feature = "channel-qq")]
             qq: None,
+            #[cfg(feature = "channel-qq")]
             qq_webhook_enabled: false,
             observer: Arc::new(crate::observability::NoopObserver),
             tools_registry: Arc::new(Vec::new()),
@@ -3382,14 +3480,23 @@ Reminder set successfully."#;
             trusted_proxy_cidrs: Arc::new(Vec::new()),
             rate_limiter: Arc::new(GatewayRateLimiter::new(100, 100, 100)),
             idempotency_store: Arc::new(IdempotencyStore::new(Duration::from_secs(300), 1000)),
+            #[cfg(feature = "channel-whatsapp")]
             whatsapp: None,
+            #[cfg(feature = "channel-whatsapp")]
             whatsapp_app_secret: None,
+            #[cfg(feature = "channel-linq")]
             linq: None,
+            #[cfg(feature = "channel-linq")]
             linq_signing_secret: None,
+            #[cfg(feature = "channel-nextcloud-talk")]
             nextcloud_talk: None,
+            #[cfg(feature = "channel-nextcloud-talk")]
             nextcloud_talk_webhook_secret: None,
+            #[cfg(feature = "channel-wati")]
             wati: None,
+            #[cfg(feature = "channel-qq")]
             qq: None,
+            #[cfg(feature = "channel-qq")]
             qq_webhook_enabled: false,
             observer: Arc::new(crate::observability::NoopObserver),
             tools_registry: Arc::new(Vec::new()),
@@ -3436,14 +3543,23 @@ Reminder set successfully."#;
             trusted_proxy_cidrs: Arc::new(Vec::new()),
             rate_limiter: Arc::new(GatewayRateLimiter::new(100, 100, 100)),
             idempotency_store: Arc::new(IdempotencyStore::new(Duration::from_secs(300), 1000)),
+            #[cfg(feature = "channel-whatsapp")]
             whatsapp: None,
+            #[cfg(feature = "channel-whatsapp")]
             whatsapp_app_secret: None,
+            #[cfg(feature = "channel-linq")]
             linq: None,
+            #[cfg(feature = "channel-linq")]
             linq_signing_secret: None,
+            #[cfg(feature = "channel-nextcloud-talk")]
             nextcloud_talk: None,
+            #[cfg(feature = "channel-nextcloud-talk")]
             nextcloud_talk_webhook_secret: None,
+            #[cfg(feature = "channel-wati")]
             wati: None,
+            #[cfg(feature = "channel-qq")]
             qq: None,
+            #[cfg(feature = "channel-qq")]
             qq_webhook_enabled: false,
             observer: Arc::new(crate::observability::NoopObserver),
             tools_registry: Arc::new(Vec::new()),
@@ -3495,14 +3611,23 @@ Reminder set successfully."#;
             trusted_proxy_cidrs: Arc::new(Vec::new()),
             rate_limiter: Arc::new(GatewayRateLimiter::new(100, 100, 100)),
             idempotency_store: Arc::new(IdempotencyStore::new(Duration::from_secs(300), 1000)),
+            #[cfg(feature = "channel-whatsapp")]
             whatsapp: None,
+            #[cfg(feature = "channel-whatsapp")]
             whatsapp_app_secret: None,
+            #[cfg(feature = "channel-linq")]
             linq: None,
+            #[cfg(feature = "channel-linq")]
             linq_signing_secret: None,
+            #[cfg(feature = "channel-nextcloud-talk")]
             nextcloud_talk: None,
+            #[cfg(feature = "channel-nextcloud-talk")]
             nextcloud_talk_webhook_secret: None,
+            #[cfg(feature = "channel-wati")]
             wati: None,
+            #[cfg(feature = "channel-qq")]
             qq: None,
+            #[cfg(feature = "channel-qq")]
             qq_webhook_enabled: false,
             observer: Arc::new(crate::observability::NoopObserver),
             tools_registry: Arc::new(Vec::new()),
@@ -3541,6 +3666,7 @@ Reminder set successfully."#;
         hex::encode(mac.finalize().into_bytes())
     }
 
+    #[cfg(feature = "channel-nextcloud-talk")]
     #[tokio::test]
     async fn nextcloud_talk_webhook_returns_not_found_when_not_configured() {
         let provider: Arc<dyn Provider> = Arc::new(MockProvider::default());
@@ -3559,14 +3685,23 @@ Reminder set successfully."#;
             trusted_proxy_cidrs: Arc::new(Vec::new()),
             rate_limiter: Arc::new(GatewayRateLimiter::new(100, 100, 100)),
             idempotency_store: Arc::new(IdempotencyStore::new(Duration::from_secs(300), 1000)),
+            #[cfg(feature = "channel-whatsapp")]
             whatsapp: None,
+            #[cfg(feature = "channel-whatsapp")]
             whatsapp_app_secret: None,
+            #[cfg(feature = "channel-linq")]
             linq: None,
+            #[cfg(feature = "channel-linq")]
             linq_signing_secret: None,
+            #[cfg(feature = "channel-nextcloud-talk")]
             nextcloud_talk: None,
+            #[cfg(feature = "channel-nextcloud-talk")]
             nextcloud_talk_webhook_secret: None,
+            #[cfg(feature = "channel-wati")]
             wati: None,
+            #[cfg(feature = "channel-qq")]
             qq: None,
+            #[cfg(feature = "channel-qq")]
             qq_webhook_enabled: false,
             observer: Arc::new(crate::observability::NoopObserver),
             tools_registry: Arc::new(Vec::new()),
@@ -3588,6 +3723,7 @@ Reminder set successfully."#;
         assert_eq!(response.status(), StatusCode::NOT_FOUND);
     }
 
+    #[cfg(feature = "channel-nextcloud-talk")]
     #[tokio::test]
     async fn nextcloud_talk_webhook_rejects_invalid_signature() {
         let provider_impl = Arc::new(MockProvider::default());
@@ -3658,6 +3794,7 @@ Reminder set successfully."#;
         assert_eq!(provider_impl.calls.load(Ordering::SeqCst), 0);
     }
 
+    #[cfg(feature = "channel-qq")]
     #[tokio::test]
     async fn qq_webhook_returns_not_found_when_not_configured() {
         let provider: Arc<dyn Provider> = Arc::new(MockProvider::default());
@@ -3676,14 +3813,23 @@ Reminder set successfully."#;
             trusted_proxy_cidrs: Arc::new(Vec::new()),
             rate_limiter: Arc::new(GatewayRateLimiter::new(100, 100, 100)),
             idempotency_store: Arc::new(IdempotencyStore::new(Duration::from_secs(300), 1000)),
+            #[cfg(feature = "channel-whatsapp")]
             whatsapp: None,
+            #[cfg(feature = "channel-whatsapp")]
             whatsapp_app_secret: None,
+            #[cfg(feature = "channel-linq")]
             linq: None,
+            #[cfg(feature = "channel-linq")]
             linq_signing_secret: None,
+            #[cfg(feature = "channel-nextcloud-talk")]
             nextcloud_talk: None,
+            #[cfg(feature = "channel-nextcloud-talk")]
             nextcloud_talk_webhook_secret: None,
+            #[cfg(feature = "channel-wati")]
             wati: None,
+            #[cfg(feature = "channel-qq")]
             qq: None,
+            #[cfg(feature = "channel-qq")]
             qq_webhook_enabled: false,
             observer: Arc::new(crate::observability::NoopObserver),
             tools_registry: Arc::new(Vec::new()),
@@ -3704,6 +3850,7 @@ Reminder set successfully."#;
         assert_eq!(response.status(), StatusCode::NOT_FOUND);
     }
 
+    #[cfg(feature = "channel-qq")]
     #[tokio::test]
     async fn qq_webhook_validation_returns_signed_challenge() {
         let provider_impl = Arc::new(MockProvider::default());

@@ -63,7 +63,7 @@ use tokio::fs::File;
 use tokio::fs::{self, OpenOptions};
 use tokio::io::AsyncWriteExt;
 
-const fn default_true() -> bool {
+pub(crate) const fn default_true() -> bool {
     true
 }
 

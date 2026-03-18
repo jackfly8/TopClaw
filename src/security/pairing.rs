@@ -384,9 +384,9 @@ mod tests {
     async fn try_pair_correct_code() {
         let guard = PairingGuard::new(true, &[]);
         let code = guard.pairing_code().unwrap().to_string();
-        let token = guard.try_pair(&code, "test_client").await.unwrap();
-        assert!(token.is_some());
-        assert!(token.unwrap().starts_with("zc_"));
+        let token = guard.try_pair(&code, "test_client").await.unwrap().unwrap();
+        assert!(!token.is_empty());
+        assert!(token.starts_with("zc_"));
         assert!(guard.is_paired());
     }
 
