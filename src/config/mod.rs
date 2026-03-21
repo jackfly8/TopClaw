@@ -139,8 +139,8 @@ pub use schema::{
 };
 #[allow(unused_imports)]
 pub use secrets::SecretsConfig;
-pub use self_improvement::SelfImprovementConfig;
 #[allow(unused_imports)]
+pub use self_improvement::SelfImprovementConfig;
 pub use skills::{parse_skills_prompt_injection_mode, SkillsConfig, SkillsPromptInjectionMode};
 #[allow(unused_imports)]
 pub use storage_provider::{StorageProviderConfig, StorageProviderSection};

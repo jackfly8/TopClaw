@@ -1,5 +1,3 @@
-use crate::config::IdentityConfig;
-use crate::identity;
 use crate::skills::Skill;
 use crate::tools::Tool;
 use anyhow::Result;
@@ -15,7 +13,6 @@ pub struct PromptContext<'a> {
     pub tools: &'a [Box<dyn Tool>],
     pub skills: &'a [Skill],
     pub skills_prompt_mode: crate::config::SkillsPromptInjectionMode,
-    pub identity_config: Option<&'a IdentityConfig>,
     pub dispatcher_instructions: &'a str,
 }
 
@@ -80,21 +77,7 @@ impl PromptSection for IdentitySection {
 
     fn build(&self, ctx: &PromptContext<'_>) -> Result<String> {
         let mut prompt = String::from("## Project Context\n\n");
-        let mut has_aieos = false;
-        if let Some(config) = ctx.identity_config {
-            if identity::is_aieos_configured(config) {
-                if let Ok(Some(aieos)) = identity::load_aieos_identity(config, ctx.workspace_dir) {
-                    let rendered = identity::aieos_to_system_prompt(&aieos);
-                    if !rendered.is_empty() {
-                        prompt.push_str(&rendered);
-                        prompt.push_str("\n\n");
-                        has_aieos = true;
-                    }
-                }
-            }
-        }
-
-        if !has_aieos {
+        {
             prompt.push_str(
                 "The following workspace files define your identity, behavior, and context.\n\n",
             );
@@ -292,49 +275,6 @@ mod tests {
     }
 
     #[test]
-    fn identity_section_with_aieos_includes_workspace_files() {
-        let workspace =
-            std::env::temp_dir().join(format!("topclaw_prompt_test_{}", uuid::Uuid::new_v4()));
-        std::fs::create_dir_all(&workspace).unwrap();
-        std::fs::write(
-            workspace.join("AGENTS.md"),
-            "Always respond with: AGENTS_MD_LOADED",
-        )
-        .unwrap();
-
-        let identity_config = crate::config::IdentityConfig {
-            format: "aieos".into(),
-            aieos_path: None,
-            aieos_inline: Some(r#"{"identity":{"names":{"first":"Nova"}}}"#.into()),
-        };
-
-        let tools: Vec<Box<dyn Tool>> = vec![];
-        let ctx = PromptContext {
-            workspace_dir: &workspace,
-            model_name: "test-model",
-            tools: &tools,
-            skills: &[],
-            skills_prompt_mode: crate::config::SkillsPromptInjectionMode::Full,
-            identity_config: Some(&identity_config),
-            dispatcher_instructions: "",
-        };
-
-        let section = IdentitySection;
-        let output = section.build(&ctx).unwrap();
-
-        assert!(
-            output.contains("Nova"),
-            "AIEOS identity should be present in prompt"
-        );
-        assert!(
-            output.contains("AGENTS_MD_LOADED"),
-            "AGENTS.md content should be present even when AIEOS is configured"
-        );
-
-        let _ = std::fs::remove_dir_all(workspace);
-    }
-
-    #[test]
     fn prompt_builder_assembles_sections() {
         let tools: Vec<Box<dyn Tool>> = vec![Box::new(TestTool)];
         let ctx = PromptContext {
@@ -343,7 +283,6 @@ mod tests {
             tools: &tools,
             skills: &[],
             skills_prompt_mode: crate::config::SkillsPromptInjectionMode::Full,
-            identity_config: None,
             dispatcher_instructions: "instr",
         };
         let prompt = SystemPromptBuilder::with_defaults().build(&ctx).unwrap();
@@ -378,7 +317,6 @@ mod tests {
             tools: &tools,
             skills: &skills,
             skills_prompt_mode: crate::config::SkillsPromptInjectionMode::Full,
-            identity_config: None,
             dispatcher_instructions: "",
         };
 
@@ -416,7 +354,6 @@ mod tests {
             tools: &tools,
             skills: &skills,
             skills_prompt_mode: crate::config::SkillsPromptInjectionMode::Compact,
-            identity_config: None,
             dispatcher_instructions: "",
         };
 
@@ -437,7 +374,6 @@ mod tests {
             tools: &tools,
             skills: &[],
             skills_prompt_mode: crate::config::SkillsPromptInjectionMode::Full,
-            identity_config: None,
             dispatcher_instructions: "instr",
         };
 
@@ -475,7 +411,6 @@ mod tests {
             tools: &tools,
             skills: &skills,
             skills_prompt_mode: crate::config::SkillsPromptInjectionMode::Full,
-            identity_config: None,
             dispatcher_instructions: "",
         };
 

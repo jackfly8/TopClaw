@@ -1,6 +1,5 @@
 use super::BOOTSTRAP_MAX_CHARS;
 use crate::config::{Config, IdentityConfig, SkillsPromptInjectionMode};
-use crate::identity;
 use std::fmt::Write;
 use std::path::Path;
 
@@ -348,31 +347,9 @@ pub fn build_system_prompt_with_mode(
 fn append_project_context(
     prompt: &mut String,
     workspace_dir: &Path,
-    identity_config: Option<&IdentityConfig>,
+    _identity_config: Option<&IdentityConfig>,
     max_chars: usize,
 ) {
-    if let Some(config) = identity_config {
-        if identity::is_aieos_configured(config) {
-            match identity::load_aieos_identity(config, workspace_dir) {
-                Ok(Some(aieos_identity)) => {
-                    let aieos_prompt = identity::aieos_to_system_prompt(&aieos_identity);
-                    if !aieos_prompt.is_empty() {
-                        prompt.push_str(&aieos_prompt);
-                        prompt.push_str("\n\n");
-                    }
-                }
-                Ok(None) => load_bootstrap_files(prompt, workspace_dir, max_chars),
-                Err(error) => {
-                    eprintln!(
-                        "Warning: Failed to load AIEOS identity: {error}. Using default bootstrap files."
-                    );
-                    load_bootstrap_files(prompt, workspace_dir, max_chars);
-                }
-            }
-            return;
-        }
-    }
-
     load_bootstrap_files(prompt, workspace_dir, max_chars);
 }
 

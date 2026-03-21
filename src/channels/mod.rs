@@ -11,29 +11,9 @@
 //!
 //! # Feature-Gated Channels
 //!
-//! Some channels are compiled conditionally based on feature flags to reduce binary size:
-//! - `channel-telegram` - Telegram bot support
-//! - `channel-discord` - Discord bot support
-//! - `channel-slack` - Slack bot support
-//! - `channel-whatsapp` - WhatsApp Business API
-//! - `channel-signal` - Signal messenger
-//! - `channel-email` - Email via IMAP/SMTP
-//! - `channel-irc` - IRC support
-//! - `channel-nostr` - Nostr protocol
-//! - `channel-qq` - QQ/Tencent QQ
-//! - `channel-mattermost` - Mattermost
-//! - `channel-dingtalk` - DingTalk
-//! - `channel-linq` - Linq
-//! - `channel-wati` - Wati
-//! - `channel-nextcloud-talk` - Nextcloud Talk
-//! - `channel-imessage` - iMessage (macOS only)
-//! - `channel-clawdtalk` - ClawdTalk
-//! - `channel-lark` - Lark/Feishu (飞书)
-//! - `channel-matrix` - Matrix
-//! - `whatsapp-web` - WhatsApp Web client
-//!
-//! Use `--no-default-features --features minimal` for smallest binary,
-//! `--features standard` for out-of-box experience, or `--features all-channels` to compile all channels.
+//! Channels are compiled conditionally based on feature flags to reduce binary size:
+//! - `channel-telegram` - Telegram bot support (default)
+//! - `channel-discord` - Discord bot support (feature-gated)
 //!
 //! # Extension
 //!
@@ -44,77 +24,29 @@
 // SECTION 1: Imports and Type Aliases
 // ============================================================================
 
-pub mod bridge;
 mod capability_detection;
 mod capability_recovery;
-pub mod clawdtalk;
 pub mod cli;
-pub mod dingtalk;
+#[cfg(feature = "channel-discord")]
 pub mod discord;
-#[cfg(feature = "channel-email")]
-pub mod email_channel;
-mod factory; // NEW: channel factory module
-pub mod imessage;
-pub mod irc;
-#[cfg(feature = "channel-lark")]
-pub mod lark;
-pub mod linq;
-#[cfg(feature = "channel-matrix")]
-pub mod matrix;
-pub mod mattermost;
-pub mod nextcloud_talk;
-#[cfg(feature = "channel-nostr")]
-pub mod nostr;
+mod factory;
 mod prompt;
-pub mod qq;
 mod route_state;
 mod runtime_commands;
 mod runtime_config;
 mod runtime_help;
 mod runtime_helpers;
-pub mod signal;
-pub mod slack;
 pub mod telegram;
 pub mod traits;
 pub mod transcription;
-pub mod wati;
-pub mod whatsapp;
-#[cfg(feature = "whatsapp-web")]
-pub mod whatsapp_storage;
-#[cfg(feature = "whatsapp-web")]
-pub mod whatsapp_web;
 
-pub use bridge::BridgeChannel;
-pub use clawdtalk::ClawdTalkChannel;
 pub use cli::CliChannel;
-pub use dingtalk::DingTalkChannel;
+#[cfg(feature = "channel-discord")]
 pub use discord::DiscordChannel;
-#[cfg(feature = "channel-email")]
-pub use email_channel::EmailChannel;
-pub use factory::{
-    append_nostr_channel_if_available, collect_configured_channels, ConfiguredChannel,
-};
-pub use imessage::IMessageChannel;
-pub use irc::IrcChannel;
-#[cfg(feature = "channel-lark")]
-pub use lark::LarkChannel;
-pub use linq::LinqChannel;
-#[cfg(feature = "channel-matrix")]
-pub use matrix::MatrixChannel;
-pub use mattermost::MattermostChannel;
-pub use nextcloud_talk::NextcloudTalkChannel;
-#[cfg(feature = "channel-nostr")]
-pub use nostr::NostrChannel;
+pub use factory::{collect_configured_channels, ConfiguredChannel};
 pub use prompt::{build_system_prompt, build_system_prompt_with_mode};
-pub use qq::QQChannel;
-pub use signal::SignalChannel;
-pub use slack::SlackChannel;
 pub use telegram::TelegramChannel;
 pub use traits::{Channel, SendMessage};
-pub use wati::WatiChannel;
-pub use whatsapp::WhatsAppChannel;
-#[cfg(feature = "whatsapp-web")]
-pub use whatsapp_web::WhatsAppWebChannel;
 
 use crate::agent::loop_::{
     build_shell_policy_instructions, build_tool_instructions_from_specs,
@@ -3485,14 +3417,8 @@ fn classify_health_result(
 
 /// Run health checks for configured channels.
 pub async fn doctor_channels(config: Config) -> Result<()> {
-    let mut channels = collect_configured_channels(&config, "health check");
-    let mut init_failures = Vec::new();
-
-    if let Some(reason) =
-        append_nostr_channel_if_available(&config, &mut channels, "health check").await
-    {
-        init_failures.push(reason);
-    }
+    let channels = collect_configured_channels(&config);
+    let init_failures: Vec<String> = Vec::new();
 
     if channels.is_empty() && init_failures.is_empty() {
         println!("No real-time channels configured. Run `topclaw bootstrap` first.");
@@ -3642,14 +3568,8 @@ pub async fn start_channels(config: Config) -> Result<()> {
     }
 
     // Collect active channels from a shared builder to keep startup and doctor parity.
-    let mut configured_channels = collect_configured_channels(&config, "runtime startup");
-    let mut init_failures = Vec::new();
-    if let Some(reason) =
-        append_nostr_channel_if_available(&config, &mut configured_channels, "runtime startup")
-            .await
-    {
-        init_failures.push(reason);
-    }
+    let configured_channels = collect_configured_channels(&config);
+    let init_failures: Vec<String> = Vec::new();
 
     if configured_channels.is_empty() && init_failures.is_empty() {
         println!("No channels configured. Run `topclaw bootstrap` to set up channels.");
@@ -9632,95 +9552,6 @@ Done reminder set for 1:38 AM."#;
     }
 
     #[tokio::test]
-    async fn process_channel_message_skill_candidate_request_queues_self_improvement_task() {
-        let temp = TempDir::new().unwrap();
-        let workspace_dir = temp.path().join("workspace");
-        std::fs::create_dir_all(&workspace_dir).unwrap();
-
-        let mut persisted = Config::default();
-        persisted.config_path = temp.path().join("config.toml");
-        persisted.workspace_dir = workspace_dir.clone();
-        persisted.self_improvement.enabled = true;
-        persisted.save().await.unwrap();
-
-        let channel_impl = Arc::new(TelegramRecordingChannel::default());
-        let channel: Arc<dyn Channel> = channel_impl.clone();
-
-        let mut channels_by_name = HashMap::new();
-        channels_by_name.insert(channel.name().to_string(), channel);
-
-        let provider_impl = Arc::new(HistoryCaptureProvider::default());
-        let runtime_ctx = Arc::new(ChannelRuntimeContext {
-            channels_by_name: Arc::new(channels_by_name),
-            provider: provider_impl.clone(),
-            default_provider: Arc::new("test-provider".to_string()),
-            memory: Arc::new(NoopMemory),
-            tools_registry: Arc::new(vec![Box::new(NamedTestTool("self_improvement_task"))]),
-            observer: Arc::new(NoopObserver),
-            system_prompt: Arc::new("test-system-prompt".to_string()),
-            model: Arc::new("test-model".to_string()),
-            temperature: 0.0,
-            auto_save_memory: false,
-            max_tool_iterations: 5,
-            min_relevance_score: 0.0,
-            conversation_histories: Arc::new(Mutex::new(HashMap::new())),
-            provider_cache: Arc::new(Mutex::new(HashMap::new())),
-            route_overrides: Arc::new(Mutex::new(HashMap::new())),
-            api_key: None,
-            api_url: None,
-            reliability: Arc::new(crate::config::ReliabilityConfig::default()),
-            provider_runtime_options: providers::ProviderRuntimeOptions {
-                topclaw_dir: Some(temp.path().to_path_buf()),
-                ..providers::ProviderRuntimeOptions::default()
-            },
-            workspace_dir: Arc::new(workspace_dir.clone()),
-            message_timeout_secs: CHANNEL_MESSAGE_TIMEOUT_SECS,
-            interrupt_on_new_message: false,
-            multimodal: crate::config::MultimodalConfig::default(),
-            hooks: None,
-            non_cli_excluded_tools: Arc::new(Mutex::new(Vec::new())),
-            query_classification: crate::config::QueryClassificationConfig::default(),
-            model_routes: Vec::new(),
-            approval_manager: Arc::new(ApprovalManager::from_config(
-                &crate::config::AutonomyConfig {
-                    auto_approve: vec!["self_improvement_task".to_string()],
-                    ..crate::config::AutonomyConfig::default()
-                },
-            )),
-        });
-
-        Box::pin(process_channel_message(
-            runtime_ctx,
-            traits::ChannelMessage {
-                id: "skill-candidate-1".to_string(),
-                sender: "alice".to_string(),
-                reply_target: "chat-telegram".to_string(),
-                content:
-                    "please create a new skill candidate for this workflow and add it to TopClaw"
-                        .to_string(),
-                channel: "telegram".to_string(),
-                timestamp: 1,
-                thread_ts: None,
-            },
-            CancellationToken::new(),
-        ))
-        .await;
-
-        let sent = channel_impl.sent_messages.lock().await;
-        assert_eq!(sent.len(), 1);
-        assert!(
-            sent[0].contains("Queued this as a TopClaw skill/capability candidate."),
-            "unexpected response: {}",
-            sent[0]
-        );
-        assert!(
-            sent[0].contains("Task ID: `"),
-            "unexpected response: {}",
-            sent[0]
-        );
-    }
-
-    #[tokio::test]
     async fn process_channel_message_ambiguous_request_uses_llm_recovery_classifier() {
         let temp = TempDir::new().unwrap();
         let channel_impl = Arc::new(TelegramRecordingChannel::default());
@@ -9841,151 +9672,11 @@ BTC is currently around $65,000 based on latest tool output."#;
         assert!(!result.contains("\"result\""));
     }
 
-    // ── AIEOS Identity Tests (Issue #168) ─────────────────────────
-
-    #[test]
-    fn aieos_identity_from_file() {
-        use crate::config::IdentityConfig;
-        use tempfile::TempDir;
-
-        let tmp = TempDir::new().unwrap();
-        let identity_path = tmp.path().join("aieos_identity.json");
-
-        // Write AIEOS identity file
-        let aieos_json = r#"{
-            "identity": {
-                "names": {"first": "Nova", "nickname": "Nov"},
-                "bio": "A helpful AI assistant.",
-                "origin": "Silicon Valley"
-            },
-            "psychology": {
-                "mbti": "INTJ",
-                "moral_compass": ["Be helpful", "Do no harm"]
-            },
-            "linguistics": {
-                "style": "concise",
-                "formality": "casual"
-            }
-        }"#;
-        std::fs::write(&identity_path, aieos_json).unwrap();
-
-        // Create identity config pointing to the file
-        let config = IdentityConfig {
-            format: "aieos".into(),
-            aieos_path: Some("aieos_identity.json".into()),
-            aieos_inline: None,
-        };
-
-        let prompt = build_system_prompt(tmp.path(), "model", &[], &[], Some(&config), None);
-
-        // Should contain AIEOS sections
-        assert!(prompt.contains("## Identity"));
-        assert!(prompt.contains("**Name:** Nova"));
-        assert!(prompt.contains("**Nickname:** Nov"));
-        assert!(prompt.contains("**Bio:** A helpful AI assistant."));
-        assert!(prompt.contains("**Origin:** Silicon Valley"));
-
-        assert!(prompt.contains("## Personality"));
-        assert!(prompt.contains("**MBTI:** INTJ"));
-        assert!(prompt.contains("**Moral Compass:**"));
-        assert!(prompt.contains("- Be helpful"));
-
-        assert!(prompt.contains("## Communication Style"));
-        assert!(prompt.contains("**Style:** concise"));
-        assert!(prompt.contains("**Formality Level:** casual"));
-
-        // Should NOT contain bootstrap file headers
-        assert!(!prompt.contains("### SOUL.md"));
-        assert!(!prompt.contains("### IDENTITY.md"));
-        assert!(!prompt.contains("[File not found"));
-    }
-
-    #[test]
-    fn aieos_identity_from_inline() {
-        use crate::config::IdentityConfig;
-
-        let config = IdentityConfig {
-            format: "aieos".into(),
-            aieos_path: None,
-            aieos_inline: Some(r#"{"identity":{"names":{"first":"Claw"}}}"#.into()),
-        };
-
-        let prompt = build_system_prompt(
-            std::env::temp_dir().as_path(),
-            "model",
-            &[],
-            &[],
-            Some(&config),
-            None,
-        );
-
-        assert!(prompt.contains("**Name:** Claw"));
-        assert!(prompt.contains("## Identity"));
-    }
-
-    #[test]
-    fn aieos_fallback_to_bootstrap_on_parse_error() {
-        use crate::config::IdentityConfig;
-
-        let config = IdentityConfig {
-            format: "aieos".into(),
-            aieos_path: Some("nonexistent.json".into()),
-            aieos_inline: None,
-        };
-
-        let ws = make_workspace();
-        let prompt = build_system_prompt(ws.path(), "model", &[], &[], Some(&config), None);
-
-        // Should fall back to bootstrap format when AIEOS file is not found
-        // (Error is logged to stderr with filename, not included in prompt)
-        assert!(prompt.contains("### SOUL.md"));
-    }
-
-    #[test]
-    fn aieos_empty_uses_bootstrap() {
-        use crate::config::IdentityConfig;
-
-        // Format is "aieos" but neither path nor inline is set
-        let config = IdentityConfig {
-            format: "aieos".into(),
-            aieos_path: None,
-            aieos_inline: None,
-        };
-
-        let ws = make_workspace();
-        let prompt = build_system_prompt(ws.path(), "model", &[], &[], Some(&config), None);
-
-        // Should use bootstrap format (not configured for AIEOS)
-        assert!(prompt.contains("### SOUL.md"));
-        assert!(prompt.contains("Be helpful"));
-    }
-
-    #[test]
-    fn bootstrap_format_uses_bootstrap_files() {
-        use crate::config::IdentityConfig;
-
-        let config = IdentityConfig {
-            format: "bootstrap".into(),
-            aieos_path: Some("identity.json".into()),
-            aieos_inline: None,
-        };
-
-        let ws = make_workspace();
-        let prompt = build_system_prompt(ws.path(), "model", &[], &[], Some(&config), None);
-
-        // Should use bootstrap format even if aieos_path is set
-        assert!(prompt.contains("### SOUL.md"));
-        assert!(prompt.contains("Be helpful"));
-        assert!(!prompt.contains("## Identity"));
-    }
-
     #[test]
     fn none_identity_config_uses_bootstrap() {
         let ws = make_workspace();
-        // Pass None for identity config
         let prompt = build_system_prompt(ws.path(), "model", &[], &[], None, None);
 
-        // Should use bootstrap format
         assert!(prompt.contains("### SOUL.md"));
         assert!(prompt.contains("Be helpful"));
     }
@@ -10011,41 +9702,6 @@ BTC is currently around $65,000 based on latest tool output."#;
         .await;
         let state = classify_health_result(&result);
         assert_eq!(state, ChannelHealthState::Timeout);
-    }
-
-    #[test]
-    fn collect_configured_channels_includes_mattermost_when_configured() {
-        let mut config = Config::default();
-        config.channels_config.mattermost = Some(crate::config::schema::MattermostConfig {
-            url: "https://mattermost.example.com".to_string(),
-            bot_token: "test-token".to_string(),
-            channel_id: Some("channel-1".to_string()),
-            allowed_users: vec![],
-            thread_replies: Some(true),
-            group_reply: None,
-        });
-
-        let channels = collect_configured_channels(&config, "test");
-
-        assert!(channels
-            .iter()
-            .any(|entry| entry.display_name == "Mattermost"));
-        assert!(channels
-            .iter()
-            .any(|entry| entry.channel.name() == "mattermost"));
-    }
-
-    #[test]
-    fn collect_configured_channels_includes_bridge_when_configured() {
-        let mut config = Config::default();
-        config.channels_config.bridge = Some(crate::config::BridgeConfig::default());
-
-        let channels = collect_configured_channels(&config, "test");
-
-        assert!(channels.iter().any(|entry| entry.display_name == "Bridge"));
-        assert!(channels
-            .iter()
-            .any(|entry| entry.channel.name() == "bridge"));
     }
 
     struct AlwaysFailChannel {

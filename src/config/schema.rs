@@ -231,11 +231,11 @@ pub struct Config {
     #[serde(default)]
     pub cron: CronConfig,
 
-    /// Self-improvement automation configuration (`[self_improvement]`).
+    /// Stub — self-improvement subsystem has been removed.
     #[serde(default)]
     pub self_improvement: SelfImprovementConfig,
 
-    /// Goal loop configuration for autonomous long-term goal execution (`[goal_loop]`).
+    /// Stub — goal loop subsystem has been removed.
     #[serde(default)]
     pub goal_loop: GoalLoopConfig,
 
@@ -291,7 +291,7 @@ pub struct Config {
     #[serde(default)]
     pub proxy: ProxyConfig,
 
-    /// Identity format configuration: bootstrap or AIEOS (`[identity]`).
+    /// Identity format configuration (`[identity]`).
     #[serde(default)]
     pub identity: IdentityConfig,
 
@@ -390,8 +390,6 @@ impl std::fmt::Debug for Config {
 }
 
 // ── Transcription ────────────────────────────────────────────────
-
-// ── Identity (AIEOS / bootstrap format) ──────────────────────────
 
 // ── Cost tracking and budget enforcement ───────────────────────────
 
@@ -1521,6 +1519,7 @@ impl Default for Config {
             cron: CronConfig::default(),
             self_improvement: SelfImprovementConfig::default(),
             goal_loop: GoalLoopConfig::default(),
+            identity: IdentityConfig::default(),
             channels_config: ChannelsConfig::default(),
             memory: MemoryConfig::default(),
             storage: StorageConfig::default(),
@@ -1534,7 +1533,6 @@ impl Default for Config {
             web_fetch: WebFetchConfig::default(),
             web_search: WebSearchConfig::default(),
             proxy: ProxyConfig::default(),
-            identity: IdentityConfig::default(),
             cost: CostConfig::default(),
             peripherals: PeripheralsConfig::default(),
             agents: HashMap::new(),
@@ -2734,6 +2732,8 @@ default_temperature = 0.7
             cron: CronConfig::default(),
             self_improvement: SelfImprovementConfig::default(),
             goal_loop: GoalLoopConfig::default(),
+            identity: IdentityConfig::default(),
+
             channels_config: ChannelsConfig {
                 cli: true,
                 bridge: None,
@@ -2780,7 +2780,7 @@ default_temperature = 0.7
             web_search: WebSearchConfig::default(),
             proxy: ProxyConfig::default(),
             agent: AgentConfig::default(),
-            identity: IdentityConfig::default(),
+
             cost: CostConfig::default(),
             peripherals: PeripheralsConfig::default(),
             agents: HashMap::new(),
@@ -3101,6 +3101,7 @@ tool_dispatcher = "xml"
             cron: CronConfig::default(),
             self_improvement: SelfImprovementConfig::default(),
             goal_loop: GoalLoopConfig::default(),
+            identity: IdentityConfig::default(),
             channels_config: ChannelsConfig::default(),
             memory: MemoryConfig::default(),
             storage: StorageConfig::default(),
@@ -3115,7 +3116,7 @@ tool_dispatcher = "xml"
             web_search: WebSearchConfig::default(),
             proxy: ProxyConfig::default(),
             agent: AgentConfig::default(),
-            identity: IdentityConfig::default(),
+
             cost: CostConfig::default(),
             peripherals: PeripheralsConfig::default(),
             agents: HashMap::new(),

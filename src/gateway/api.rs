@@ -1654,7 +1654,7 @@ mod tests {
     }
 
     #[test]
-    fn integration_settings_payload_includes_openrouter_and_revision() {
+    fn integration_settings_payload_includes_revision() {
         let config = crate::config::Config::default();
         let payload = build_integration_settings_payload(&config);
 
@@ -1662,12 +1662,10 @@ mod tests {
             !payload.revision.is_empty(),
             "settings payload should include deterministic revision"
         );
+        // Integration registry is stubbed — no entries expected
         assert!(
-            payload
-                .integrations
-                .iter()
-                .any(|entry| entry.id == "openrouter" && entry.name == "OpenRouter"),
-            "dashboard settings payload should expose OpenRouter editor metadata"
+            payload.integrations.is_empty(),
+            "stubbed integration registry should produce empty list"
         );
     }
 

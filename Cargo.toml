@@ -1,5 +1,5 @@
 [workspace]
-members = [".", "crates/robot-kit", "crates/skill-vetter"]
+members = [".", "crates/skill-vetter"]
 resolver = "2"
 
 [package]
@@ -27,9 +27,6 @@ tokio-stream = { version = "0.1.18", default-features = false, features = ["fs",
 
 # HTTP client - minimal features
 reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls", "blocking", "multipart", "stream", "socks"] }
-
-# Matrix client + E2EE decryption
-matrix-sdk = { version = "0.16", optional = true, default-features = false, features = ["e2e-encryption", "rustls-tls", "markdown", "sqlite"] }
 
 # Serialization
 serde = { version = "1.0", default-features = false, features = ["derive"] }
@@ -127,7 +124,6 @@ tempfile = "3.27"
 # WebSocket client channels (Discord/Lark/DingTalk/Nostr)
 tokio-tungstenite = { version = "0.29", features = ["rustls-tls-webpki-roots"] }
 futures-util = { version = "0.3", default-features = false, features = ["sink"] }
-nostr-sdk = { version = "0.44", default-features = false, features = ["nip04", "nip59"], optional = true }
 regex = "1.10"
 hostname = "0.4.2"
 rustls = "0.23"
@@ -136,20 +132,11 @@ tokio-rustls = "0.26.4"
 webpki-roots = "1.0.6"
 topclaw-skill-vetter = { path = "crates/skill-vetter" }
 
-# email
-lettre = { version = "0.11.19", default-features = false, features = ["builder", "smtp-transport", "rustls-tls"], optional = true }
-mail-parser = { version = "0.11.2", optional = true }
-async-imap = { version = "0.11",features = ["runtime-tokio"], default-features = false, optional = true }
-
 # HTTP server (gateway) — replaces raw TCP for proper HTTP/1.1 compliance
 axum = { version = "0.8", default-features = false, features = ["http1", "json", "tokio", "query", "ws", "macros"] }
 tower = { version = "0.5", default-features = false }
 tower-http = { version = "0.6", default-features = false, features = ["limit", "timeout"] }
 http-body-util = "0.1"
-
-# Embed frontend assets into binary (web dashboard)
-rust-embed = "8"
-mime_guess = "2"
 
 # OpenTelemetry — OTLP trace + metrics export.
 # Use the blocking HTTP exporter client to avoid Tokio-reactor panics in
@@ -202,51 +189,21 @@ provider-glm = []
 # For full out-of-box experience: cargo build --features standard
 default = ["channel-telegram"]
 
-# Standard: most common channels and tools for out-of-box experience
-standard = ["channel-lark", "channel-telegram", "channel-discord", "channel-slack", "web-fetch-html2md", "provider-glm", "tool-composio", "tool-discord"]
+# Standard: common channels and tools for out-of-box experience
+standard = ["channel-telegram", "channel-discord", "web-fetch-html2md", "provider-glm", "tool-composio", "tool-discord"]
 
 # Minimal: only essential channel (alias for default)
 minimal = ["channel-telegram"]
 
-# All: all channels + all providers (largest binary)
+# All: all channels + all providers
 all = [
-    "channel-telegram", "channel-discord", "channel-slack", "channel-whatsapp",
-    "channel-signal", "channel-email", "channel-irc", "channel-nostr",
-    "channel-qq", "channel-mattermost", "channel-dingtalk", "channel-linq",
-    "channel-wati", "channel-nextcloud-talk", "channel-imessage", "channel-clawdtalk",
-    "channel-lark", "channel-matrix", "whatsapp-web",
+    "channel-telegram", "channel-discord",
     "provider-bedrock", "provider-telnyx", "provider-glm"
 ]
 
-# Legacy alias
-all-channels = [
-    "channel-telegram", "channel-discord", "channel-slack", "channel-whatsapp",
-    "channel-signal", "channel-email", "channel-irc", "channel-nostr",
-    "channel-qq", "channel-mattermost", "channel-dingtalk", "channel-linq",
-    "channel-wati", "channel-nextcloud-talk", "channel-imessage", "channel-clawdtalk",
-    "channel-lark", "channel-matrix", "whatsapp-web"
-]
-
-# Channel feature flags - only compile channels you need
-# This significantly reduces binary size for users who only need a few channels
+# Channel feature flags
 channel-telegram = []
 channel-discord = []
-channel-slack = []
-channel-whatsapp = []
-channel-signal = []
-channel-email = ["dep:async-imap", "dep:lettre", "dep:mail-parser"]
-channel-irc = []
-channel-nostr = ["dep:nostr-sdk"]
-channel-qq = []
-channel-mattermost = []
-channel-dingtalk = []
-channel-linq = []
-channel-wati = []
-channel-nextcloud-talk = []
-channel-imessage = []
-channel-clawdtalk = []
-channel-matrix = ["dep:matrix-sdk"]
-channel-lark = ["dep:prost"]
 
 builtin-preloaded-skills = []
 hardware = ["nusb", "tokio-serial"]

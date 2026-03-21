@@ -36,9 +36,8 @@
 use anyhow::{bail, Context, Result};
 use clap::{Parser, Subcommand, ValueEnum};
 use topclaw::{
-    agent, auth, backup, channels, config, cron, daemon, doctor, gateway, hardware, integrations,
-    memory, observability, onboard, peripherals, providers, security, self_improvement, service,
-    skills, update, Config,
+    agent, auth, backup, channels, config, cron, daemon, doctor, gateway, hardware, memory,
+    observability, onboard, peripherals, providers, security, service, skills, update, Config,
 };
 use tracing::{info, warn};
 use tracing_subscriber::{fmt, EnvFilter};
@@ -85,8 +84,8 @@ use main_handlers::{
 
 // Re-export so binary modules can use crate::<CommandEnum> while keeping a single source of truth.
 pub use topclaw::{
-    BackupCommands, ChannelCommands, CronCommands, HardwareCommands, IntegrationCommands,
-    MemoryCommands, PeripheralCommands, ServiceCommands, SkillCommands,
+    BackupCommands, ChannelCommands, CronCommands, HardwareCommands, MemoryCommands,
+    PeripheralCommands, ServiceCommands, SkillCommands,
 };
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq, ValueEnum)]
@@ -505,12 +504,6 @@ Examples:
         channel_command: ChannelCommands,
     },
 
-    /// Inspect available integrations
-    Integrations {
-        #[command(subcommand)]
-        integration_command: IntegrationCommands,
-    },
-
     /// Manage skills and skill installation
     Skills {
         #[command(subcommand)]
@@ -627,25 +620,12 @@ Examples:
         #[arg(value_enum)]
         shell: CompletionShell,
     },
-
-    /// Self-improvement maintenance commands
-    #[command(name = "self-improvement")]
-    SelfImprovement {
-        #[command(subcommand)]
-        self_improvement_command: SelfImprovementCommands,
-    },
 }
 
 #[derive(Subcommand, Debug)]
 enum ConfigCommands {
     /// Dump the full configuration JSON Schema to stdout
     Schema,
-}
-
-#[derive(Subcommand, Debug)]
-enum SelfImprovementCommands {
-    /// Quarantine corrupt task state and recreate a default empty file
-    RepairState,
 }
 
 #[derive(Subcommand, Debug)]
@@ -1320,10 +1300,6 @@ async fn main() -> Result<()> {
             other => channels::handle_command(other, &config).await,
         },
 
-        Commands::Integrations {
-            integration_command,
-        } => integrations::handle_command(integration_command, &config),
-
         Commands::Skills { skill_command } => skills::handle_command(skill_command, &config),
 
         Commands::Memory { memory_command } => {
@@ -1354,17 +1330,6 @@ async fn main() -> Result<()> {
         Commands::Workspace { workspace_command } => {
             handle_workspace_command(workspace_command, &config)
         }
-
-        Commands::SelfImprovement {
-            self_improvement_command,
-        } => match self_improvement_command {
-            SelfImprovementCommands::RepairState => {
-                let manager = self_improvement::SelfImprovementManager::new(&config.workspace_dir);
-                let outcome = manager.repair_state_file().await?;
-                println!("{}", serde_json::to_string_pretty(&outcome)?);
-                Ok(())
-            }
-        },
     }
 }
 
@@ -1722,19 +1687,6 @@ mod tests {
                 assert!(confirm);
             }
             other => panic!("expected workspace delete command, got {other:?}"),
-        }
-    }
-
-    #[test]
-    fn self_improvement_cli_parses_repair_state() {
-        let cli = Cli::try_parse_from(["topclaw", "self-improvement", "repair-state"])
-            .expect("self-improvement repair-state should parse");
-
-        match cli.command {
-            Commands::SelfImprovement {
-                self_improvement_command: SelfImprovementCommands::RepairState,
-            } => {}
-            other => panic!("expected self-improvement repair-state command, got {other:?}"),
         }
     }
 }

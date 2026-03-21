@@ -6,27 +6,10 @@ fn default_identity_format() -> String {
 }
 
 /// Identity format configuration (`[identity]` section).
-///
-/// Supports `"bootstrap"` (default, markdown files) or `"aieos"` (JSON) identity documents.
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, Default)]
+#[serde(default)]
 pub struct IdentityConfig {
-    /// Identity format: "bootstrap" (default, markdown) or "aieos" (JSON)
+    /// Identity format: "bootstrap" (markdown) is the only supported format.
     #[serde(default = "default_identity_format")]
     pub format: String,
-    /// Path to AIEOS JSON file (relative to workspace)
-    #[serde(default)]
-    pub aieos_path: Option<String>,
-    /// Inline AIEOS JSON (alternative to file path)
-    #[serde(default)]
-    pub aieos_inline: Option<String>,
-}
-
-impl Default for IdentityConfig {
-    fn default() -> Self {
-        Self {
-            format: default_identity_format(),
-            aieos_path: None,
-            aieos_inline: None,
-        }
-    }
 }

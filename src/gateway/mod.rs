@@ -10,13 +10,10 @@
 pub mod api;
 mod openai_compat;
 pub mod sse;
-pub mod static_files;
 mod webhook_ingress;
 pub mod ws;
 
 use crate::agent::wiring;
-use crate::channels::{LinqChannel, NextcloudTalkChannel, QQChannel, WatiChannel, WhatsAppChannel};
-
 use crate::config::Config;
 use crate::cost::CostTracker;
 use crate::memory::{Memory, MemoryCategory};
@@ -554,130 +551,6 @@ pub async fn run_gateway(host: &str, port: u16, config: Config) -> Result<()> {
             })
         });
 
-    // WhatsApp channel (if configured)
-    let _whatsapp_channel: Option<Arc<WhatsAppChannel>> = config
-        .channels_config
-        .whatsapp
-        .as_ref()
-        .filter(|wa| wa.is_cloud_config())
-        .map(|wa| {
-            Arc::new(WhatsAppChannel::new(
-                wa.access_token.clone().unwrap_or_default(),
-                wa.phone_number_id.clone().unwrap_or_default(),
-                wa.verify_token.clone().unwrap_or_default(),
-                wa.allowed_numbers.clone(),
-            ))
-        });
-
-    #[cfg(not(feature = "channel-whatsapp"))]
-    let whatsapp_channel: Option<Arc<WhatsAppChannel>> = None;
-
-    // WhatsApp app secret for webhook signature verification
-    // Priority: environment variable > config file
-    let _whatsapp_app_secret: Option<Arc<str>> = std::env::var("TOPCLAW_WHATSAPP_APP_SECRET")
-        .ok()
-        .and_then(|secret| {
-            let secret = secret.trim();
-            (!secret.is_empty()).then(|| secret.to_owned())
-        })
-        .or_else(|| {
-            config.channels_config.whatsapp.as_ref().and_then(|wa| {
-                wa.app_secret
-                    .as_deref()
-                    .map(str::trim)
-                    .filter(|secret| !secret.is_empty())
-                    .map(ToOwned::to_owned)
-            })
-        })
-        .map(Arc::from);
-
-    // Linq channel (if configured)
-    let linq_channel: Option<Arc<LinqChannel>> = config.channels_config.linq.as_ref().map(|lq| {
-        Arc::new(LinqChannel::new(
-            lq.api_token.clone(),
-            lq.from_phone.clone(),
-            lq.allowed_senders.clone(),
-        ))
-    });
-
-    // Linq signing secret for webhook signature verification
-    // Priority: environment variable > config file
-    let _linq_signing_secret: Option<Arc<str>> = std::env::var("TOPCLAW_LINQ_SIGNING_SECRET")
-        .ok()
-        .and_then(|secret| {
-            let secret = secret.trim();
-            (!secret.is_empty()).then(|| secret.to_owned())
-        })
-        .or_else(|| {
-            config.channels_config.linq.as_ref().and_then(|lq| {
-                lq.signing_secret
-                    .as_deref()
-                    .map(str::trim)
-                    .filter(|secret| !secret.is_empty())
-                    .map(ToOwned::to_owned)
-            })
-        })
-        .map(Arc::from);
-
-    // WATI channel (if configured)
-    let wati_channel: Option<Arc<WatiChannel>> =
-        config.channels_config.wati.as_ref().map(|wati_cfg| {
-            Arc::new(WatiChannel::new(
-                wati_cfg.api_token.clone(),
-                wati_cfg.api_url.clone(),
-                wati_cfg.tenant_id.clone(),
-                wati_cfg.allowed_numbers.clone(),
-            ))
-        });
-
-    // QQ channel (if configured)
-    let _qq_channel: Option<Arc<QQChannel>> = config.channels_config.qq.as_ref().map(|qq_cfg| {
-        Arc::new(QQChannel::new(
-            qq_cfg.app_id.clone(),
-            qq_cfg.app_secret.clone(),
-            qq_cfg.allowed_users.clone(),
-        ))
-    });
-    let qq_webhook_enabled = config
-        .channels_config
-        .qq
-        .as_ref()
-        .is_some_and(|qq| qq.receive_mode == crate::config::schema::QQReceiveMode::Webhook);
-
-    // Nextcloud Talk channel (if configured)
-    let nextcloud_talk_channel: Option<Arc<NextcloudTalkChannel>> =
-        config.channels_config.nextcloud_talk.as_ref().map(|nc| {
-            Arc::new(NextcloudTalkChannel::new(
-                nc.base_url.clone(),
-                nc.app_token.clone(),
-                nc.allowed_users.clone(),
-            ))
-        });
-
-    // Nextcloud Talk webhook secret for signature verification
-    // Priority: environment variable > config file
-    let _nextcloud_talk_webhook_secret: Option<Arc<str>> =
-        std::env::var("TOPCLAW_NEXTCLOUD_TALK_WEBHOOK_SECRET")
-            .ok()
-            .and_then(|secret| {
-                let secret = secret.trim();
-                (!secret.is_empty()).then(|| secret.to_owned())
-            })
-            .or_else(|| {
-                config
-                    .channels_config
-                    .nextcloud_talk
-                    .as_ref()
-                    .and_then(|nc| {
-                        nc.webhook_secret
-                            .as_deref()
-                            .map(str::trim)
-                            .filter(|secret| !secret.is_empty())
-                            .map(ToOwned::to_owned)
-                    })
-            })
-            .map(Arc::from);
-
     // ── Pairing guard ──────────────────────────────────────
     let pairing = Arc::new(PairingGuard::new(
         config.gateway.require_pairing,
@@ -729,27 +602,9 @@ pub async fn run_gateway(host: &str, port: u16, config: Config) -> Result<()> {
     if let Some(ref url) = tunnel_url {
         println!("  🌐 Public URL: {url}");
     }
-    println!("  🌐 Web Dashboard: http://{display_addr}/");
     println!("  POST /pair      — pair a new client (X-Pairing-Code header)");
     println!("  POST /webhook   — {{\"message\": \"your prompt\"}}");
     println!("  POST /agent     — tool-enabled agent chat {{\"message\": \"your prompt\"}}");
-    if whatsapp_channel.is_some() {
-        println!("  GET  /whatsapp  — Meta webhook verification");
-        println!("  POST /whatsapp  — WhatsApp message webhook");
-    }
-    if linq_channel.is_some() {
-        println!("  POST /linq      — Linq message webhook (iMessage/RCS/SMS)");
-    }
-    if wati_channel.is_some() {
-        println!("  GET  /wati      — WATI webhook verification");
-        println!("  POST /wati      — WATI message webhook");
-    }
-    if nextcloud_talk_channel.is_some() {
-        println!("  POST /nextcloud-talk — Nextcloud Talk bot webhook");
-    }
-    if qq_webhook_enabled {
-        println!("  POST /qq        — QQ Bot webhook (validation + events)");
-    }
     if config.gateway.node_control.enabled {
         println!("  POST /api/node-control — experimental node-control RPC scaffold");
     }
@@ -934,16 +789,12 @@ pub async fn run_gateway(host: &str, port: u16, config: Config) -> Result<()> {
         .merge(authenticated_router)
         // ── WebSocket agent chat ──
         .route("/ws/chat", get(ws::handle_ws_chat))
-        // ── Static assets (web dashboard) ──
-        .route("/_app/{*path}", get(static_files::handle_static))
         .with_state(state)
         .layer(RequestBodyLimitLayer::new(MAX_BODY_SIZE))
         .layer(TimeoutLayer::with_status_code(
             StatusCode::REQUEST_TIMEOUT,
             Duration::from_secs(REQUEST_TIMEOUT_SECS),
-        ))
-        // ── SPA fallback: non-API GET requests serve index.html ──
-        .fallback(get(static_files::handle_spa_fallback));
+        ));
 
     // Run the server
     axum::serve(

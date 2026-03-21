@@ -393,7 +393,6 @@ impl Agent {
             tools: &self.tools,
             skills: &self.skills,
             skills_prompt_mode: self.skills_prompt_mode,
-            identity_config: Some(&self.identity_config),
             dispatcher_instructions: &instructions,
         };
         self.prompt_builder.build(&ctx)
