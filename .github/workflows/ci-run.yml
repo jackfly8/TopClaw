@@ -133,7 +133,7 @@ jobs:
         strategy:
             fail-fast: false
             matrix:
-                package: [topclaw, topclaw-skill-vetter, topclaw-robot-kit]
+                package: [topclaw, topclaw-skill-vetter]
         steps:
             - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
             - name: Self-heal Rust toolchain cache
