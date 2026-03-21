@@ -2,7 +2,7 @@
 
 This reference is derived from the current CLI surface (`topclaw --help`).
 
-Last verified: **March 12, 2026**.
+Last verified: **March 21, 2026**.
 
 ## Top-Level Commands
 
@@ -22,7 +22,11 @@ Last verified: **March 12, 2026**.
 | `models` | Refresh provider model catalogs |
 | `providers` | List provider IDs, aliases, and active provider |
 | `channel` | Manage channels and channel health checks |
-| `integrations` | Inspect integration details |
+| `uninstall` | Remove TopClaw from this machine |
+| `auth` | Manage provider authentication profiles |
+| `security` | Manage security maintenance tasks |
+| `memory` | Inspect and manage stored memory |
+| `workspace` | Manage registered workspaces |
 | `skills` | List/install/remove skills |
 | `config` | Export machine-readable config schema |
 | `completions` | Generate shell completion scripts to stdout |
@@ -160,6 +164,7 @@ Notes:
 - `topclaw cron add-every <every_ms> <command>`
 - `topclaw cron once <delay> <command>`
 - `topclaw cron remove <id>`
+- `topclaw cron update <id> [--expression <EXPR>] [--tz <TZ>] [--command <CMD>] [--name <NAME>]`
 - `topclaw cron pause <id>`
 - `topclaw cron resume <id>`
 
@@ -172,7 +177,11 @@ Notes:
 
 - `topclaw models refresh`
 - `topclaw models refresh --provider <ID>`
+- `topclaw models refresh --all`
 - `topclaw models refresh --force`
+- `topclaw models list [--provider <ID>]`
+- `topclaw models set <MODEL>`
+- `topclaw models status`
 
 `models refresh` currently supports live catalog refresh for provider IDs: `openrouter`, `openai`, `anthropic`, `groq`, `mistral`, `deepseek`, `xai`, `together-ai`, `gemini`, `ollama`, `llamacpp`, `sglang`, `vllm`, `astrai`, `venice`, `fireworks`, `cohere`, `moonshot`, `glm`, `zai`, `qwen`, and `nvidia`.
 
@@ -277,10 +286,6 @@ Channel runtime also watches `config.toml` and hot-applies updates to:
 
 `add/remove` currently route you back to managed setup/manual config paths (not full declarative mutators yet).
 
-### `integrations`
-
-- `topclaw integrations info <name>`
-
 ### `skills`
 
 - `topclaw skills list`
@@ -336,6 +341,73 @@ The audit blocks or escalates findings for:
 Use `skills audit` to manually validate a candidate skill directory (or an installed skill by name) before sharing it or trusting its source.
 
 Skill manifests (`SKILL.toml`) support `prompts` and `[[tools]]`; both are injected into the agent system prompt at runtime, so the model can follow skill instructions without manually reading skill files.
+
+### `uninstall`
+
+- `topclaw uninstall`
+- `topclaw uninstall --purge`
+
+`uninstall` removes background service artifacts and the installed TopClaw binary. Use `--purge` to also remove `~/.topclaw` config, logs, auth profiles, and workspace data.
+
+### `auth`
+
+- `topclaw auth login --provider <PROVIDER> [--profile <NAME>] [--device-code]`
+- `topclaw auth paste-redirect --provider <PROVIDER> [--profile <NAME>] [--input <URL_OR_CODE>]`
+- `topclaw auth paste-token --provider <PROVIDER> [--profile <NAME>] [--token <TOKEN>] [--auth-kind <KIND>]`
+- `topclaw auth setup-token --provider <PROVIDER> [--profile <NAME>]`
+- `topclaw auth refresh --provider <PROVIDER> [--profile <NAME>]`
+- `topclaw auth logout --provider <PROVIDER> [--profile <NAME>]`
+- `topclaw auth use --provider <PROVIDER> --profile <NAME>`
+- `topclaw auth list`
+- `topclaw auth status`
+
+Notes:
+
+- `login` starts an OAuth flow for supported providers (for example `openai-codex`, `gemini`). Use `--device-code` for device-code flow.
+- `paste-redirect` completes an OAuth flow by pasting the redirect URL or auth code.
+- `paste-token` and `setup-token` handle Anthropic subscription auth tokens.
+- `refresh` refreshes an access token using a saved refresh token.
+- `use` switches the active profile for a provider.
+- `list` and `status` show saved profiles and active token expiry information.
+
+### `security`
+
+- `topclaw security update-guard-corpus [--source <SOURCE>] [--checksum <SHA256>]`
+
+Notes:
+
+- `update-guard-corpus` upserts semantic prompt-injection corpus records into the configured vector collection.
+- `--source` accepts `builtin`, a filesystem path, or an HTTP(S) URL.
+- `--checksum` provides SHA-256 hex verification for the source payload.
+
+### `memory`
+
+- `topclaw memory list [--category <CATEGORY>] [--session <ID>] [--limit <N>] [--offset <N>]`
+- `topclaw memory get <KEY>`
+- `topclaw memory stats`
+- `topclaw memory clear [--key <KEY>] [--category <CATEGORY>] [--yes]`
+
+Notes:
+
+- `list` shows memory entries with optional category/session filtering and pagination.
+- `get` retrieves a specific memory entry by key.
+- `stats` shows memory backend statistics and health.
+- `clear` removes memories by key, by category, or all entries. Use `--yes` to skip confirmation.
+
+### `workspace`
+
+- `topclaw workspace create [--name <NAME>]`
+- `topclaw workspace list`
+- `topclaw workspace disable <WORKSPACE_ID>`
+- `topclaw workspace delete <WORKSPACE_ID> --confirm`
+- `topclaw workspace token rotate <WORKSPACE_ID>`
+
+Notes:
+
+- The workspace registry is opt-in, controlled by `[workspaces].enabled = true` in config.
+- `create` prints the workspace bearer token once at creation time.
+- `token rotate` regenerates the bearer token for the specified workspace.
+- `delete` requires `--confirm` to acknowledge destructive deletion.
 
 ### `config`
 

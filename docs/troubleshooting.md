@@ -2,7 +2,7 @@
 
 This guide focuses on common setup/runtime failures and fast resolution paths.
 
-Last verified: **March 9, 2026**.
+Last verified: **March 21, 2026**.
 
 ## Quick Triage
 
@@ -75,10 +75,10 @@ If you must compile from source on constrained hosts:
 CARGO_BUILD_JOBS=1 cargo build --release --locked
 ```
 
-1. Reduce heavy features when Matrix is not required:
+1. Reduce features for a leaner build:
 
 ```bash
-cargo build --release --locked --features hardware
+cargo build --release --locked --no-default-features --features hardware
 ```
 
 1. Cross-compile on a stronger machine and copy the binary to the target host.
@@ -92,7 +92,6 @@ Symptoms:
 
 Why this happens in TopClaw:
 
-- Matrix E2EE stack (`matrix-sdk`, `ruma`, `vodozemac`) is large and expensive to type-check.
 - TLS + crypto native build scripts (`aws-lc-sys`, `ring`) add noticeable compile time.
 - `rusqlite` with bundled SQLite compiles C code locally.
 - Running multiple cargo jobs/worktrees in parallel causes lock contention.
@@ -106,24 +105,18 @@ cargo tree -d
 
 The timing report is written to `target/cargo-timings/cargo-timing.html`.
 
-Faster local iteration (when Matrix channel is not needed):
+Faster local iteration (lean default feature set):
 
 ```bash
 cargo check
 ```
 
-This uses the lean default feature set and can significantly reduce compile time.
+This uses the lean default feature set (`channel-telegram` only) and can significantly reduce compile time.
 
-To build with Matrix support explicitly enabled:
-
-```bash
-cargo check --features channel-matrix
-```
-
-To build with Matrix + Lark + hardware support:
+To build with Discord + hardware support:
 
 ```bash
-cargo check --features hardware,channel-matrix,channel-lark
+cargo check --features channel-discord,hardware
 ```
 
 Lock-contention mitigation:

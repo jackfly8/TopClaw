@@ -2,9 +2,7 @@
 
 Start here if you want the shortest path to the right page.
 
-Localized hubs: [简体中文](i18n/zh-CN/README.md) · [日本語](i18n/ja/README.md) · [Русский](i18n/ru/README.md) · [Français](i18n/fr/README.md) · [Tiếng Việt](i18n/vi/README.md) · [Ελληνικά](i18n/el/README.md)
-
-Last verified: **March 11, 2026**.
+Last verified: **March 21, 2026**.
 
 ## Project Overview
 
@@ -81,6 +79,3 @@ Core public architecture surfaces:
 
 - Unified TOC: [SUMMARY.md](SUMMARY.md)
 - Docs inventory: [docs-inventory.md](docs-inventory.md)
-- i18n index: [i18n/README.md](i18n/README.md)
-- i18n coverage: [i18n-coverage.md](i18n-coverage.md)
-- i18n guide: [i18n-guide.md](i18n-guide.md)

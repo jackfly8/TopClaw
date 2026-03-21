@@ -2,7 +2,7 @@
 
 This document maps provider IDs, aliases, and credential environment variables.
 
-Last verified: **February 24, 2026**.
+Last verified: **March 21, 2026**.
 
 ## How to List Providers
 
@@ -52,7 +52,6 @@ credential is not reused for fallback providers.
 | `deepseek` | — | No | `DEEPSEEK_API_KEY` |
 | `together` | `together-ai` | No | `TOGETHER_API_KEY` |
 | `fireworks` | `fireworks-ai` | No | `FIREWORKS_API_KEY` |
-| `novita` | — | No | `NOVITA_API_KEY` |
 | `perplexity` | — | No | `PERPLEXITY_API_KEY` |
 | `cohere` | — | No | `COHERE_API_KEY` |
 | `copilot` | `github-copilot` | No | (use config or `TOPCLAW_API_KEY` with GitHub token) |
@@ -61,6 +60,10 @@ credential is not reused for fallback providers.
 | `sglang` | — | Yes | `SGLANG_API_KEY` (optional) |
 | `vllm` | — | Yes | `VLLM_API_KEY` (optional) |
 | `osaurus` | — | Yes | `OSAURUS_API_KEY` (optional; defaults to `"osaurus"`) |
+| `astrai` | — | No | `ASTRAI_API_KEY` |
+| `litellm` | `lite-llm` | Yes | `LITELLM_API_KEY` |
+| `ovhcloud` | `ovh` | No | `OVH_AI_ENDPOINTS_ACCESS_TOKEN` |
+| `telnyx` | — | No | `TELNYX_API_KEY` |
 | `nvidia` | `nvidia-nim`, `build.nvidia.com` | No | `NVIDIA_API_KEY` |
 
 ### LM Studio Notes

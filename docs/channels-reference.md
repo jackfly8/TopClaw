@@ -2,27 +2,16 @@
 
 This document is the canonical reference for channel configuration in TopClaw.
 
-For encrypted Matrix rooms, also read the dedicated runbook:
-- [Matrix E2EE Guide](./matrix-e2ee-guide.md)
+Last verified: **March 21, 2026**.
+
+> **Implementation status:** CLI, Telegram, and Discord channels are currently implemented and tested. All other channels listed below (Slack, Mattermost, Matrix, Signal, WhatsApp, Email, IRC, Lark, Feishu, DingTalk, QQ, Nextcloud Talk, Linq, iMessage, Nostr) have config schema support and are planned or in progress.
 
 ## Quick Paths
 
 - Need a full config reference by channel: jump to [Per-Channel Config Examples](#4-per-channel-config-examples).
 - Need a no-response diagnosis flow: jump to [Troubleshooting Checklist](#6-troubleshooting-checklist).
-- Need Matrix encrypted-room help: use [Matrix E2EE Guide](./matrix-e2ee-guide.md).
 - Need Nextcloud Talk bot setup: use [Nextcloud Talk Setup](./nextcloud-talk-setup.md).
 - Need deployment/network assumptions (polling vs webhook): use [Network Deployment](./network-deployment.md).
-
-## FAQ: Matrix setup passes but no reply
-
-This is the most common symptom (same class as issue #499). Check these in order:
-
-1. **Allowlist mismatch**: `allowed_users` does not include the sender (or is empty).
-2. **Wrong room target**: bot is not joined to the configured `room_id` / alias target room.
-3. **Token/account mismatch**: token is valid but belongs to another Matrix account.
-4. **E2EE device identity gap**: `whoami` does not return `device_id` and config does not provide one.
-5. **Key sharing/trust gap**: room keys were not shared to the bot device, so encrypted events cannot be decrypted.
-6. **Stale runtime state**: config changed but `topclaw daemon` was not restarted.
 
 ---
 
@@ -96,30 +85,24 @@ Operational notes:
 
 ## Channel Matrix
 
-### Build Feature Toggles (`channel-telegram`, `channel-matrix`, `channel-lark`)
+### Build Feature Toggles (`channel-telegram`, `channel-discord`)
 
-Matrix and Lark support are controlled at compile time.
+Channel support is controlled at compile time.
 
-- Default builds include Telegram (`default = ["channel-telegram"]`), while Matrix and Lark remain opt-in.
-- For a lean local build without Telegram, Matrix, or Lark:
+- Default builds include Telegram (`default = ["channel-telegram"]`), while Discord is opt-in.
+- For a lean local build without any channel features:
 
 ```bash
 cargo check --no-default-features --features hardware
 ```
 
-- Enable Matrix explicitly in a custom feature set:
+- Enable Discord explicitly in a custom feature set:
 
 ```bash
-cargo check --no-default-features --features hardware,channel-matrix
+cargo check --no-default-features --features hardware,channel-discord
 ```
 
-- Enable Lark explicitly in a custom feature set:
-
-```bash
-cargo check --no-default-features --features hardware,channel-lark
-```
-
-If `[channels_config.matrix]`, `[channels_config.lark]`, or `[channels_config.feishu]` is present but the corresponding feature is not compiled in, `topclaw channel list`, `topclaw channel doctor`, and `topclaw channel start` will report that the channel is intentionally skipped for this build.
+If a channel sub-table is present in config but the corresponding feature is not compiled in, `topclaw channel list`, `topclaw channel doctor`, and `topclaw channel start` will report that the channel is intentionally skipped for this build.
 
 ---
 
@@ -271,7 +254,7 @@ allowed_users = ["*"]
 mention_only = false                       # optional: when true, only DM / @mention / reply-to-bot
 ```
 
-See [Matrix E2EE Guide](./matrix-e2ee-guide.md) for encrypted-room troubleshooting.
+Matrix channel support is config-schema only (planned).
 
 ### 4.6 Signal
 
@@ -533,8 +516,6 @@ If a channel appears connected but does not respond:
    - webhook channels do need reachable HTTPS callback
 5. Restart `topclaw daemon` after config changes.
 
-For Matrix encrypted rooms specifically, use:
-- [Matrix E2EE Guide](./matrix-e2ee-guide.md)
 
 ---
 

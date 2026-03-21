@@ -140,7 +140,7 @@ Important code-level constraints:
 - security is policy-driven and deny-first for tool execution, shell access, and network exposure
 - config and CLI behavior are public contracts, not internal details
 - most extension points are narrow traits: `Provider`, `Channel`, `Tool`, `Memory`, `Observer`, `RuntimeAdapter`, and `Peripheral`
-- several capabilities are feature-gated at compile time, including Matrix, WhatsApp Web, OpenTelemetry, hardware discovery, and the WASM runtime
+- several capabilities are feature-gated at compile time, including Discord, Bedrock, Telnyx, GLM, Composio, web-fetch variants, hardware discovery, and the WASM runtime
 
 ## Repository Structure
 

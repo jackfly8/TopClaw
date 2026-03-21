@@ -2,20 +2,11 @@
 
 This file is the canonical table of contents for the documentation system.
 
-## Language Entry
+## Entry Points
 
 - English README: [../README.md](../README.md)
 - English docs hub: [README.md](README.md)
-- Chinese docs hub: [i18n/zh-CN/README.md](i18n/zh-CN/README.md)
-- Japanese docs hub: [i18n/ja/README.md](i18n/ja/README.md)
-- Russian docs hub: [i18n/ru/README.md](i18n/ru/README.md)
-- French docs hub: [i18n/fr/README.md](i18n/fr/README.md)
-- Vietnamese docs hub: [i18n/vi/README.md](i18n/vi/README.md)
-- Greek docs hub: [i18n/el/README.md](i18n/el/README.md)
 - Docs structure map: [structure/README.md](structure/README.md)
-- i18n index: [i18n/README.md](i18n/README.md)
-- i18n coverage: [i18n-coverage.md](i18n-coverage.md)
-- i18n guide: [i18n-guide.md](i18n-guide.md)
 
 ## Collections
 

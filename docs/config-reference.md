@@ -2,7 +2,7 @@
 
 This is a high-signal reference for common config sections and defaults.
 
-Last verified: **February 25, 2026**.
+Last verified: **March 21, 2026**.
 
 Config path resolution at startup:
 
