@@ -1,13 +1,5 @@
 #[cfg(feature = "channel-discord")]
 use crate::channels::DiscordChannel;
-#[cfg(feature = "channel-email")]
-use crate::channels::EmailChannel;
-#[cfg(feature = "channel-mattermost")]
-use crate::channels::MattermostChannel;
-#[cfg(feature = "channel-qq")]
-use crate::channels::QQChannel;
-#[cfg(feature = "channel-slack")]
-use crate::channels::SlackChannel;
 #[cfg(feature = "channel-telegram")]
 use crate::channels::TelegramChannel;
 use crate::channels::{Channel, SendMessage};
@@ -363,63 +355,6 @@ pub(crate) async fn deliver_announcement(
                 dc.effective_group_reply_mode().requires_mention(),
             )
             .with_workspace_dir(config.workspace_dir.clone());
-            channel.send(&SendMessage::new(output, target)).await?;
-        }
-        #[cfg(feature = "channel-slack")]
-        "slack" => {
-            let sl = config
-                .channels_config
-                .slack
-                .as_ref()
-                .ok_or_else(|| anyhow::anyhow!("slack channel not configured"))?;
-            let channel = SlackChannel::new(
-                sl.bot_token.clone(),
-                sl.channel_id.clone(),
-                sl.allowed_users.clone(),
-            );
-            channel.send(&SendMessage::new(output, target)).await?;
-        }
-        #[cfg(feature = "channel-mattermost")]
-        "mattermost" => {
-            let mm = config
-                .channels_config
-                .mattermost
-                .as_ref()
-                .ok_or_else(|| anyhow::anyhow!("mattermost channel not configured"))?;
-            let channel = MattermostChannel::new(
-                mm.url.clone(),
-                mm.bot_token.clone(),
-                mm.channel_id.clone(),
-                mm.allowed_users.clone(),
-                mm.thread_replies.unwrap_or(true),
-                mm.effective_group_reply_mode().requires_mention(),
-            )
-            .with_workspace_dir(config.workspace_dir.clone());
-            channel.send(&SendMessage::new(output, target)).await?;
-        }
-        #[cfg(feature = "channel-qq")]
-        "qq" => {
-            let qq = config
-                .channels_config
-                .qq
-                .as_ref()
-                .ok_or_else(|| anyhow::anyhow!("qq channel not configured"))?;
-            let channel = QQChannel::new(
-                qq.app_id.clone(),
-                qq.app_secret.clone(),
-                qq.allowed_users.clone(),
-            )
-            .with_workspace_dir(config.workspace_dir.clone());
-            channel.send(&SendMessage::new(output, target)).await?;
-        }
-        #[cfg(feature = "channel-email")]
-        "email" => {
-            let email = config
-                .channels_config
-                .email
-                .as_ref()
-                .ok_or_else(|| anyhow::anyhow!("email channel not configured"))?;
-            let channel = EmailChannel::new(email.clone());
             channel.send(&SendMessage::new(output, target)).await?;
         }
         other => anyhow::bail!("unsupported delivery channel: {other}"),

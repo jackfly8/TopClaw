@@ -90,10 +90,7 @@ fn factory_kimi_alias_resolves_to_moonshot() {
 
 #[test]
 fn factory_zhipu_alias_resolves_to_glm() {
-    #[cfg(feature = "provider-glm")]
     assert_provider_ok("zhipu", Some("test-key"), None);
-    #[cfg(not(feature = "provider-glm"))]
-    assert!(create_provider_with_url("zhipu", Some("test-key"), None).is_err());
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -262,10 +259,7 @@ fn factory_resolves_gemini_provider() {
 
 #[test]
 fn factory_resolves_bedrock_provider() {
-    #[cfg(feature = "provider-bedrock")]
     assert_provider_ok("bedrock", None, None);
-    #[cfg(not(feature = "provider-bedrock"))]
-    assert!(create_provider_with_url("bedrock", None, None).is_err());
 }
 
 #[test]
@@ -324,10 +318,7 @@ fn factory_resolves_moonshot_provider() {
 
 #[test]
 fn factory_resolves_glm_provider() {
-    #[cfg(feature = "provider-glm")]
     assert_provider_ok("glm", Some("test-key"), None);
-    #[cfg(not(feature = "provider-glm"))]
-    assert!(create_provider_with_url("glm", Some("test-key"), None).is_err());
 }
 
 #[test]
@@ -419,10 +410,7 @@ fn factory_google_gemini_alias_resolves_to_gemini() {
 
 #[test]
 fn factory_aws_bedrock_alias_resolves_to_bedrock() {
-    #[cfg(feature = "provider-bedrock")]
     assert_provider_ok("aws-bedrock", None, None);
-    #[cfg(not(feature = "provider-bedrock"))]
-    assert!(create_provider_with_url("aws-bedrock", None, None).is_err());
 }
 
 #[test]
