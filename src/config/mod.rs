@@ -93,9 +93,8 @@ pub use runtime::{
 pub use sandbox::{SandboxBackend, SandboxConfig};
 pub use scheduler::SchedulerConfig;
 pub use schema::{
-    ChannelsConfig, Config, DiscordConfig, FeishuConfig, GroupReplyConfig, GroupReplyMode,
-    IMessageConfig, LarkConfig, MatrixConfig, MemoryConfig, NextcloudTalkConfig, QdrantConfig,
-    SecurityConfig, SlackConfig, StorageConfig, StreamMode, SyscallAnomalyConfig, TelegramConfig,
+    ChannelsConfig, Config, DiscordConfig, GroupReplyConfig, GroupReplyMode, MemoryConfig,
+    QdrantConfig, SecurityConfig, StorageConfig, StreamMode, SyscallAnomalyConfig, TelegramConfig,
     WebhookConfig,
 };
 pub use secrets::SecretsConfig;
@@ -146,44 +145,7 @@ mod tests {
             group_reply: None,
         };
 
-        let lark = LarkConfig {
-            app_id: "app-id".into(),
-            app_secret: "app-secret".into(),
-            encrypt_key: None,
-            verification_token: None,
-            allowed_users: vec![],
-            group_reply: None,
-            receive_mode: crate::config::schema::LarkReceiveMode::Websocket,
-            port: None,
-            draft_update_interval_ms: crate::config::schema::default_lark_draft_update_interval_ms(
-            ),
-            max_draft_edits: crate::config::schema::default_lark_max_draft_edits(),
-        };
-        let feishu = FeishuConfig {
-            app_id: "app-id".into(),
-            app_secret: "app-secret".into(),
-            encrypt_key: None,
-            verification_token: None,
-            allowed_users: vec![],
-            group_reply: None,
-            receive_mode: crate::config::schema::LarkReceiveMode::Websocket,
-            port: None,
-            draft_update_interval_ms: crate::config::schema::default_lark_draft_update_interval_ms(
-            ),
-            max_draft_edits: crate::config::schema::default_lark_max_draft_edits(),
-        };
-
-        let nextcloud_talk = NextcloudTalkConfig {
-            base_url: "https://cloud.example.com".into(),
-            app_token: "app-token".into(),
-            webhook_secret: None,
-            allowed_users: vec!["*".into()],
-        };
-
         assert_eq!(telegram.allowed_users.len(), 1);
         assert_eq!(discord.guild_id.as_deref(), Some("123"));
-        assert_eq!(lark.app_id, "app-id");
-        assert_eq!(feishu.app_id, "app-id");
-        assert_eq!(nextcloud_talk.base_url, "https://cloud.example.com");
     }
 }

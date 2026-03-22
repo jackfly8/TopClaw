@@ -199,16 +199,6 @@ pub async fn handle_command(command: crate::ChannelCommands, config: &Config) ->
                     channel.name()
                 );
             }
-            if !cfg!(feature = "channel-matrix") {
-                println!(
-                    "  \u{2139}\u{FE0F} Matrix channel support is disabled in this build (enable `channel-matrix`)."
-                );
-            }
-            if !cfg!(feature = "channel-lark") {
-                println!(
-                    "  \u{2139}\u{FE0F} Lark/Feishu channel support is disabled in this build (enable `channel-lark`)."
-                );
-            }
             println!("\nTo start channels: topclaw channel start");
             println!("To check health:    topclaw channel doctor");
             println!("To configure:      topclaw bootstrap");

@@ -1,14 +1,8 @@
-#[cfg(feature = "channel-nostr")]
-use crate::config::schema::{default_nostr_relays, NostrConfig};
-use crate::config::schema::{
-    DingTalkConfig, IrcConfig, LarkReceiveMode, LinqConfig, NextcloudTalkConfig, QQConfig,
-    QQReceiveMode, SignalConfig, StreamMode, WhatsAppConfig,
-};
+use crate::config::schema::StreamMode;
 use crate::config::{
     AutonomyConfig, BrowserConfig, ChannelsConfig, ComposioConfig, Config, DiscordConfig,
-    FeishuConfig, HeartbeatConfig, HttpRequestConfig, IMessageConfig, LarkConfig, MatrixConfig,
-    MemoryConfig, ObservabilityConfig, RuntimeConfig, SecretsConfig, SlackConfig, StorageConfig,
-    TelegramConfig, WebFetchConfig, WebSearchConfig, WebhookConfig,
+    HeartbeatConfig, HttpRequestConfig, MemoryConfig, ObservabilityConfig, RuntimeConfig,
+    SecretsConfig, StorageConfig, TelegramConfig, WebFetchConfig, WebSearchConfig, WebhookConfig,
 };
 use crate::hardware::{self, HardwareConfig};
 use crate::memory::{default_memory_backend_key, memory_backend_profile};
@@ -22,7 +16,6 @@ use console::style;
 #[cfg(test)]
 use console::Key;
 use dialoguer::{Confirm, Input, Select};
-use serde_json::Value;
 use std::io::IsTerminal;
 use std::path::{Path, PathBuf};
 use std::time::Duration;
@@ -39,14 +32,7 @@ mod provider_setup;
 #[path = "wizard_skill_selection.rs"]
 mod skill_selection;
 
-#[cfg(feature = "channel-nostr")]
-use channel_flows::setup_nostr_channel;
-use channel_flows::{
-    setup_dingtalk_channel, setup_discord_channel, setup_imessage_channel, setup_irc_channel,
-    setup_lark_feishu_channel, setup_linq_channel, setup_matrix_channel,
-    setup_nextcloud_talk_channel, setup_qq_official_channel, setup_signal_channel,
-    setup_slack_channel, setup_telegram_channel, setup_webhook_channel, setup_whatsapp_channel,
-};
+use channel_flows::{setup_discord_channel, setup_telegram_channel, setup_webhook_channel};
 use channel_menu::{
     channel_choice_is_configured, channel_menu_choices, channel_menu_option_labels,
     default_channel_menu_index, default_other_channel_menu_index, other_channel_menu_choices,
@@ -2015,22 +2001,7 @@ fn setup_selected_channel(config: &mut ChannelsConfig, choice: ChannelMenuChoice
     match choice {
         ChannelMenuChoice::Telegram => setup_telegram_channel(config)?,
         ChannelMenuChoice::Discord => setup_discord_channel(config)?,
-        ChannelMenuChoice::Slack => setup_slack_channel(config)?,
-        ChannelMenuChoice::IMessage => setup_imessage_channel(config)?,
-        ChannelMenuChoice::Matrix => setup_matrix_channel(config)?,
-        ChannelMenuChoice::Signal => setup_signal_channel(config)?,
-        ChannelMenuChoice::WhatsApp => setup_whatsapp_channel(config)?,
-        ChannelMenuChoice::Linq => setup_linq_channel(config)?,
-        ChannelMenuChoice::Irc => setup_irc_channel(config)?,
         ChannelMenuChoice::Webhook => setup_webhook_channel(config)?,
-        ChannelMenuChoice::NextcloudTalk => setup_nextcloud_talk_channel(config)?,
-        ChannelMenuChoice::DingTalk => setup_dingtalk_channel(config)?,
-        ChannelMenuChoice::QqOfficial => setup_qq_official_channel(config)?,
-        ChannelMenuChoice::LarkFeishu => setup_lark_feishu_channel(config)?,
-        #[cfg(feature = "channel-nostr")]
-        ChannelMenuChoice::Nostr => setup_nostr_channel(config)?,
-        #[cfg(not(feature = "channel-nostr"))]
-        ChannelMenuChoice::Nostr => {}
         ChannelMenuChoice::OtherChannels | ChannelMenuChoice::Done | ChannelMenuChoice::Back => {}
     }
 
@@ -4152,8 +4123,8 @@ mod tests {
 
         let config = Config {
             workspace_dir: tmp.path().to_path_buf(),
-            // Use a non-provider channel key to keep this test deterministic and offline.
-            default_provider: Some("imessage".to_string()),
+            // Use a non-provider key to keep this test deterministic and offline.
+            default_provider: Some("not-a-real-provider".to_string()),
             ..Config::default()
         };
 
@@ -4229,7 +4200,7 @@ mod tests {
     #[test]
     fn provider_next_step_uses_guided_setup_for_unknown_provider_value() {
         let config = Config {
-            default_provider: Some("imessage".to_string()),
+            default_provider: Some("not-a-real-provider".to_string()),
             ..Config::default()
         };
 
@@ -4371,11 +4342,6 @@ mod tests {
             !labels.iter().any(|label| label.starts_with("Webhook")),
             "expected Webhook to be hidden behind Other channels, got {labels:?}"
         );
-        #[cfg(feature = "channel-lark")]
-        assert!(
-            !labels.iter().any(|label| label.starts_with("Lark/Feishu")),
-            "expected Lark/Feishu to be hidden behind Other channels, got {labels:?}"
-        );
     }
 
     #[test]
@@ -4385,11 +4351,6 @@ mod tests {
         assert!(
             labels.iter().any(|label| label.starts_with("Webhook")),
             "expected Webhook to appear in the advanced channel menu, got {labels:?}"
-        );
-        #[cfg(feature = "channel-lark")]
-        assert!(
-            labels.iter().any(|label| label.starts_with("Lark/Feishu")),
-            "expected Lark/Feishu to appear in the advanced channel menu, got {labels:?}"
         );
         assert!(
             !labels.iter().any(|label| label.starts_with("Telegram")),
@@ -4600,46 +4561,18 @@ mod tests {
     }
 
     #[test]
-    fn launchable_channels_include_signal_mattermost_qq_and_nextcloud_talk() {
+    fn launchable_channels_detects_configured_channels() {
         let mut channels = ChannelsConfig::default();
         assert!(!has_launchable_channels(&channels));
 
-        channels.signal = Some(crate::config::schema::SignalConfig {
-            http_url: "http://127.0.0.1:8686".into(),
-            account: "+1234567890".into(),
-            group_id: None,
-            allowed_from: vec!["*".into()],
-            ignore_attachments: false,
-            ignore_stories: true,
-        });
-        assert!(has_launchable_channels(&channels));
-
-        channels.signal = None;
-        channels.mattermost = Some(crate::config::schema::MattermostConfig {
-            url: "https://mattermost.example.com".into(),
-            bot_token: "token".into(),
-            channel_id: Some("channel".into()),
-            allowed_users: vec!["*".into()],
-            thread_replies: Some(true),
+        channels.telegram = Some(TelegramConfig {
+            bot_token: "test-token".into(),
+            allowed_users: vec!["topclaw_user".into()],
+            stream_mode: StreamMode::Off,
+            draft_update_interval_ms: 500,
+            interrupt_on_new_message: false,
             group_reply: None,
-        });
-        assert!(has_launchable_channels(&channels));
-
-        channels.mattermost = None;
-        channels.qq = Some(crate::config::schema::QQConfig {
-            app_id: "app-id".into(),
-            app_secret: "app-secret".into(),
-            allowed_users: vec!["*".into()],
-            receive_mode: crate::config::schema::QQReceiveMode::Websocket,
-        });
-        assert!(has_launchable_channels(&channels));
-
-        channels.qq = None;
-        channels.nextcloud_talk = Some(crate::config::schema::NextcloudTalkConfig {
-            base_url: "https://cloud.example.com".into(),
-            app_token: "token".into(),
-            webhook_secret: Some("secret".into()),
-            allowed_users: vec!["*".into()],
+            base_url: None,
         });
         assert!(has_launchable_channels(&channels));
     }
