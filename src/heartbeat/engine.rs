@@ -1,13 +1,12 @@
 use crate::config::HeartbeatConfig;
-use crate::observability::{Observer, ObserverEvent};
+use crate::observability::Observer;
 use anyhow::Result;
 use chrono::{DateTime, Duration as ChronoDuration, Utc};
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
-use tokio::time::{self, Duration};
-use tracing::{info, warn};
+use tracing::warn;
 
 const DEFAULT_MIN_COOLDOWN_MINUTES: u32 = 60;
 const FAILURE_RETRY_MINUTES: u32 = 5;
@@ -54,6 +53,7 @@ struct HeartbeatState {
 pub struct HeartbeatEngine {
     config: HeartbeatConfig,
     workspace_dir: PathBuf,
+    #[allow(dead_code)]
     observer: Arc<dyn Observer>,
 }
 
@@ -68,54 +68,6 @@ impl HeartbeatEngine {
             workspace_dir,
             observer,
         }
-    }
-
-    /// Start the heartbeat loop (runs until cancelled)
-    pub async fn run(&self) -> Result<()> {
-        if !self.config.enabled {
-            info!("Heartbeat disabled");
-            return Ok(());
-        }
-
-        let interval_mins = self.config.interval_minutes.max(5);
-        info!("Heartbeat started: every {} minutes", interval_mins);
-
-        let mut interval = time::interval(Duration::from_secs(u64::from(interval_mins) * 60));
-
-        loop {
-            interval.tick().await;
-            self.observer.record_event(&ObserverEvent::HeartbeatTick);
-
-            match self.tick().await {
-                Ok(tasks) => {
-                    if tasks > 0 {
-                        info!("Heartbeat: {} task(s) due", tasks);
-                    }
-                }
-                Err(e) => {
-                    warn!("Heartbeat error: {}", e);
-                    self.observer.record_event(&ObserverEvent::Error {
-                        component: "heartbeat".into(),
-                        message: e.to_string(),
-                    });
-                }
-            }
-        }
-    }
-
-    /// Single heartbeat tick — count due tasks.
-    async fn tick(&self) -> Result<usize> {
-        Ok(self.due_tasks().await?.len())
-    }
-
-    /// Backward-compatible plain task list for diagnostics and legacy callers.
-    pub async fn collect_tasks(&self) -> Result<Vec<String>> {
-        Ok(self
-            .collect_task_specs()
-            .await?
-            .into_iter()
-            .map(|task| task.text)
-            .collect())
     }
 
     /// Read HEARTBEAT.md and return parsed task specs.

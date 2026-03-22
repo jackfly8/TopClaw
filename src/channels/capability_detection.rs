@@ -199,44 +199,6 @@ pub(crate) fn looks_like_file_write_task(user_message: &str) -> bool {
             .any(|hint| trimmed.contains(hint))
 }
 
-pub(crate) fn looks_like_skill_candidate_request(user_message: &str) -> bool {
-    let trimmed = user_message.trim();
-    if trimmed.is_empty() {
-        return false;
-    }
-
-    let lower = trimmed.to_ascii_lowercase();
-    let english_hints = [
-        "create a skill",
-        "new skill",
-        "generate a skill",
-        "skill candidate",
-        "official skills",
-        "add to topclaw",
-        "upstream this",
-        "candidate pr",
-        "teach topclaw",
-        "new capability",
-        "extend topclaw",
-    ];
-    if english_hints.iter().any(|hint| lower.contains(hint)) {
-        return true;
-    }
-
-    let cjk_hints = [
-        "创建技能",
-        "新技能",
-        "生成技能",
-        "候选技能",
-        "官方技能",
-        "加入TopClaw",
-        "扩展TopClaw",
-        "新能力",
-        "提交PR",
-    ];
-    cjk_hints.iter().any(|hint| trimmed.contains(hint))
-}
-
 pub(crate) fn should_try_llm_capability_recovery(user_message: &str) -> bool {
     let trimmed = user_message.trim();
     if trimmed.is_empty() || trimmed.starts_with('/') {

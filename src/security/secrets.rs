@@ -25,9 +25,6 @@ use std::fs;
 use std::io::Write;
 use std::path::{Path, PathBuf};
 
-/// Length of the random encryption key in bytes (256-bit, matches `ChaCha20`).
-const KEY_LEN: usize = 32;
-
 /// ChaCha20-Poly1305 nonce length in bytes.
 const NONCE_LEN: usize = 12;
 
@@ -218,6 +215,7 @@ fn hex_encode(data: &[u8]) -> String {
 
 /// Build the `/grant` argument for `icacls` using a normalized username.
 /// Returns `None` when the username is empty or whitespace-only.
+#[allow(dead_code)]
 fn build_windows_icacls_grant_arg(username: &str) -> Option<String> {
     let normalized = username.trim();
     if normalized.is_empty() {
@@ -304,10 +302,11 @@ mod tests {
         assert!(store.key_path.exists(), "Key file should be created");
 
         let key_hex = tokio::fs::read_to_string(&store.key_path).await.unwrap();
+        // ChaCha20-Poly1305 uses 32-byte keys → 64 hex chars
         assert_eq!(
             key_hex.len(),
-            KEY_LEN * 2,
-            "Key should be {KEY_LEN} bytes hex-encoded"
+            64,
+            "Key should be 32 bytes hex-encoded"
         );
     }
 
@@ -453,7 +452,7 @@ mod tests {
     #[test]
     fn generate_random_key_correct_length() {
         let key = generate_random_key();
-        assert_eq!(key.len(), KEY_LEN);
+        assert_eq!(key.len(), 32);
     }
 
     #[test]

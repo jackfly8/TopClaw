@@ -1,6 +1,7 @@
 use super::ChannelsConfig;
 use std::sync::LazyLock;
 
+#[allow(dead_code)]
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(super) enum ChannelMenuChoice {
     Telegram,

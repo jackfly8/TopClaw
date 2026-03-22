@@ -8,7 +8,9 @@ use anyhow::Result;
 use std::sync::Arc;
 
 pub(crate) struct ExecutionSupport {
+    #[allow(dead_code)]
     pub runtime: Arc<dyn RuntimeAdapter>,
+    #[allow(dead_code)]
     pub security: Arc<SecurityPolicy>,
     pub memory: Arc<dyn Memory>,
     pub tools: Vec<Box<dyn Tool>>,

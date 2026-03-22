@@ -45,5 +45,8 @@ credentials.json
 # Nix
 result
 
+# Temp probe files
+.tmp_todo_probe
+
 # Generated runtime state
 state/

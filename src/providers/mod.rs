@@ -32,6 +32,9 @@ pub mod router;
 pub mod telnyx;
 pub mod traits;
 
+pub mod aliases;
+pub(crate) use aliases::*;
+
 #[cfg(feature = "provider-glm")]
 pub mod glm;
 
@@ -80,104 +83,6 @@ const ZAI_GLOBAL_BASE_URL: &str = "https://api.z.ai/api/coding/paas/v4";
 const ZAI_CN_BASE_URL: &str = "https://open.bigmodel.cn/api/coding/paas/v4";
 const VERCEL_AI_GATEWAY_BASE_URL: &str = "https://ai-gateway.vercel.sh/v1";
 const LITELLM_BASE_URL: &str = "http://localhost:4000/v1";
-
-pub(crate) fn is_minimax_intl_alias(name: &str) -> bool {
-    matches!(
-        name,
-        "minimax"
-            | "minimax-intl"
-            | "minimax-io"
-            | "minimax-global"
-            | "minimax-oauth"
-            | "minimax-portal"
-            | "minimax-oauth-global"
-            | "minimax-portal-global"
-    )
-}
-
-pub(crate) fn is_minimax_cn_alias(name: &str) -> bool {
-    matches!(
-        name,
-        "minimax-cn" | "minimaxi" | "minimax-oauth-cn" | "minimax-portal-cn"
-    )
-}
-
-pub(crate) fn is_minimax_alias(name: &str) -> bool {
-    is_minimax_intl_alias(name) || is_minimax_cn_alias(name)
-}
-
-pub(crate) fn is_glm_global_alias(name: &str) -> bool {
-    matches!(name, "glm" | "zhipu" | "glm-global" | "zhipu-global")
-}
-
-pub(crate) fn is_glm_cn_alias(name: &str) -> bool {
-    matches!(name, "glm-cn" | "zhipu-cn" | "bigmodel")
-}
-
-pub(crate) fn is_glm_alias(name: &str) -> bool {
-    is_glm_global_alias(name) || is_glm_cn_alias(name)
-}
-
-pub(crate) fn is_moonshot_intl_alias(name: &str) -> bool {
-    matches!(
-        name,
-        "moonshot-intl" | "moonshot-global" | "kimi-intl" | "kimi-global"
-    )
-}
-
-pub(crate) fn is_moonshot_cn_alias(name: &str) -> bool {
-    matches!(name, "moonshot" | "kimi" | "moonshot-cn" | "kimi-cn")
-}
-
-pub(crate) fn is_moonshot_alias(name: &str) -> bool {
-    is_moonshot_intl_alias(name) || is_moonshot_cn_alias(name)
-}
-
-pub(crate) fn is_qwen_cn_alias(name: &str) -> bool {
-    matches!(name, "qwen" | "dashscope" | "qwen-cn" | "dashscope-cn")
-}
-
-pub(crate) fn is_qwen_intl_alias(name: &str) -> bool {
-    matches!(
-        name,
-        "qwen-intl" | "dashscope-intl" | "qwen-international" | "dashscope-international"
-    )
-}
-
-pub(crate) fn is_qwen_us_alias(name: &str) -> bool {
-    matches!(name, "qwen-us" | "dashscope-us")
-}
-
-pub(crate) fn is_qwen_oauth_alias(name: &str) -> bool {
-    matches!(name, "qwen-code" | "qwen-oauth" | "qwen_oauth")
-}
-
-pub(crate) fn is_qwen_alias(name: &str) -> bool {
-    is_qwen_cn_alias(name)
-        || is_qwen_intl_alias(name)
-        || is_qwen_us_alias(name)
-        || is_qwen_oauth_alias(name)
-}
-
-pub(crate) fn is_zai_global_alias(name: &str) -> bool {
-    matches!(name, "zai" | "z.ai" | "zai-global" | "z.ai-global")
-}
-
-pub(crate) fn is_zai_cn_alias(name: &str) -> bool {
-    matches!(name, "zai-cn" | "z.ai-cn")
-}
-
-pub(crate) fn is_zai_alias(name: &str) -> bool {
-    is_zai_global_alias(name) || is_zai_cn_alias(name)
-}
-
-pub(crate) fn is_qianfan_alias(name: &str) -> bool {
-    matches!(name, "qianfan" | "baidu")
-}
-
-pub(crate) fn is_doubao_alias(name: &str) -> bool {
-    matches!(name, "doubao" | "volcengine" | "ark" | "doubao-cn")
-}
 
 #[derive(Clone, Copy, Debug)]
 enum MinimaxOauthRegion {
@@ -934,45 +839,6 @@ fn resolve_provider_credential(name: &str, credential_override: Option<&str>) ->
     }
 
     None
-}
-
-/// Returns true if the provider can resolve any credential from the given override and/or
-/// its supported environment/cached sources.
-///
-/// This is intended for UX/status surfaces (e.g. dashboard) to reflect runtime-configured
-/// credentials without leaking secret values.
-pub(crate) fn provider_credential_available(name: &str, credential_override: Option<&str>) -> bool {
-    if is_qwen_oauth_alias(name) {
-        let override_value = credential_override
-            .map(str::trim)
-            .filter(|value| !value.is_empty());
-        if override_value.is_some_and(|value| !value.eq_ignore_ascii_case(QWEN_OAUTH_PLACEHOLDER)) {
-            return true;
-        }
-
-        if read_non_empty_env(QWEN_OAUTH_TOKEN_ENV).is_some() {
-            return true;
-        }
-
-        if read_qwen_oauth_cached_credentials()
-            .and_then(|credentials| credentials.access_token)
-            .is_some_and(|token| !token.trim().is_empty())
-        {
-            return true;
-        }
-
-        return read_non_empty_env(QWEN_OAUTH_REFRESH_TOKEN_ENV).is_some();
-    }
-
-    if matches!(name, "gemini" | "google" | "google-gemini") {
-        if resolve_provider_credential(name, credential_override).is_some() {
-            return true;
-        }
-
-        return gemini::GeminiProvider::has_any_auth();
-    }
-
-    resolve_provider_credential(name, credential_override).is_some()
 }
 
 fn parse_custom_provider_url(
@@ -2074,44 +1940,6 @@ mod tests {
         let context = resolve_qwen_oauth_context(Some(QWEN_OAUTH_PLACEHOLDER));
 
         assert!(context.credential.is_none());
-    }
-
-    #[test]
-    fn provider_credential_available_qwen_oauth_accepts_refresh_token_without_live_refresh() {
-        let _env_lock = env_lock();
-        let fake_home = format!(
-            "/tmp/topclaw-qwen-oauth-home-{}-available-refresh",
-            std::process::id()
-        );
-        let _home_guard = EnvGuard::set("HOME", Some(fake_home.as_str()));
-        let _token_guard = EnvGuard::set(QWEN_OAUTH_TOKEN_ENV, None);
-        let _refresh_guard = EnvGuard::set(QWEN_OAUTH_REFRESH_TOKEN_ENV, Some("refresh-token"));
-        let _resource_guard = EnvGuard::set(QWEN_OAUTH_RESOURCE_URL_ENV, None);
-        let _dashscope_guard = EnvGuard::set("DASHSCOPE_API_KEY", None);
-
-        assert!(provider_credential_available(
-            "qwen-code",
-            Some(QWEN_OAUTH_PLACEHOLDER)
-        ));
-    }
-
-    #[test]
-    fn provider_credential_available_qwen_oauth_rejects_placeholder_without_sources() {
-        let _env_lock = env_lock();
-        let fake_home = format!(
-            "/tmp/topclaw-qwen-oauth-home-{}-available-none",
-            std::process::id()
-        );
-        let _home_guard = EnvGuard::set("HOME", Some(fake_home.as_str()));
-        let _token_guard = EnvGuard::set(QWEN_OAUTH_TOKEN_ENV, None);
-        let _refresh_guard = EnvGuard::set(QWEN_OAUTH_REFRESH_TOKEN_ENV, None);
-        let _resource_guard = EnvGuard::set(QWEN_OAUTH_RESOURCE_URL_ENV, None);
-        let _dashscope_guard = EnvGuard::set("DASHSCOPE_API_KEY", None);
-
-        assert!(!provider_credential_available(
-            "qwen-code",
-            Some(QWEN_OAUTH_PLACEHOLDER)
-        ));
     }
 
     #[test]

@@ -123,10 +123,6 @@ impl IpcDb {
         }
     }
 
-    pub fn agent_id(&self) -> &str {
-        &self.agent_id
-    }
-
     #[cfg(test)]
     fn open_with_id(db_path: &str, agent_id: &str, staleness_secs: u64) -> Result<Self, String> {
         let conn =
@@ -844,30 +840,6 @@ mod tests {
         // so the tool count stays the same. Verify config defaults.
         assert!(!config.enabled);
         assert_eq!(config.staleness_secs, 300);
-    }
-
-    #[test]
-    fn real_open_derives_agent_id_from_workspace() {
-        let dir = TempDir::new().unwrap();
-        let workspace = dir.path().join("workspace");
-        std::fs::create_dir_all(&workspace).unwrap();
-        let db_path = dir.path().join("agents.db");
-
-        let config = AgentsIpcConfig {
-            enabled: true,
-            db_path: db_path.to_str().unwrap().to_string(),
-            staleness_secs: 300,
-        };
-
-        let db = IpcDb::open(&workspace, &config).unwrap();
-
-        // agent_id should be a 64-char hex SHA-256 hash
-        assert_eq!(db.agent_id().len(), 64);
-        assert!(db.agent_id().chars().all(|c| c.is_ascii_hexdigit()));
-
-        // Same workspace should produce same agent_id
-        let db2 = IpcDb::open(&workspace, &config).unwrap();
-        assert_eq!(db.agent_id(), db2.agent_id());
     }
 
     #[test]

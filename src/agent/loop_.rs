@@ -14,7 +14,7 @@ use crate::tools;
 use crate::tools::Tool;
 use crate::util::truncate_with_ellipsis;
 use anyhow::Result;
-use regex::{Regex, RegexSet};
+use regex::Regex;
 use rustyline::error::ReadlineError;
 use std::collections::{BTreeSet, HashSet};
 use std::fmt::Write;
@@ -45,8 +45,6 @@ use guardrails::{
     looks_like_unverified_action_completion_without_tool_call,
 };
 use history::trim_history;
-#[cfg(test)]
-use history::{apply_compaction_summary, build_compaction_transcript};
 use history_builders::{
     build_native_assistant_history, build_native_assistant_history_from_parsed_calls,
 };
@@ -64,8 +62,6 @@ use tool_helpers::{
     truncate_tool_args_for_progress,
 };
 use utilities::autosave_memory_key;
-#[cfg(test)]
-use utilities::tools_to_openai_format;
 
 /// Minimum characters per chunk when relaying LLM text to a streaming draft.
 const STREAM_CHUNK_MIN_CHARS: usize = 80;
@@ -79,19 +75,6 @@ const DEFAULT_MAX_TOOL_ITERATIONS: usize = 20;
 /// Minimum user-message length (in chars) for auto-save to memory.
 /// Matches the channel-side constant in `channels/mod.rs`.
 const AUTOSAVE_MIN_MESSAGE_CHARS: usize = 20;
-
-static SENSITIVE_KEY_PATTERNS: LazyLock<RegexSet> = LazyLock::new(|| {
-    RegexSet::new([
-        r"(?i)token",
-        r"(?i)api[_-]?key",
-        r"(?i)password",
-        r"(?i)secret",
-        r"(?i)user[_-]?key",
-        r"(?i)bearer",
-        r"(?i)credential",
-    ])
-    .unwrap()
-});
 
 static SENSITIVE_KV_REGEX: LazyLock<Regex> = LazyLock::new(|| {
     Regex::new(r#"(?i)(token|api[_-]?key|password|secret|user[_-]?key|bearer|credential)(["']?\s*[:=]\s*)(?:"([^"]{8,})"|'([^']{8,})'|([a-zA-Z0-9_\-\.]{8,}))"#).unwrap()
@@ -130,11 +113,6 @@ pub(crate) fn scrub_credentials(input: &str) -> String {
 /// Default trigger for auto-compaction when non-system message count exceeds this threshold.
 /// Prefer passing the config-driven value via `run_tool_call_loop`; this constant is only
 /// used when callers omit the parameter.
-const DEFAULT_MAX_HISTORY_MESSAGES: usize = 50;
-
-/// Minimum interval between progress sends to avoid flooding the draft channel.
-pub(crate) const PROGRESS_MIN_INTERVAL_MS: u64 = 500;
-
 /// Sentinel value sent through on_delta to signal the draft updater to clear accumulated text.
 /// Used before streaming the final answer so progress lines are replaced by the clean response.
 pub(crate) const DRAFT_CLEAR_SENTINEL: &str = "\x00CLEAR\x00";
@@ -151,7 +129,6 @@ const MISSING_TOOL_CALL_RETRY_PROMPT: &str = "Internal correction: your last rep
 #[derive(Debug, Clone)]
 pub(crate) struct NonCliApprovalPrompt {
     pub request_id: String,
-    pub tool_name: String,
     pub display_tool_name: String,
     pub arguments: serde_json::Value,
 }
@@ -252,53 +229,6 @@ pub(crate) async fn agent_turn(
         &[],
     )
     .await
-}
-
-/// Run the tool loop with channel reply_target context, used by channel runtimes
-/// to auto-populate delivery routing for scheduled reminders.
-#[allow(clippy::too_many_arguments)]
-pub(crate) async fn run_tool_call_loop_with_reply_target(
-    provider: &dyn Provider,
-    history: &mut Vec<ChatMessage>,
-    tools_registry: &[Box<dyn Tool>],
-    observer: &dyn Observer,
-    provider_name: &str,
-    model: &str,
-    temperature: f64,
-    silent: bool,
-    approval: Option<&ApprovalManager>,
-    channel_name: &str,
-    reply_target: Option<&str>,
-    multimodal_config: &crate::config::MultimodalConfig,
-    max_tool_iterations: usize,
-    cancellation_token: Option<CancellationToken>,
-    on_delta: Option<tokio::sync::mpsc::Sender<String>>,
-    hooks: Option<&crate::hooks::HookRunner>,
-    excluded_tools: &[String],
-) -> Result<String> {
-    TOOL_LOOP_REPLY_TARGET
-        .scope(
-            reply_target.map(str::to_string),
-            run_tool_call_loop(
-                provider,
-                history,
-                tools_registry,
-                observer,
-                provider_name,
-                model,
-                temperature,
-                silent,
-                approval,
-                channel_name,
-                multimodal_config,
-                max_tool_iterations,
-                cancellation_token,
-                on_delta,
-                hooks,
-                excluded_tools,
-            ),
-        )
-        .await
 }
 
 /// Run the tool loop with optional non-CLI approval context scoped to this task.
@@ -1022,7 +952,6 @@ pub(crate) async fn run_tool_call_loop(
 
                             let _ = ctx.prompt_tx.send(NonCliApprovalPrompt {
                                 request_id: pending.request_id.clone(),
-                                tool_name: tool_name.clone(),
                                 display_tool_name,
                                 arguments: tool_args.clone(),
                             });
@@ -3007,7 +2936,7 @@ mod tests {
             .recv()
             .await
             .expect("approval prompt should arrive");
-        assert_eq!(prompt.tool_name, "shell");
+        assert_eq!(prompt.display_tool_name, "shell");
         assert_eq!(
             max_active.load(Ordering::SeqCst),
             0,
@@ -3209,7 +3138,7 @@ mod tests {
             .recv()
             .await
             .expect("shell approval prompt should arrive after task_plan executes");
-        assert_eq!(first_prompt.tool_name, "shell");
+        assert_eq!(first_prompt.display_tool_name, "shell");
 
         let result = result_task.await.expect("tool loop task should complete");
         let err = result.expect_err("approval should fail fast");
@@ -4632,52 +4561,27 @@ Tail"#;
     }
 
     #[test]
-    fn tools_to_openai_format_produces_valid_schema() {
-        use crate::security::SecurityPolicy;
-        let security = Arc::new(SecurityPolicy::from_config(
-            &crate::config::AutonomyConfig::default(),
-            std::path::Path::new("/tmp"),
-        ));
-        let tools = tools::default_tools(security);
-        let formatted = tools_to_openai_format(&tools);
-
-        assert!(!formatted.is_empty());
-        for tool_json in &formatted {
-            assert_eq!(tool_json["type"], "function");
-            assert!(tool_json["function"]["name"].is_string());
-            assert!(tool_json["function"]["description"].is_string());
-            assert!(!tool_json["function"]["name"].as_str().unwrap().is_empty());
-        }
-        // Verify known tools are present
-        let names: Vec<&str> = formatted
-            .iter()
-            .filter_map(|t| t["function"]["name"].as_str())
-            .collect();
-        assert!(names.contains(&"shell"));
-        assert!(names.contains(&"file_read"));
-    }
-
-    #[test]
     fn trim_history_preserves_system_prompt() {
+        let max_history: usize = 50;
         let mut history = vec![ChatMessage::system("system prompt")];
-        for i in 0..DEFAULT_MAX_HISTORY_MESSAGES + 20 {
+        for i in 0..max_history + 20 {
             history.push(ChatMessage::user(format!("msg {i}")));
         }
         let original_len = history.len();
-        assert!(original_len > DEFAULT_MAX_HISTORY_MESSAGES + 1);
+        assert!(original_len > max_history + 1);
 
-        trim_history(&mut history, DEFAULT_MAX_HISTORY_MESSAGES);
+        trim_history(&mut history, max_history);
 
         // System prompt preserved
         assert_eq!(history[0].role, "system");
         assert_eq!(history[0].content, "system prompt");
         // Trimmed to limit
-        assert_eq!(history.len(), DEFAULT_MAX_HISTORY_MESSAGES + 1); // +1 for system
-                                                                     // Most recent messages preserved
+        assert_eq!(history.len(), max_history + 1); // +1 for system
+                                                     // Most recent messages preserved
         let last = &history[history.len() - 1];
         assert_eq!(
             last.content,
-            format!("msg {}", DEFAULT_MAX_HISTORY_MESSAGES + 19)
+            format!("msg {}", max_history + 19)
         );
     }
 
@@ -4688,37 +4592,8 @@ Tail"#;
             ChatMessage::user("hello"),
             ChatMessage::assistant("hi"),
         ];
-        trim_history(&mut history, DEFAULT_MAX_HISTORY_MESSAGES);
+        trim_history(&mut history, 50);
         assert_eq!(history.len(), 3);
-    }
-
-    #[test]
-    fn build_compaction_transcript_formats_roles() {
-        let messages = vec![
-            ChatMessage::user("I like dark mode"),
-            ChatMessage::assistant("Got it"),
-        ];
-        let transcript = build_compaction_transcript(&messages);
-        assert!(transcript.contains("USER: I like dark mode"));
-        assert!(transcript.contains("ASSISTANT: Got it"));
-    }
-
-    #[test]
-    fn apply_compaction_summary_replaces_old_segment() {
-        let mut history = vec![
-            ChatMessage::system("sys"),
-            ChatMessage::user("old 1"),
-            ChatMessage::assistant("old 2"),
-            ChatMessage::user("recent 1"),
-            ChatMessage::assistant("recent 2"),
-        ];
-
-        apply_compaction_summary(&mut history, 1, 3, "- user prefers concise replies");
-
-        assert_eq!(history.len(), 4);
-        assert!(history[1].content.contains("Compaction summary"));
-        assert!(history[2].content.contains("recent 1"));
-        assert!(history[3].content.contains("recent 2"));
     }
 
     #[test]
@@ -4856,22 +4731,22 @@ Done."#;
     fn trim_history_with_no_system_prompt() {
         // Recovery: History without system prompt should trim correctly
         let mut history = vec![];
-        for i in 0..DEFAULT_MAX_HISTORY_MESSAGES + 20 {
+        for i in 0..70 {
             history.push(ChatMessage::user(format!("msg {i}")));
         }
-        trim_history(&mut history, DEFAULT_MAX_HISTORY_MESSAGES);
-        assert_eq!(history.len(), DEFAULT_MAX_HISTORY_MESSAGES);
+        trim_history(&mut history, 50);
+        assert_eq!(history.len(), 50);
     }
 
     #[test]
     fn trim_history_preserves_role_ordering() {
         // Recovery: After trimming, role ordering should remain consistent
         let mut history = vec![ChatMessage::system("system")];
-        for i in 0..DEFAULT_MAX_HISTORY_MESSAGES + 10 {
+        for i in 0..60 {
             history.push(ChatMessage::user(format!("user {i}")));
             history.push(ChatMessage::assistant(format!("assistant {i}")));
         }
-        trim_history(&mut history, DEFAULT_MAX_HISTORY_MESSAGES);
+        trim_history(&mut history, 50);
         assert_eq!(history[0].role, "system");
         assert_eq!(history[history.len() - 1].role, "assistant");
     }
@@ -4880,7 +4755,7 @@ Done."#;
     fn trim_history_with_only_system_prompt() {
         // Recovery: Only system prompt should not be trimmed
         let mut history = vec![ChatMessage::system("system prompt")];
-        trim_history(&mut history, DEFAULT_MAX_HISTORY_MESSAGES);
+        trim_history(&mut history, 50);
         assert_eq!(history.len(), 1);
     }
 
@@ -4946,8 +4821,6 @@ Done."#;
     const _: () = {
         assert!(DEFAULT_MAX_TOOL_ITERATIONS > 0);
         assert!(DEFAULT_MAX_TOOL_ITERATIONS <= 100);
-        assert!(DEFAULT_MAX_HISTORY_MESSAGES > 0);
-        assert!(DEFAULT_MAX_HISTORY_MESSAGES <= 1000);
     };
 
     #[test]

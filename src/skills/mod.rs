@@ -1917,10 +1917,6 @@ fn enforce_skill_security_audit_with_override(
     );
 }
 
-fn enforce_skill_security_audit(skill_path: &Path) -> Result<audit::SkillVettingReport> {
-    enforce_skill_security_audit_with_override(skill_path, false)
-}
-
 fn vetting_options_from_cli_sandbox(sandbox: Option<&str>) -> Result<audit::VettingOptions> {
     let sandbox_mode = match sandbox {
         None => audit::SandboxMode::None,

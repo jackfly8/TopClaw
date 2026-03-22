@@ -222,11 +222,13 @@ impl ApprovalManager {
     }
 
     /// Get a snapshot of the audit log.
+    #[allow(dead_code)]
     pub fn audit_log(&self) -> Vec<ApprovalLogEntry> {
         self.audit_log.lock().clone()
     }
 
     /// Get the current session allowlist.
+    #[allow(dead_code)]
     pub fn session_allowlist(&self) -> HashSet<String> {
         self.session_allowlist.lock().clone()
     }
@@ -526,6 +528,7 @@ impl ApprovalManager {
     }
 
     /// Return whether a pending non-CLI request still exists.
+    #[allow(dead_code)]
     pub fn has_non_cli_pending_request(&self, request_id: &str) -> bool {
         let mut pending = self.pending_non_cli_requests.lock();
         prune_expired_pending_requests(&mut pending);
@@ -548,6 +551,7 @@ impl ApprovalManager {
     }
 
     /// Consume a resolved pending-request decision if present.
+    #[allow(dead_code)]
     pub fn take_non_cli_pending_resolution(&self, request_id: &str) -> Option<ApprovalResponse> {
         self.resolved_non_cli_requests.lock().remove(request_id)
     }

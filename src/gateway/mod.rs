@@ -54,6 +54,7 @@ fn webhook_memory_key() -> String {
     format!("webhook_msg_{}", Uuid::new_v4())
 }
 
+#[allow(dead_code)]
 fn channel_message_memory_key(
     prefix: &str,
     msg: &crate::channels::traits::ChannelMessage,
