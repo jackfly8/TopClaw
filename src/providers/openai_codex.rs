@@ -203,10 +203,6 @@ fn first_nonempty(text: Option<&str>) -> Option<String> {
     })
 }
 
-fn resolve_instructions(system_prompt: Option<&str>) -> String {
-    first_nonempty(system_prompt).unwrap_or_else(|| DEFAULT_CODEX_INSTRUCTIONS.to_string())
-}
-
 fn normalize_model_id(model: &str) -> &str {
     model.rsplit('/').next().unwrap_or(model)
 }
@@ -837,30 +833,6 @@ mod tests {
         let provider = OpenAiCodexProvider::new(&options, Some("test-key")).unwrap();
         assert!(provider.custom_endpoint);
         assert_eq!(provider.gateway_api_key.as_deref(), Some("test-key"));
-    }
-
-    #[test]
-    fn resolve_instructions_uses_default_when_missing() {
-        assert_eq!(
-            resolve_instructions(None),
-            DEFAULT_CODEX_INSTRUCTIONS.to_string()
-        );
-    }
-
-    #[test]
-    fn resolve_instructions_uses_default_when_blank() {
-        assert_eq!(
-            resolve_instructions(Some("   ")),
-            DEFAULT_CODEX_INSTRUCTIONS.to_string()
-        );
-    }
-
-    #[test]
-    fn resolve_instructions_uses_system_prompt_when_present() {
-        assert_eq!(
-            resolve_instructions(Some("Be strict")),
-            "Be strict".to_string()
-        );
     }
 
     #[test]

@@ -16,6 +16,7 @@ pub struct HttpRequestTool {
     allowed_domains: Vec<String>,
     max_response_size: usize,
     timeout_secs: u64,
+    #[allow(dead_code)]
     user_agent: String,
 }
 
@@ -86,25 +87,6 @@ impl HttpRequestTool {
             }
         }
         result
-    }
-
-    fn redact_headers_for_display(headers: &[(String, String)]) -> Vec<(String, String)> {
-        headers
-            .iter()
-            .map(|(key, value)| {
-                let lower = key.to_lowercase();
-                let is_sensitive = lower.contains("authorization")
-                    || lower.contains("api-key")
-                    || lower.contains("apikey")
-                    || lower.contains("token")
-                    || lower.contains("secret");
-                if is_sensitive {
-                    (key.clone(), "***REDACTED***".into())
-                } else {
-                    (key.clone(), value.clone())
-                }
-            })
-            .collect()
     }
 
     async fn execute_request(
@@ -178,18 +160,6 @@ impl HttpRequestTool {
         }
     }
 
-    fn truncate_response(&self, text: &str) -> String {
-        if text.len() > self.max_response_size {
-            let mut truncated = text
-                .chars()
-                .take(self.max_response_size)
-                .collect::<String>();
-            truncated.push_str("\n\n... [Response truncated due to size limit] ...");
-            truncated
-        } else {
-            text.to_string()
-        }
-    }
 }
 
 async fn read_response_text_limited(
@@ -649,28 +619,6 @@ mod tests {
     }
 
     #[test]
-    fn truncate_response_within_limit() {
-        let tool = test_tool(vec!["example.com"]);
-        let text = "hello world";
-        assert_eq!(tool.truncate_response(text), "hello world");
-    }
-
-    #[test]
-    fn truncate_response_over_limit() {
-        let tool = HttpRequestTool::new(
-            Arc::new(SecurityPolicy::default()),
-            vec!["example.com".into()],
-            10,
-            30,
-            "test".to_string(),
-        );
-        let text = "hello world this is long";
-        let truncated = tool.truncate_response(text);
-        assert!(truncated.len() <= 10 + 60); // limit + message
-        assert!(truncated.contains("[Response truncated"));
-    }
-
-    #[test]
     fn parse_headers_preserves_original_values() {
         let tool = test_tool(vec!["example.com"]);
         let headers = json!({
@@ -689,37 +637,6 @@ mod tests {
         assert!(parsed
             .iter()
             .any(|(k, v)| k == "Content-Type" && v == "application/json"));
-    }
-
-    #[test]
-    fn redact_headers_for_display_redacts_sensitive() {
-        let headers = vec![
-            ("Authorization".into(), "Bearer secret".into()),
-            ("Content-Type".into(), "application/json".into()),
-            ("X-API-Key".into(), "my-key".into()),
-            ("X-Secret-Token".into(), "tok-123".into()),
-        ];
-        let redacted = HttpRequestTool::redact_headers_for_display(&headers);
-        assert_eq!(redacted.len(), 4);
-        assert!(redacted
-            .iter()
-            .any(|(k, v)| k == "Authorization" && v == "***REDACTED***"));
-        assert!(redacted
-            .iter()
-            .any(|(k, v)| k == "X-API-Key" && v == "***REDACTED***"));
-        assert!(redacted
-            .iter()
-            .any(|(k, v)| k == "X-Secret-Token" && v == "***REDACTED***"));
-        assert!(redacted
-            .iter()
-            .any(|(k, v)| k == "Content-Type" && v == "application/json"));
-    }
-
-    #[test]
-    fn redact_headers_does_not_alter_original() {
-        let headers = vec![("Authorization".into(), "Bearer real-token".into())];
-        let _ = HttpRequestTool::redact_headers_for_display(&headers);
-        assert_eq!(headers[0].1, "Bearer real-token");
     }
 
     // ── SSRF: alternate IP notation bypass defense-in-depth ─────────

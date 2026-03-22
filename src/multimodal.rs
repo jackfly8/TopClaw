@@ -16,6 +16,7 @@ const ALLOWED_IMAGE_MIME_TYPES: &[&str] = &[
 #[derive(Debug, Clone)]
 pub struct PreparedMessages {
     pub messages: Vec<ChatMessage>,
+    #[allow(dead_code)]
     pub contains_images: bool,
 }
 
@@ -91,10 +92,6 @@ pub fn count_image_markers(messages: &[ChatMessage]) -> usize {
         .filter(|m| m.role == "user")
         .map(|m| parse_image_markers(&m.content).1.len())
         .sum()
-}
-
-pub fn contains_image_markers(messages: &[ChatMessage]) -> bool {
-    count_image_markers(messages) > 0
 }
 
 pub fn extract_ollama_image_payload(image_ref: &str) -> Option<String> {

@@ -167,6 +167,7 @@ struct GeminiUsageMetadata {
 /// Response envelope for the internal cloudcode-pa API.
 /// The internal API nests the standard response under a `response` field.
 #[derive(Debug, Deserialize)]
+#[allow(dead_code)]
 struct InternalGenerateContentResponse {
     response: GenerateContentResponse,
 }
@@ -634,11 +635,6 @@ impl GeminiProvider {
             client_secret,
             expiry_millis,
         })
-    }
-
-    /// Get the Gemini CLI config directory (~/.gemini)
-    fn gemini_cli_dir() -> Option<PathBuf> {
-        UserDirs::new().map(|u| u.home_dir().join(".gemini"))
     }
 
     /// Check if Gemini CLI is configured and has valid credentials
@@ -1461,16 +1457,6 @@ mod tests {
     fn provider_rejects_empty_key() {
         let provider = GeminiProvider::new(Some(""));
         assert!(!matches!(provider.auth, Some(GeminiAuth::ExplicitKey(_))));
-    }
-
-    #[test]
-    fn gemini_cli_dir_returns_path() {
-        let dir = GeminiProvider::gemini_cli_dir();
-        // Should return Some on systems with home dir
-        if UserDirs::new().is_some() {
-            assert!(dir.is_some());
-            assert!(dir.unwrap().ends_with(".gemini"));
-        }
     }
 
     #[test]

@@ -332,7 +332,6 @@ pub fn build_system_prompt_with_mode(
     prompt.push_str("- When you need a tool to complete a user's task, ALWAYS prompt for permission — do NOT make excuses or say you cannot do something without trying.\n");
     prompt.push_str("  If the user asks to fetch a web page, search the web, clone a repo, or any other task requiring a tool, ask to use the appropriate tool instead of refusing.\n");
     prompt.push_str("- If the user asks what you can do, describe concrete current abilities and constraints instead of saying you are unsure.\n");
-    prompt.push_str("- If the user explicitly asks to track a concrete TopClaw bug or product improvement for scheduled self-improvement work, use `self_improvement_task` to queue it instead of only describing it.\n");
     prompt.push_str("- NEVER repeat, describe, or echo credentials, tokens, API keys, or secrets in your responses.\n");
     prompt.push_str("- If a tool output contains credentials, they have already been redacted — do not mention them.\n\n");
 

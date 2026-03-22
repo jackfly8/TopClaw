@@ -147,6 +147,7 @@ impl AuditEvent {
 pub struct AuditLogger {
     log_path: PathBuf,
     config: AuditConfig,
+    #[allow(dead_code)]
     buffer: Mutex<Vec<AuditEvent>>,
 }
 

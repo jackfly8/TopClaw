@@ -1,16 +1,12 @@
 use super::capability_detection::{
     extract_json_object, looks_like_file_read_task, looks_like_file_write_task,
     looks_like_remote_repo_review_request, looks_like_shell_task,
-    looks_like_skill_candidate_request, looks_like_web_task, should_try_llm_capability_recovery,
+    looks_like_web_task, should_try_llm_capability_recovery,
 };
-use super::runtime_config::runtime_config_path;
 use super::{traits, ChannelRuntimeContext};
 use crate::approval::ApprovalManager;
-use crate::config::Config;
 use crate::providers::Provider;
 use crate::tools::Tool;
-use crate::util::truncate_with_ellipsis;
-use anyhow::{Context, Result};
 use serde::Deserialize;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -19,7 +15,6 @@ pub(super) enum CapabilityRecoveryKind {
     ShellAccess,
     FileReadAccess,
     FileWriteAccess,
-    SkillCandidate,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -53,8 +48,6 @@ struct LlmCapabilityRecoverySuggestion {
     tool_name: Option<String>,
     #[serde(default)]
     reason: Option<String>,
-    #[serde(default)]
-    queue_skill_candidate: bool,
 }
 
 fn tool_is_registered(tools_registry: &[Box<dyn Tool>], tool_name: &str) -> bool {
@@ -273,163 +266,7 @@ fn map_tool_to_capability_kind(tool_name: &str) -> Option<CapabilityRecoveryKind
         "shell" => Some(CapabilityRecoveryKind::ShellAccess),
         "file_read" => Some(CapabilityRecoveryKind::FileReadAccess),
         "file_edit" | "file_write" => Some(CapabilityRecoveryKind::FileWriteAccess),
-        "self_improvement_task" => Some(CapabilityRecoveryKind::SkillCandidate),
         _ => None,
-    }
-}
-
-async fn load_runtime_config(ctx: &ChannelRuntimeContext) -> Result<Config> {
-    let Some(config_path) = runtime_config_path(ctx) else {
-        anyhow::bail!("runtime config path is unavailable")
-    };
-
-    let contents = tokio::fs::read_to_string(&config_path)
-        .await
-        .with_context(|| format!("Failed to read {}", config_path.display()))?;
-    let mut parsed: Config = toml::from_str(&contents)
-        .with_context(|| format!("Failed to parse {}", config_path.display()))?;
-    parsed.config_path = config_path;
-    parsed.apply_env_overrides();
-    Ok(parsed)
-}
-
-pub(super) async fn create_skill_candidate_recovery_plan(
-    ctx: &ChannelRuntimeContext,
-    msg: &traits::ChannelMessage,
-    excluded_tools: &[String],
-    reason: &str,
-    explicit_user_request: bool,
-) -> Option<CapabilityRecoveryPlan> {
-    let tool_name = "self_improvement_task";
-    let state = capability_tool_state(
-        ctx.tools_registry.as_ref(),
-        excluded_tools,
-        ctx.approval_manager.as_ref(),
-        tool_name,
-    );
-
-    if explicit_user_request
-        && matches!(
-            state,
-            CapabilityState::Available | CapabilityState::NeedsApproval
-        )
-    {
-        let config = match load_runtime_config(ctx).await {
-            Ok(config) => config,
-            Err(err) => {
-                return Some(CapabilityRecoveryPlan {
-                    kind: CapabilityRecoveryKind::SkillCandidate,
-                    tool_name: tool_name.to_string(),
-                    state: CapabilityState::Missing,
-                    reason: "self-improvement runtime config could not be loaded".to_string(),
-                    message: format!(
-                        "I identified this as a TopClaw skill/capability candidate, but I couldn’t load the runtime config to queue it automatically.\nDetails: {err}"
-                    ),
-                });
-            }
-        };
-
-        let manager = crate::self_improvement::SelfImprovementManager::new(&config.workspace_dir);
-        let title = truncate_with_ellipsis(
-            &format!("Skill candidate: {}", msg.content.replace('\n', " ")),
-            96,
-        );
-        let problem = format!(
-            "Channel request flagged for capability recovery.\n\nUser request:\n{}\n\nRecovery rationale:\n{}",
-            msg.content, reason
-        );
-        let evidence = Some(format!(
-            "channel={} sender={} reply_target={} message_id={}",
-            msg.channel, msg.sender, msg.reply_target, msg.id
-        ));
-        return match manager
-            .enqueue_task(
-                &config,
-                &title,
-                &problem,
-                evidence,
-                Some(msg.sender.clone()),
-                Some(msg.channel.clone()),
-            )
-            .await
-        {
-            Ok(task) => {
-                let sync = crate::self_improvement::sync_scheduled_job(&config)
-                    .await
-                    .unwrap_or(crate::self_improvement::SyncOutcome {
-                        action: "idle".to_string(),
-                        reason: Some("failed to sync self-improvement scheduler".to_string()),
-                        task_id: Some(task.id.clone()),
-                        job_id: None,
-                    });
-                let scheduler_status = match sync.reason {
-                    Some(reason) => format!("{} ({reason})", sync.action),
-                    None => sync.action,
-                };
-                Some(CapabilityRecoveryPlan {
-                    kind: CapabilityRecoveryKind::SkillCandidate,
-                    tool_name: tool_name.to_string(),
-                    state: CapabilityState::Available,
-                    reason:
-                        "queued a TopClaw self-improvement candidate for generated-skill flow"
-                            .to_string(),
-                    message: format!(
-                        "Queued this as a TopClaw skill/capability candidate.\nTask ID: `{}`\nNext path: research with web tools when available, draft the minimal skill candidate, run skill vetting, and prepare a candidate PR.\nScheduler: `{}`.",
-                        task.id, scheduler_status
-                    ),
-                })
-            }
-            Err(err) => Some(CapabilityRecoveryPlan {
-                kind: CapabilityRecoveryKind::SkillCandidate,
-                tool_name: tool_name.to_string(),
-                state: CapabilityState::Missing,
-                reason: "failed to queue TopClaw self-improvement candidate".to_string(),
-                message: format!(
-                    "I identified this as a TopClaw skill/capability candidate, but I couldn’t queue it automatically.\nDetails: {err}"
-                ),
-            }),
-        };
-    }
-
-    match state {
-        CapabilityState::Available => {
-            unreachable!("explicit-user-request capability queue path should have returned above")
-        }
-        CapabilityState::NeedsApproval => {
-            let req = ctx.approval_manager.create_non_cli_pending_request(
-                tool_name,
-                &msg.sender,
-                &msg.channel,
-                &msg.reply_target,
-                None,
-                Some(reason.to_string()),
-            );
-            Some(CapabilityRecoveryPlan {
-                kind: CapabilityRecoveryKind::SkillCandidate,
-                tool_name: tool_name.to_string(),
-                state,
-                reason: "queueing this TopClaw skill candidate requires supervised approval"
-                    .to_string(),
-                message: format!(
-                    "I can queue this as a TopClaw skill/capability candidate, but I need supervised access to `{}` first.\nRequest ID: `{}`\nConfirm with `/approve-confirm {}` from this same chat/channel, then resend the request.",
-                    tool_name, req.request_id, req.request_id
-                ),
-            })
-        }
-        CapabilityState::Excluded => Some(CapabilityRecoveryPlan {
-            kind: CapabilityRecoveryKind::SkillCandidate,
-            tool_name: tool_name.to_string(),
-            state,
-            reason: "self-improvement queue tool is excluded in this non-CLI runtime".to_string(),
-            message: "I identified this as a TopClaw skill/capability candidate, but `self_improvement_task` is blocked by `autonomy.non_cli_excluded_tools`.\nRemove it from that list, let the runtime reload, then retry.".to_string(),
-        }),
-        CapabilityState::Missing => Some(CapabilityRecoveryPlan {
-            kind: CapabilityRecoveryKind::SkillCandidate,
-            tool_name: tool_name.to_string(),
-            state,
-            reason: "self-improvement queue tool is not available in this runtime".to_string(),
-            message: "I identified this as a TopClaw skill/capability candidate, but the runtime does not currently expose `self_improvement_task`.\nEnable self-improvement support for this runtime if you want the bot to queue, vet, and prepare candidate PRs automatically.".to_string(),
-        }),
     }
 }
 
@@ -453,10 +290,8 @@ pub(super) async fn try_llm_capability_recovery_plan(
         .join(", ");
     let prompt = format!(
         "Classify whether this non-CLI request is blocked by a missing or gated capability.\n\
-Return JSON only with keys: need_recovery (bool), tool_name (string), reason (string), queue_skill_candidate (bool).\n\
-Allowed tool_name values: web_fetch, web_search_tool, http_request, browser, shell, file_read, file_edit, file_write, self_improvement_task, none.\n\
-The user's current task takes priority over creating reusable skills.\n\
-Set queue_skill_candidate=true only when the primary user goal is to extend TopClaw itself with a reusable new capability/skill candidate, not merely to finish the current task.\n\
+Return JSON only with keys: need_recovery (bool), tool_name (string), reason (string).\n\
+Allowed tool_name values: web_fetch, web_search_tool, http_request, browser, shell, file_read, file_edit, file_write, none.\n\
 Available runtime tools: {available_tools}\n\
 Excluded runtime tools: {}\n\
 User request:\n{}",
@@ -483,14 +318,6 @@ User request:\n{}",
     let suggestion: LlmCapabilityRecoverySuggestion = serde_json::from_str(json).ok()?;
     if !suggestion.need_recovery {
         return None;
-    }
-
-    if suggestion.queue_skill_candidate || looks_like_skill_candidate_request(&msg.content) {
-        let reason = suggestion
-            .reason
-            .as_deref()
-            .unwrap_or("LLM classifier recommended queueing a TopClaw skill candidate");
-        return create_skill_candidate_recovery_plan(ctx, msg, excluded_tools, reason, false).await;
     }
 
     let tool_name = suggestion.tool_name.as_deref()?.trim();

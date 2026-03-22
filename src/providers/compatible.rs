@@ -373,21 +373,6 @@ impl OpenAiCompatibleProvider {
         }
     }
 
-    fn tool_specs_to_openai_format(tools: &[crate::tools::ToolSpec]) -> Vec<serde_json::Value> {
-        tools
-            .iter()
-            .map(|tool| {
-                serde_json::json!({
-                    "type": "function",
-                    "function": {
-                        "name": tool.name,
-                        "description": tool.description,
-                        "parameters": tool.parameters
-                    }
-                })
-            })
-            .collect()
-    }
 }
 
 #[derive(Debug, Serialize)]
@@ -642,6 +627,7 @@ struct ResponsesInput {
 #[derive(Debug, Deserialize, Clone)]
 struct ResponsesResponse {
     #[serde(default)]
+    #[allow(dead_code)]
     id: Option<String>,
     #[serde(default)]
     output: Vec<ResponsesOutput>,
@@ -3668,26 +3654,6 @@ mod tests {
         ))
         .unwrap();
         assert_eq!(value, serde_json::json!("You are a helpful assistant."));
-    }
-
-    #[test]
-    fn tool_specs_convert_to_openai_format() {
-        let specs = vec![crate::tools::ToolSpec {
-            name: "shell".to_string(),
-            description: "Run shell command".to_string(),
-            parameters: serde_json::json!({
-                "type": "object",
-                "properties": {"command": {"type": "string"}},
-                "required": ["command"]
-            }),
-        }];
-
-        let tools = OpenAiCompatibleProvider::tool_specs_to_openai_format(&specs);
-        assert_eq!(tools.len(), 1);
-        assert_eq!(tools[0]["type"], "function");
-        assert_eq!(tools[0]["function"]["name"], "shell");
-        assert_eq!(tools[0]["function"]["description"], "Run shell command");
-        assert_eq!(tools[0]["function"]["parameters"]["required"][0], "command");
     }
 
     #[test]

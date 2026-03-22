@@ -204,6 +204,21 @@ all = [
 # Channel feature flags
 channel-telegram = []
 channel-discord = []
+channel-slack = []
+channel-imessage = []
+channel-matrix = []
+channel-signal = []
+channel-whatsapp = []
+channel-linq = []
+channel-irc = []
+channel-nextcloud-talk = []
+channel-dingtalk = []
+channel-qq = []
+channel-lark = []
+channel-nostr = []
+channel-email = []
+channel-mattermost = []
+channel-wati = []
 
 builtin-preloaded-skills = []
 hardware = ["nusb", "tokio-serial"]
@@ -247,14 +262,6 @@ inherits = "release"
 codegen-units = 8    # Parallel codegen for faster builds on powerful machines (16GB+ RAM recommended)
                      # Use: cargo build --profile release-fast
 
-[profile.dist]
-inherits = "release"
-opt-level = "z"
-lto = "fat"
-codegen-units = 1
-strip = true
-panic = "abort"
-
 [dev-dependencies]
 tempfile = "3.27"
 criterion = { version = "0.8", features = ["async_tokio"] }
@@ -269,3 +276,42 @@ path = "src/main.rs"
 [[bench]]
 name = "agent_benchmarks"
 harness = false
+
+[lints.clippy]
+all = "warn"
+pedantic = "warn"
+assigning_clones = "allow"
+bool_to_int_with_if = "allow"
+case_sensitive_file_extension_comparisons = "allow"
+cast_possible_wrap = "allow"
+cast_precision_loss = "allow"
+doc_markdown = "allow"
+field_reassign_with_default = "allow"
+float_cmp = "allow"
+implicit_clone = "allow"
+items_after_statements = "allow"
+map_unwrap_or = "allow"
+manual_let_else = "allow"
+missing_errors_doc = "allow"
+missing_panics_doc = "allow"
+module_name_repetitions = "allow"
+must_use_candidate = "allow"
+needless_pass_by_value = "allow"
+needless_raw_string_hashes = "allow"
+new_without_default = "allow"
+redundant_closure_for_method_calls = "allow"
+return_self_not_must_use = "allow"
+similar_names = "allow"
+single_match_else = "allow"
+struct_field_names = "allow"
+too_many_lines = "allow"
+uninlined_format_args = "allow"
+unnecessary_cast = "allow"
+unnecessary_lazy_evaluations = "allow"
+unnecessary_literal_bound = "allow"
+unnecessary_map_or = "allow"
+unnecessary_wraps = "allow"
+unused_self = "allow"
+
+[lints.rust]
+unsafe_code = "forbid"

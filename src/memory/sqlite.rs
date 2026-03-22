@@ -27,6 +27,7 @@ const SQLITE_OPEN_TIMEOUT_CAP_SECS: u64 = 300;
 /// - **Safe Reindex**: temp DB → seed → sync → atomic swap → rollback
 pub struct SqliteMemory {
     conn: Arc<Mutex<Connection>>,
+    #[allow(dead_code)] // retained for diagnostics/debugging
     db_path: PathBuf,
     embedder: Arc<dyn EmbeddingProvider>,
     vector_weight: f32,

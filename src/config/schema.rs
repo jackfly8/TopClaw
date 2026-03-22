@@ -19,7 +19,6 @@ use crate::config::DelegateAgentConfig;
 use crate::config::EmbeddingRouteConfig;
 use crate::config::EstopConfig;
 use crate::config::GatewayConfig;
-use crate::config::GoalLoopConfig;
 use crate::config::HardwareConfig;
 use crate::config::HeartbeatConfig;
 use crate::config::HooksConfig;
@@ -42,7 +41,6 @@ use crate::config::RuntimeConfig;
 use crate::config::SandboxConfig;
 use crate::config::SchedulerConfig;
 use crate::config::SecretsConfig;
-use crate::config::SelfImprovementConfig;
 use crate::config::SkillsConfig;
 use crate::config::StorageProviderSection;
 use crate::config::TranscriptionConfig;
@@ -230,14 +228,6 @@ pub struct Config {
     /// Cron job configuration (`[cron]`).
     #[serde(default)]
     pub cron: CronConfig,
-
-    /// Stub — self-improvement subsystem has been removed.
-    #[serde(default)]
-    pub self_improvement: SelfImprovementConfig,
-
-    /// Stub — goal loop subsystem has been removed.
-    #[serde(default)]
-    pub goal_loop: GoalLoopConfig,
 
     /// Channel configurations: Telegram, Discord, Slack, etc. (`[channels_config]`).
     #[serde(default)]
@@ -1517,8 +1507,7 @@ impl Default for Config {
             embedding_routes: Vec::new(),
             heartbeat: HeartbeatConfig::default(),
             cron: CronConfig::default(),
-            self_improvement: SelfImprovementConfig::default(),
-            goal_loop: GoalLoopConfig::default(),
+
             identity: IdentityConfig::default(),
             channels_config: ChannelsConfig::default(),
             memory: MemoryConfig::default(),
@@ -2730,8 +2719,7 @@ default_temperature = 0.7
                 to: Some("123456".into()),
             },
             cron: CronConfig::default(),
-            self_improvement: SelfImprovementConfig::default(),
-            goal_loop: GoalLoopConfig::default(),
+
             identity: IdentityConfig::default(),
 
             channels_config: ChannelsConfig {
@@ -3099,8 +3087,7 @@ tool_dispatcher = "xml"
             query_classification: QueryClassificationConfig::default(),
             heartbeat: HeartbeatConfig::default(),
             cron: CronConfig::default(),
-            self_improvement: SelfImprovementConfig::default(),
-            goal_loop: GoalLoopConfig::default(),
+
             identity: IdentityConfig::default(),
             channels_config: ChannelsConfig::default(),
             memory: MemoryConfig::default(),

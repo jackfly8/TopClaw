@@ -22,7 +22,6 @@ pub mod delegate_agent;
 pub mod embedding_route;
 pub mod estop;
 pub mod gateway;
-pub mod goal_loop;
 pub mod hardware;
 pub mod heartbeat;
 pub mod hooks;
@@ -44,7 +43,6 @@ pub mod sandbox;
 pub mod scheduler;
 pub mod schema;
 pub mod secrets;
-pub mod self_improvement;
 pub mod skills;
 pub mod storage_provider;
 pub mod traits;
@@ -53,106 +51,62 @@ pub mod tunnel;
 pub mod web_tools;
 pub mod workspaces;
 
-#[allow(unused_imports)]
 pub use agent::AgentConfig;
-#[allow(unused_imports)]
 pub use agents_ipc::AgentsIpcConfig;
-#[allow(unused_imports)]
 pub use audit::AuditConfig;
-#[allow(unused_imports)]
 pub use autonomy::{AutonomyConfig, NonCliNaturalLanguageApprovalMode};
-#[allow(unused_imports)]
 pub use bridge::BridgeConfig;
-#[allow(unused_imports)]
 pub use browser::BrowserConfig;
-#[allow(unused_imports)]
 pub use browser_computer_use::BrowserComputerUseConfig;
-#[allow(unused_imports)]
 pub use composio::ComposioConfig;
-#[allow(unused_imports)]
 pub use coordination::CoordinationConfig;
-#[allow(unused_imports)]
 pub use cost::CostConfig;
-#[allow(unused_imports)]
 pub use cron::CronConfig;
-#[allow(unused_imports)]
 pub use delegate_agent::DelegateAgentConfig;
-#[allow(unused_imports)]
 pub use embedding_route::EmbeddingRouteConfig;
-#[allow(unused_imports)]
 pub use estop::EstopConfig;
-#[allow(unused_imports)]
 pub use gateway::{GatewayConfig, NodeControlConfig};
-#[allow(unused_imports)]
-pub use goal_loop::GoalLoopConfig;
-#[allow(unused_imports)]
 pub use hardware::{HardwareConfig, HardwareTransport, PeripheralBoardConfig, PeripheralsConfig};
-#[allow(unused_imports)]
 pub use heartbeat::HeartbeatConfig;
-#[allow(unused_imports)]
 pub use hooks::{BuiltinHooksConfig, HooksConfig};
-#[allow(unused_imports)]
 pub use http_request::HttpRequestConfig;
-#[allow(unused_imports)]
 pub use identity::IdentityConfig;
-#[allow(unused_imports)]
 pub use model_provider::ModelProviderConfig;
-#[allow(unused_imports)]
 pub use model_route::ModelRouteConfig;
-#[allow(unused_imports)]
 pub use multimodal::MultimodalConfig;
-#[allow(unused_imports)]
 pub use observability::ObservabilityConfig;
-#[allow(unused_imports)]
 pub use otp::{OtpConfig, OtpMethod};
-#[allow(unused_imports)]
 pub use provider::ProviderConfig;
-#[allow(unused_imports)]
 pub use proxy::{
     apply_runtime_proxy_to_builder, build_runtime_proxy_client,
     build_runtime_proxy_client_with_timeouts, runtime_proxy_config, set_runtime_proxy_config,
     ProxyConfig, ProxyScope,
 };
-#[allow(unused_imports)]
 pub use query_classification::{ClassificationRule, QueryClassificationConfig};
-#[allow(unused_imports)]
 pub use reliability::ReliabilityConfig;
-#[allow(unused_imports)]
 pub use research::{ResearchPhaseConfig, ResearchTrigger};
-#[allow(unused_imports)]
 pub use resource_limits::ResourceLimitsConfig;
-#[allow(unused_imports)]
 pub use runtime::{
     DockerRuntimeConfig, RuntimeConfig, WasmCapabilityEscalationMode, WasmModuleHashPolicy,
     WasmRuntimeConfig, WasmSecurityConfig,
 };
-#[allow(unused_imports)]
 pub use sandbox::{SandboxBackend, SandboxConfig};
-#[allow(unused_imports)]
 pub use scheduler::SchedulerConfig;
-#[allow(unused_imports)]
 pub use schema::{
     ChannelsConfig, Config, DiscordConfig, FeishuConfig, GroupReplyConfig, GroupReplyMode,
     IMessageConfig, LarkConfig, MatrixConfig, MemoryConfig, NextcloudTalkConfig, QdrantConfig,
     SecurityConfig, SlackConfig, StorageConfig, StreamMode, SyscallAnomalyConfig, TelegramConfig,
     WebhookConfig,
 };
-#[allow(unused_imports)]
 pub use secrets::SecretsConfig;
-#[allow(unused_imports)]
-pub use self_improvement::SelfImprovementConfig;
 pub use skills::{parse_skills_prompt_injection_mode, SkillsConfig, SkillsPromptInjectionMode};
-#[allow(unused_imports)]
 pub use storage_provider::{StorageProviderConfig, StorageProviderSection};
 pub use transcription::TranscriptionConfig;
-#[allow(unused_imports)]
 pub use tunnel::{
     CloudflareTunnelConfig, CustomTunnelConfig, NgrokTunnelConfig, TailscaleTunnelConfig,
     TunnelConfig,
 };
-#[allow(unused_imports)]
 pub use web_tools::{WebFetchConfig, WebSearchConfig};
-#[allow(unused_imports)]
 pub use workspaces::WorkspacesConfig;
 
 pub fn name_and_presence<T: traits::ChannelConfig>(channel: Option<&T>) -> (&'static str, bool) {

@@ -57,14 +57,6 @@ impl GitOperationsTool {
         )
     }
 
-    /// Check if an operation is read-only
-    fn is_read_only(&self, operation: &str) -> bool {
-        matches!(
-            operation,
-            "status" | "diff" | "log" | "show" | "branch" | "rev-parse"
-        )
-    }
-
     async fn run_git_command(&self, args: &[&str]) -> anyhow::Result<String> {
         let output = tokio::process::Command::new("git")
             .args(args)
@@ -673,21 +665,6 @@ mod tests {
 
         // Branch listing is read-only; it must not require write access
         assert!(!tool.requires_write_access("branch"));
-        assert!(tool.is_read_only("branch"));
-    }
-
-    #[test]
-    fn is_read_only_detection() {
-        let tmp = TempDir::new().unwrap();
-        let tool = test_tool(tmp.path());
-
-        assert!(tool.is_read_only("status"));
-        assert!(tool.is_read_only("diff"));
-        assert!(tool.is_read_only("log"));
-        assert!(tool.is_read_only("branch"));
-
-        assert!(!tool.is_read_only("commit"));
-        assert!(!tool.is_read_only("add"));
     }
 
     #[tokio::test]

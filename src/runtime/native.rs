@@ -21,18 +21,6 @@ enum ShellKind {
     Cmd,
 }
 
-impl ShellKind {
-    fn as_str(self) -> &'static str {
-        match self {
-            ShellKind::Sh => "sh",
-            ShellKind::Bash => "bash",
-            ShellKind::Pwsh => "pwsh",
-            ShellKind::PowerShell => "powershell",
-            ShellKind::Cmd => "cmd",
-        }
-    }
-}
-
 impl ShellProgram {
     fn add_shell_args(&self, process: &mut tokio::process::Command, command: &str) {
         match self.kind {
@@ -137,14 +125,6 @@ impl NativeRuntime {
         Self {
             shell: detect_native_shell(),
         }
-    }
-
-    pub(crate) fn selected_shell_kind(&self) -> Option<&'static str> {
-        self.shell.as_ref().map(|shell| shell.kind.as_str())
-    }
-
-    pub(crate) fn selected_shell_program(&self) -> Option<&Path> {
-        self.shell.as_ref().map(|shell| shell.program.as_path())
     }
 
     #[cfg(test)]

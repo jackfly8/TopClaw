@@ -71,10 +71,6 @@ pub async fn run(config: Config, host: String, port: u16) -> Result<()> {
 
     crate::health::mark_component_ok("daemon");
 
-    if let Err(error) = crate::self_improvement::sync_scheduled_job(&config).await {
-        tracing::warn!("Initial self-improvement cron sync failed: {error}");
-    }
-
     if config.heartbeat.enabled {
         let _ =
             crate::heartbeat::engine::HeartbeatEngine::ensure_heartbeat_file(&config.workspace_dir)
@@ -267,10 +263,6 @@ async fn run_heartbeat_worker(config: Config) -> Result<()> {
 
     loop {
         interval.tick().await;
-
-        if let Err(error) = crate::self_improvement::sync_scheduled_job(&config).await {
-            tracing::warn!("Heartbeat self-improvement sync failed: {error}");
-        }
 
         let tasks = engine.due_tasks().await?;
         if tasks.is_empty() {
