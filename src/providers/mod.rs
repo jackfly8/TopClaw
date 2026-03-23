@@ -28,6 +28,7 @@ pub mod ollama;
 pub mod openai;
 pub mod openai_codex;
 pub mod openrouter;
+pub mod registry;
 pub mod reliable;
 pub mod router;
 pub mod telnyx;
@@ -83,8 +84,6 @@ const QWEN_OAUTH_DEFAULT_CLIENT_ID: &str = "f0304373b74a44d2b584a3fb70ca9e56";
 const QWEN_OAUTH_CREDENTIAL_FILE: &str = ".qwen/oauth_creds.json";
 const ZAI_GLOBAL_BASE_URL: &str = "https://api.z.ai/api/coding/paas/v4";
 const ZAI_CN_BASE_URL: &str = "https://open.bigmodel.cn/api/coding/paas/v4";
-const VERCEL_AI_GATEWAY_BASE_URL: &str = "https://ai-gateway.vercel.sh/v1";
-const LITELLM_BASE_URL: &str = "http://localhost:4000/v1";
 
 #[derive(Clone, Copy, Debug)]
 enum MinimaxOauthRegion {
@@ -780,15 +779,6 @@ fn resolve_provider_credential(name: &str, credential_override: Option<&str>) ->
         "openrouter" => vec!["OPENROUTER_API_KEY"],
         "openai" => vec!["OPENAI_API_KEY"],
         "ollama" => vec!["OLLAMA_API_KEY"],
-        "venice" => vec!["VENICE_API_KEY"],
-        "groq" => vec!["GROQ_API_KEY"],
-        "mistral" => vec!["MISTRAL_API_KEY"],
-        "deepseek" => vec!["DEEPSEEK_API_KEY"],
-        "xai" | "grok" => vec!["XAI_API_KEY"],
-        "together" | "together-ai" => vec!["TOGETHER_API_KEY"],
-        "fireworks" | "fireworks-ai" => vec!["FIREWORKS_API_KEY"],
-        "perplexity" => vec!["PERPLEXITY_API_KEY"],
-        "cohere" => vec!["COHERE_API_KEY"],
         name if is_moonshot_alias(name) => vec!["MOONSHOT_API_KEY"],
         "kimi-code" | "kimi_coding" | "kimi_for_coding" => {
             vec!["KIMI_CODE_API_KEY", "MOONSHOT_API_KEY"]
@@ -798,25 +788,20 @@ fn resolve_provider_credential(name: &str, credential_override: Option<&str>) ->
         // Bedrock uses AWS AKSK from env vars (AWS_ACCESS_KEY_ID + AWS_SECRET_ACCESS_KEY),
         // not a single API key. Credential resolution happens inside BedrockProvider.
         "bedrock" | "aws-bedrock" => return None,
-        "hunyuan" | "tencent" => vec!["HUNYUAN_API_KEY"],
         name if is_qianfan_alias(name) => vec!["QIANFAN_API_KEY"],
         name if is_doubao_alias(name) => vec!["ARK_API_KEY", "DOUBAO_API_KEY"],
         name if is_qwen_alias(name) => vec!["DASHSCOPE_API_KEY"],
         name if is_zai_alias(name) => vec!["ZAI_API_KEY"],
-        "nvidia" | "nvidia-nim" | "build.nvidia.com" => vec!["NVIDIA_API_KEY"],
-        "synthetic" => vec!["SYNTHETIC_API_KEY"],
-        "opencode" | "opencode-zen" => vec!["OPENCODE_API_KEY"],
-        "vercel" | "vercel-ai" => vec!["VERCEL_API_KEY"],
-        "cloudflare" | "cloudflare-ai" => vec!["CLOUDFLARE_API_KEY"],
         "ovhcloud" | "ovh" => vec!["OVH_AI_ENDPOINTS_ACCESS_TOKEN"],
-        "astrai" => vec!["ASTRAI_API_KEY"],
-        "llamacpp" | "llama.cpp" => vec!["LLAMACPP_API_KEY"],
-        "sglang" => vec!["SGLANG_API_KEY"],
-        "vllm" => vec!["VLLM_API_KEY"],
-        "litellm" | "lite-llm" => vec!["LITELLM_API_KEY"],
-        "osaurus" => vec!["OSAURUS_API_KEY"],
         "telnyx" => vec!["TELNYX_API_KEY"],
-        _ => vec![],
+        _ => {
+            // Fall back to registry-defined env key names.
+            if let Some(entry) = registry::lookup(name) {
+                entry.env_key_names.to_vec()
+            } else {
+                vec![]
+            }
+        }
     };
 
     for env_var in provider_env_candidates {
@@ -899,20 +884,6 @@ pub fn create_provider_with_url(
     api_url: Option<&str>,
 ) -> anyhow::Result<Box<dyn Provider>> {
     create_provider_with_url_and_options(name, api_key, api_url, &ProviderRuntimeOptions::default())
-}
-
-fn resolve_lmstudio_connection(api_url: Option<&str>, key: Option<&str>) -> (String, String) {
-    let base_url = api_url
-        .map(str::trim)
-        .filter(|value| !value.is_empty())
-        .unwrap_or("http://localhost:1234/v1")
-        .to_string();
-    let lm_studio_key = key
-        .map(str::trim)
-        .filter(|value| !value.is_empty())
-        .unwrap_or("lm-studio")
-        .to_string();
-    (base_url, lm_studio_key)
 }
 
 /// Factory: create provider with optional base URL and runtime options.
@@ -1004,22 +975,7 @@ fn create_provider_with_url_and_options(
         }
         "telnyx" => Ok(Box::new(telnyx::TelnyxProvider::new(key))),
 
-        // ── OpenAI-compatible providers ──────────────────────
-        "venice" => Ok(Box::new(OpenAiCompatibleProvider::new(
-            "Venice", "https://api.venice.ai", key, AuthStyle::Bearer,
-        ))),
-        "vercel" | "vercel-ai" => Ok(Box::new(OpenAiCompatibleProvider::new(
-            "Vercel AI Gateway",
-            VERCEL_AI_GATEWAY_BASE_URL,
-            key,
-            AuthStyle::Bearer,
-        ))),
-        "cloudflare" | "cloudflare-ai" => Ok(Box::new(OpenAiCompatibleProvider::new(
-            "Cloudflare AI Gateway",
-            "https://gateway.ai.cloudflare.com/v1",
-            key,
-            AuthStyle::Bearer,
-        ))),
+        // ── OpenAI-compatible providers (non-registry) ──────
         name if moonshot_base_url(name).is_some() => Ok(Box::new(OpenAiCompatibleProvider::new(
             "Moonshot",
             moonshot_base_url(name).expect("checked in guard"),
@@ -1035,12 +991,6 @@ fn create_provider_with_url_and_options(
                 "KimiCLI/0.77",
             ),
         )),
-        "synthetic" => Ok(Box::new(OpenAiCompatibleProvider::new(
-            "Synthetic", "https://api.synthetic.new/openai/v1", key, AuthStyle::Bearer,
-        ))),
-        "opencode" | "opencode-zen" => Ok(Box::new(OpenAiCompatibleProvider::new(
-            "OpenCode Zen", "https://opencode.ai/zen/v1", key, AuthStyle::Bearer,
-        ))),
         name if zai_base_url(name).is_some() => Ok(Box::new(OpenAiCompatibleProvider::new(
             "Z.AI",
             zai_base_url(name).expect("checked in guard"),
@@ -1082,12 +1032,6 @@ fn create_provider_with_url_and_options(
                 true,
             )))
         }
-        "hunyuan" | "tencent" => Ok(Box::new(OpenAiCompatibleProvider::new(
-            "Hunyuan",
-            "https://api.hunyuan.cloud.tencent.com/v1",
-            key,
-            AuthStyle::Bearer,
-        ))),
         name if is_qianfan_alias(name) => Ok(Box::new(OpenAiCompatibleProvider::new(
             "Qianfan", "https://aip.baidubce.com", key, AuthStyle::Bearer,
         ))),
@@ -1105,122 +1049,7 @@ fn create_provider_with_url_and_options(
             true,
         ))),
 
-        // ── Extended ecosystem (community favorites) ─────────
-        "groq" => Ok(Box::new(OpenAiCompatibleProvider::new(
-            "Groq", "https://api.groq.com/openai/v1", key, AuthStyle::Bearer,
-        ))),
-        "mistral" => Ok(Box::new(OpenAiCompatibleProvider::new(
-            "Mistral", "https://api.mistral.ai/v1", key, AuthStyle::Bearer,
-        ))),
-        "xai" | "grok" => Ok(Box::new(OpenAiCompatibleProvider::new(
-            "xAI", "https://api.x.ai", key, AuthStyle::Bearer,
-        ))),
-        "deepseek" => Ok(Box::new(OpenAiCompatibleProvider::new(
-            "DeepSeek", "https://api.deepseek.com", key, AuthStyle::Bearer,
-        ))),
-        "together" | "together-ai" => Ok(Box::new(OpenAiCompatibleProvider::new(
-            "Together AI", "https://api.together.xyz", key, AuthStyle::Bearer,
-        ))),
-        "fireworks" | "fireworks-ai" => Ok(Box::new(OpenAiCompatibleProvider::new(
-            "Fireworks AI", "https://api.fireworks.ai/inference/v1", key, AuthStyle::Bearer,
-        ))),
-        "perplexity" => Ok(Box::new(OpenAiCompatibleProvider::new(
-            "Perplexity", "https://api.perplexity.ai", key, AuthStyle::Bearer,
-        ))),
-        "cohere" => Ok(Box::new(OpenAiCompatibleProvider::new(
-            "Cohere", "https://api.cohere.com/compatibility", key, AuthStyle::Bearer,
-        ))),
         "copilot" | "github-copilot" => Ok(Box::new(copilot::CopilotProvider::new(key))),
-        "lmstudio" | "lm-studio" => {
-            let (base_url, lm_studio_key) = resolve_lmstudio_connection(api_url, key);
-            Ok(Box::new(OpenAiCompatibleProvider::new(
-                "LM Studio",
-                &base_url,
-                Some(&lm_studio_key),
-                AuthStyle::Bearer,
-            )))
-        }
-        "llamacpp" | "llama.cpp" => {
-            let base_url = api_url
-                .map(str::trim)
-                .filter(|value| !value.is_empty())
-                .unwrap_or("http://localhost:8080/v1");
-            let llama_cpp_key = key
-                .map(str::trim)
-                .filter(|value| !value.is_empty())
-                .unwrap_or("llama.cpp");
-            Ok(Box::new(OpenAiCompatibleProvider::new(
-                "llama.cpp",
-                base_url,
-                Some(llama_cpp_key),
-                AuthStyle::Bearer,
-            )))
-        }
-        "sglang" => {
-            let base_url = api_url
-                .map(str::trim)
-                .filter(|value| !value.is_empty())
-                .unwrap_or("http://localhost:30000/v1");
-            Ok(Box::new(OpenAiCompatibleProvider::new(
-                "SGLang",
-                base_url,
-                key,
-                AuthStyle::Bearer,
-            )))
-        }
-        "vllm" => {
-            let base_url = api_url
-                .map(str::trim)
-                .filter(|value| !value.is_empty())
-                .unwrap_or("http://localhost:8000/v1");
-            Ok(Box::new(OpenAiCompatibleProvider::new(
-                "vLLM",
-                base_url,
-                key,
-                AuthStyle::Bearer,
-            )))
-        }
-        "litellm" | "lite-llm" => {
-            let base_url = api_url
-                .map(str::trim)
-                .filter(|value| !value.is_empty())
-                .unwrap_or(LITELLM_BASE_URL);
-            Ok(Box::new(OpenAiCompatibleProvider::new(
-                "LiteLLM",
-                base_url,
-                key,
-                AuthStyle::Bearer,
-            )))
-        }
-        "osaurus" => {
-            let base_url = api_url
-                .map(str::trim)
-                .filter(|value| !value.is_empty())
-                .unwrap_or("http://localhost:1337/v1");
-            let osaurus_key = key
-                .map(str::trim)
-                .filter(|value| !value.is_empty())
-                .unwrap_or("osaurus");
-            Ok(Box::new(OpenAiCompatibleProvider::new(
-                "Osaurus",
-                base_url,
-                Some(osaurus_key),
-                AuthStyle::Bearer,
-            )))
-        }
-        "nvidia" | "nvidia-nim" | "build.nvidia.com" => Ok(Box::new(
-            OpenAiCompatibleProvider::new_no_responses_fallback(
-                "NVIDIA NIM",
-                "https://integrate.api.nvidia.com/v1",
-                key,
-                AuthStyle::Bearer,
-            ),
-        )),
-
-        // ── AI inference routers ─────────────────────────────
-        "astrai" => Ok(Box::new(OpenAiCompatibleProvider::new(
-            "Astrai", "https://as-trai.com/v1", key, AuthStyle::Bearer,
-        ))),
 
         // ── Cloud AI endpoints ───────────────────────────────
         "ovhcloud" | "ovh" => Ok(Box::new(openai::OpenAiProvider::with_base_url(
@@ -1261,6 +1090,34 @@ fn create_provider_with_url_and_options(
             Ok(Box::new(anthropic::AnthropicProvider::with_base_url(
                 key,
                 Some(&base_url),
+            )))
+        }
+
+        // ── Registry lookup for OpenAI-compatible providers ──
+        _ if registry::lookup(name).is_some() => {
+            let entry = registry::lookup(name).unwrap();
+            let effective_url = if entry.is_local {
+                api_url
+                    .map(str::trim)
+                    .filter(|v| !v.is_empty())
+                    .unwrap_or(entry.base_url)
+            } else {
+                entry.base_url
+            };
+            let effective_key = if entry.is_local {
+                key.or(entry.default_key)
+            } else {
+                key
+            };
+            Ok(Box::new(OpenAiCompatibleProvider::new_with_options_public(
+                entry.display_name,
+                effective_url,
+                effective_key,
+                entry.auth_style.clone(),
+                entry.supports_vision,
+                entry.supports_responses_fallback,
+                entry.user_agent,
+                entry.merge_system_into_user,
             )))
         }
 
@@ -2113,10 +1970,8 @@ mod tests {
 
     #[test]
     fn vercel_gateway_base_url_matches_public_gateway_endpoint() {
-        assert_eq!(
-            VERCEL_AI_GATEWAY_BASE_URL,
-            "https://ai-gateway.vercel.sh/v1"
-        );
+        let entry = registry::lookup("vercel").expect("vercel in registry");
+        assert_eq!(entry.base_url, "https://ai-gateway.vercel.sh/v1");
     }
 
     #[test]
@@ -2260,18 +2115,11 @@ mod tests {
     }
 
     #[test]
-    fn lmstudio_connection_prefers_custom_base_url() {
-        let (base_url, key) =
-            resolve_lmstudio_connection(Some("http://10.0.0.15:1234/v1"), Some("custom-key"));
-        assert_eq!(base_url, "http://10.0.0.15:1234/v1");
-        assert_eq!(key, "custom-key");
-    }
-
-    #[test]
-    fn lmstudio_connection_uses_safe_defaults_when_unset() {
-        let (base_url, key) = resolve_lmstudio_connection(Some("   "), None);
-        assert_eq!(base_url, "http://localhost:1234/v1");
-        assert_eq!(key, "lm-studio");
+    fn lmstudio_registry_defaults() {
+        let entry = registry::lookup("lmstudio").expect("lmstudio in registry");
+        assert_eq!(entry.base_url, "http://localhost:1234/v1");
+        assert_eq!(entry.default_key, Some("lm-studio"));
+        assert!(entry.is_local);
     }
 
     #[test]

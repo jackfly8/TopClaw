@@ -230,6 +230,31 @@ impl OpenAiCompatibleProvider {
         )
     }
 
+    /// Public constructor for use by the provider registry.
+    pub fn new_with_options_public(
+        name: &str,
+        base_url: &str,
+        credential: Option<&str>,
+        auth_style: AuthStyle,
+        supports_vision: bool,
+        supports_responses_fallback: bool,
+        user_agent: Option<&str>,
+        merge_system_into_user: bool,
+    ) -> Self {
+        Self::new_with_options(
+            name,
+            base_url,
+            credential,
+            auth_style,
+            supports_vision,
+            supports_responses_fallback,
+            user_agent,
+            merge_system_into_user,
+            CompatibleApiMode::OpenAiChatCompletions,
+            None,
+        )
+    }
+
     fn new_with_options(
         name: &str,
         base_url: &str,
