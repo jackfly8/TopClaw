@@ -160,11 +160,12 @@ impl Tool for ShellTool {
         let effective_command = self.security.apply_shell_redirect_policy(&command);
         let temporary_allowlist = vec![command.clone()];
 
-        self.security.validate_command_execution_with_temporary_allowlist(
-            &command,
-            true,
-            &temporary_allowlist,
-        )?;
+        self.security
+            .validate_command_execution_with_temporary_allowlist(
+                &command,
+                true,
+                &temporary_allowlist,
+            )?;
         self.runtime
             .build_shell_command(&effective_command, &self.security.workspace_dir)
             .map(|_| ())
@@ -189,11 +190,13 @@ impl Tool for ShellTool {
 
         // validate_command_execution already applies redirect policy internally,
         // checks the allowlist, forbidden paths, and risk classification.
-        match self.security.validate_command_execution_with_temporary_allowlist(
-            &command,
-            approved,
-            &temporary_allowed_commands,
-        ) {
+        match self
+            .security
+            .validate_command_execution_with_temporary_allowlist(
+                &command,
+                approved,
+                &temporary_allowed_commands,
+            ) {
             Ok(_) => {}
             Err(reason) => {
                 return Ok(ToolResult {
@@ -509,7 +512,9 @@ mod tests {
             Arc::new(ApprovalPrecheckRuntime { build_error: None }),
         );
 
-        assert!(tool.approval_precheck(&json!({"command": "git status"})).is_ok());
+        assert!(tool
+            .approval_precheck(&json!({"command": "git status"}))
+            .is_ok());
     }
 
     #[test]
@@ -953,7 +958,10 @@ mod tests {
             .await
             .expect("temporarily approved command should return a result");
         assert!(result.success);
-        assert!(workspace.path().join("topclaw_shell_plan_approval_test").exists());
+        assert!(workspace
+            .path()
+            .join("topclaw_shell_plan_approval_test")
+            .exists());
     }
 
     #[tokio::test]

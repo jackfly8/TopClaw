@@ -22,6 +22,7 @@ const TELEGRAM_ACK_REACTIONS: &[&str] = &["⚡️", "👌", "👀", "🔥", "�
 const TELEGRAM_STARTUP_PROBE_RETRY_SECS: u64 = 5;
 const TELEGRAM_STARTUP_PROBE_MAX_409_RETRIES: u32 = 6;
 const TELEGRAM_NATIVE_DRAFT_PREFIX: &str = "telegram-draft:";
+const TELEGRAM_INBOUND_COMMAND_DEDUPE_WINDOW: Duration = Duration::from_secs(2);
 
 /// Metadata for an incoming document or photo attachment.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -469,6 +470,7 @@ pub struct TelegramChannel {
     api_base: String,
     transcription: Option<crate::config::TranscriptionConfig>,
     voice_transcriptions: Mutex<std::collections::HashMap<String, String>>,
+    recent_inbound_commands: Mutex<std::collections::HashMap<String, std::time::Instant>>,
     workspace_dir: Option<std::path::PathBuf>,
 }
 
@@ -502,6 +504,7 @@ impl TelegramChannel {
             api_base: "https://api.telegram.org".to_string(),
             transcription: None,
             voice_transcriptions: Mutex::new(std::collections::HashMap::new()),
+            recent_inbound_commands: Mutex::new(std::collections::HashMap::new()),
             workspace_dir: None,
         }
     }
@@ -1867,6 +1870,45 @@ Allowlist Telegram username (without '@') or numeric user ID.",
                 .as_secs(),
             thread_ts: thread_id,
         })
+    }
+
+    fn build_inbound_command_dedupe_key(
+        update: &serde_json::Value,
+        msg: &ChannelMessage,
+    ) -> Option<String> {
+        let text = update
+            .get("message")?
+            .get("text")
+            .and_then(serde_json::Value::as_str)?
+            .trim();
+        if !Self::is_dedupable_inbound_command(text) {
+            return None;
+        }
+
+        Some(format!("{}|{}|{}", msg.reply_target, msg.sender, text))
+    }
+
+    fn is_dedupable_inbound_command(text: &str) -> bool {
+        let trimmed = text.trim();
+        trimmed.starts_with('/') && trimmed.len() > 1
+    }
+
+    fn should_drop_duplicate_inbound_command(&self, dedupe_key: &str) -> bool {
+        let now = std::time::Instant::now();
+        let stale_before = now
+            .checked_sub(TELEGRAM_INBOUND_COMMAND_DEDUPE_WINDOW)
+            .unwrap_or(now);
+        let mut recent_commands = self.recent_inbound_commands.lock();
+        recent_commands.retain(|_, seen_at| *seen_at >= stale_before);
+
+        if recent_commands.get(dedupe_key).is_some_and(|seen_at| {
+            now.duration_since(*seen_at) <= TELEGRAM_INBOUND_COMMAND_DEDUPE_WINDOW
+        }) {
+            return true;
+        }
+
+        recent_commands.insert(dedupe_key.to_string(), now);
+        false
     }
 
     /// Convert Markdown to Telegram HTML format.
@@ -3346,6 +3388,18 @@ impl Channel for TelegramChannel {
                         continue;
                     };
 
+                    if let Some(dedupe_key) = Self::build_inbound_command_dedupe_key(update, &msg) {
+                        if self.should_drop_duplicate_inbound_command(&dedupe_key) {
+                            tracing::info!(
+                                sender = %msg.sender,
+                                reply_target = %msg.reply_target,
+                                command = %msg.content.trim(),
+                                "Dropping duplicate inbound Telegram slash command"
+                            );
+                            continue;
+                        }
+                    }
+
                     if let Some((reaction_chat_id, reaction_message_id)) =
                         Self::extract_update_message_target(update)
                     {
@@ -4120,6 +4174,96 @@ mod tests {
         assert_eq!(msg.reply_target, "-100200300:789");
         assert_eq!(msg.content, "hello from topic");
         assert_eq!(msg.id, "telegram_-100200300_42");
+    }
+
+    #[test]
+    fn build_inbound_command_dedupe_key_only_tracks_slash_commands() {
+        let ch = TelegramChannel::new("token".into(), vec!["*".into()], false);
+        let command_update = serde_json::json!({
+            "update_id": 4,
+            "message": {
+                "message_id": 43,
+                "text": "/start",
+                "from": {
+                    "id": 555,
+                    "username": "alice"
+                },
+                "chat": {
+                    "id": 12345
+                }
+            }
+        });
+        let command_msg = ch
+            .parse_update_message(&command_update)
+            .expect("command message should parse");
+        assert_eq!(
+            TelegramChannel::build_inbound_command_dedupe_key(&command_update, &command_msg),
+            Some("12345|alice|/start".to_string())
+        );
+
+        let plain_update = serde_json::json!({
+            "update_id": 5,
+            "message": {
+                "message_id": 44,
+                "text": "hello",
+                "from": {
+                    "id": 555,
+                    "username": "alice"
+                },
+                "chat": {
+                    "id": 12345
+                }
+            }
+        });
+        let plain_msg = ch
+            .parse_update_message(&plain_update)
+            .expect("plain message should parse");
+        assert_eq!(
+            TelegramChannel::build_inbound_command_dedupe_key(&plain_update, &plain_msg),
+            None
+        );
+    }
+
+    #[test]
+    fn duplicate_inbound_command_guard_drops_second_identical_slash_command() {
+        let ch = TelegramChannel::new("token".into(), vec!["*".into()], false);
+        let update = serde_json::json!({
+            "update_id": 6,
+            "message": {
+                "message_id": 45,
+                "text": "/start",
+                "from": {
+                    "id": 555,
+                    "username": "alice"
+                },
+                "chat": {
+                    "id": 12345
+                }
+            }
+        });
+        let msg = ch
+            .parse_update_message(&update)
+            .expect("command message should parse");
+        let dedupe_key = TelegramChannel::build_inbound_command_dedupe_key(&update, &msg)
+            .expect("slash command should be dedupable");
+
+        assert!(!ch.should_drop_duplicate_inbound_command(&dedupe_key));
+        assert!(ch.should_drop_duplicate_inbound_command(&dedupe_key));
+    }
+
+    #[test]
+    fn duplicate_inbound_command_guard_expires_stale_entries() {
+        let ch = TelegramChannel::new("token".into(), vec!["*".into()], false);
+        let dedupe_key = "12345|alice|/start";
+        let stale_seen_at = std::time::Instant::now()
+            .checked_sub(TELEGRAM_INBOUND_COMMAND_DEDUPE_WINDOW + Duration::from_millis(1))
+            .expect("stale instant should exist");
+        ch.recent_inbound_commands
+            .lock()
+            .insert(dedupe_key.to_string(), stale_seen_at);
+
+        assert!(!ch.should_drop_duplicate_inbound_command(dedupe_key));
+        assert_eq!(ch.recent_inbound_commands.lock().len(), 1);
     }
 
     #[test]

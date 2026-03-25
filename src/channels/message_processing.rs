@@ -238,6 +238,35 @@ pub(super) async fn process_channel_message_with_options(
     // Try classification first, fall back to sender/default route
     let route = classify_message_route(ctx.as_ref(), &msg.content)
         .unwrap_or_else(|| get_route_selection(ctx.as_ref(), &history_key));
+    if let Some(local_response) = build_local_capability_response(
+        &msg.content,
+        ctx.system_prompt.as_str(),
+        &route.provider,
+        &route.model,
+    ) {
+        runtime_trace::record_event(
+            "channel_message_local_capability_response",
+            Some(msg.channel.as_str()),
+            Some(route.provider.as_str()),
+            Some(route.model.as_str()),
+            None,
+            Some(true),
+            Some("answered capability question locally"),
+            serde_json::json!({
+                "sender": msg.sender,
+                "message_id": msg.id,
+            }),
+        );
+        if let Some(channel) = target_channel.as_ref() {
+            let _ = channel
+                .send(
+                    &SendMessage::new(local_response, &msg.reply_target)
+                        .in_thread(msg.thread_ts.clone()),
+                )
+                .await;
+        }
+        return;
+    }
     let runtime_defaults = runtime_defaults_snapshot(ctx.as_ref());
     let active_provider = match get_or_create_provider(ctx.as_ref(), &route.provider).await {
         Ok(provider) => provider,

@@ -1,5 +1,8 @@
 //! Shared helper functions for channel runtime.
 
+use super::capability_detection::{
+    looks_like_current_model_question, looks_like_loaded_skills_question,
+};
 use crate::memory;
 use crate::providers::{self, ChatMessage, Provider};
 use anyhow::Context;
@@ -219,7 +222,88 @@ pub(super) fn format_user_visible_llm_error(channel_name: &str, err: &anyhow::Er
         );
     }
 
+    if lower.contains("model repeatedly deferred action without emitting a tool call") {
+        return "⚠️ I got stuck deciding the next step and did not complete that request. Please try again or phrase it more directly.".to_string();
+    }
+
     format!("⚠️ Error: {safe_error}")
+}
+
+fn extract_loaded_skill_names_from_system_prompt(system_prompt: &str) -> Vec<String> {
+    let Some(section_start) = system_prompt.find("<available_skills>") else {
+        return Vec::new();
+    };
+    let after_start = &system_prompt[section_start + "<available_skills>".len()..];
+    let Some(section_end) = after_start.find("</available_skills>") else {
+        return Vec::new();
+    };
+    let mut remaining = &after_start[..section_end];
+    let mut names = Vec::new();
+
+    while let Some(skill_start) = remaining.find("<skill>") {
+        let after_skill_start = &remaining[skill_start + "<skill>".len()..];
+        let Some(skill_end) = after_skill_start.find("</skill>") else {
+            break;
+        };
+        let skill_block = &after_skill_start[..skill_end];
+        if let Some(name_start) = skill_block.find("<name>") {
+            let after_name_start = &skill_block[name_start + "<name>".len()..];
+            if let Some(name_end) = after_name_start.find("</name>") {
+                let name = after_name_start[..name_end].trim();
+                if !name.is_empty() {
+                    names.push(name.to_string());
+                }
+            }
+        }
+        remaining = &after_skill_start[skill_end + "</skill>".len()..];
+    }
+
+    names.sort();
+    names.dedup();
+    names
+}
+
+pub(super) fn build_local_capability_response(
+    content: &str,
+    system_prompt: &str,
+    provider_name: &str,
+    model_name: &str,
+) -> Option<String> {
+    if looks_like_current_model_question(content) {
+        return Some(format!(
+            "Current provider: `{provider_name}`\nCurrent model: `{model_name}`"
+        ));
+    }
+
+    if looks_like_loaded_skills_question(content) {
+        let skill_names = extract_loaded_skill_names_from_system_prompt(system_prompt);
+        if skill_names.is_empty() {
+            return Some(
+                "No loaded skills are advertised in the current runtime prompt.".to_string(),
+            );
+        }
+
+        let visible = skill_names
+            .iter()
+            .take(8)
+            .map(|name| format!("- `{name}`"))
+            .collect::<Vec<_>>()
+            .join("\n");
+        let remaining = skill_names.len().saturating_sub(8);
+        let suffix = if remaining > 0 {
+            format!("\n- ... {remaining} more")
+        } else {
+            String::new()
+        };
+
+        return Some(format!(
+            "Loaded skills ({}):\n{}{suffix}\n\nAsk for details on any one by name.",
+            skill_names.len(),
+            visible
+        ));
+    }
+
+    None
 }
 
 pub(super) fn is_heartbeat_ok_sentinel(output: &str) -> bool {

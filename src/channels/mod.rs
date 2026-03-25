@@ -2689,9 +2689,6 @@ BTC is currently around $65,000 based on latest tool output."#
         let sent = channel_impl.sent_messages.lock().await;
         assert!(sent
             .iter()
-            .any(|entry| entry.contains("Approved one-time all-tools bypass from request")));
-        assert!(sent
-            .iter()
             .any(|entry| entry
                 .contains("BTC is currently around $65,000 based on latest tool output.")));
     }
@@ -3919,7 +3916,7 @@ BTC is currently around $65,000 based on latest tool output."#
                 id: "msg-provider-error".to_string(),
                 sender: "alice".to_string(),
                 reply_target: "chat-provider-error".to_string(),
-                content: "which skills do you have?".to_string(),
+                content: "tell me something useful".to_string(),
                 channel: "telegram".to_string(),
                 timestamp: 1,
                 thread_ts: None,
@@ -3934,6 +3931,163 @@ BTC is currently around $65,000 based on latest tool output."#
         assert!(!sent_messages[0].contains("All providers/models failed"));
         assert!(!sent_messages[0].contains("provider=openrouter"));
         assert!(!sent_messages[0].contains("attempt 1/3"));
+    }
+
+    #[tokio::test]
+    async fn process_channel_message_answers_model_question_locally() {
+        let channel_impl = Arc::new(TelegramRecordingChannel::default());
+        let channel: Arc<dyn Channel> = channel_impl.clone();
+
+        let mut channels_by_name = HashMap::new();
+        channels_by_name.insert(channel.name().to_string(), channel);
+
+        let provider_impl = Arc::new(ModelCaptureProvider::default());
+        let provider: Arc<dyn Provider> = provider_impl.clone();
+
+        let runtime_ctx = Arc::new(ChannelRuntimeContext {
+            channels_by_name: Arc::new(channels_by_name),
+            provider: Arc::clone(&provider),
+            default_provider: Arc::new("test-provider".to_string()),
+            memory: Arc::new(NoopMemory),
+            tools_registry: Arc::new(vec![]),
+            observer: Arc::new(NoopObserver),
+            system_prompt: Arc::new("test-system-prompt".to_string()),
+            model: Arc::new("default-model".to_string()),
+            temperature: 0.0,
+            auto_save_memory: false,
+            max_tool_iterations: 5,
+            min_relevance_score: 0.0,
+            conversation_histories: Arc::new(Mutex::new(HashMap::new())),
+            provider_cache: Arc::new(Mutex::new(HashMap::new())),
+            route_overrides: Arc::new(Mutex::new(HashMap::from([(
+                "telegram_alice".to_string(),
+                ChannelRouteSelection {
+                    provider: "openrouter".to_string(),
+                    model: "minimax/minimax-m2.7".to_string(),
+                },
+            )]))),
+            api_key: None,
+            api_url: None,
+            reliability: Arc::new(crate::config::ReliabilityConfig::default()),
+            provider_runtime_options: providers::ProviderRuntimeOptions::default(),
+            workspace_dir: Arc::new(std::env::temp_dir()),
+            message_timeout_secs: CHANNEL_MESSAGE_TIMEOUT_SECS,
+            interrupt_on_new_message: false,
+            multimodal: crate::config::MultimodalConfig::default(),
+            hooks: None,
+            non_cli_excluded_tools: Arc::new(Mutex::new(Vec::new())),
+            query_classification: crate::config::QueryClassificationConfig::default(),
+            model_routes: Vec::new(),
+            approval_manager: Arc::new(ApprovalManager::from_config(
+                &autonomy_with_mock_price_auto_approve(),
+            )),
+        });
+
+        Box::pin(process_channel_message(
+            runtime_ctx,
+            traits::ChannelMessage {
+                id: "msg-model-local".to_string(),
+                sender: "alice".to_string(),
+                reply_target: "chat-model-local".to_string(),
+                content: "which model specifically?".to_string(),
+                channel: "telegram".to_string(),
+                timestamp: 1,
+                thread_ts: None,
+            },
+            CancellationToken::new(),
+        ))
+        .await;
+
+        let sent_messages = channel_impl.sent_messages.lock().await;
+        assert_eq!(sent_messages.len(), 1);
+        assert!(sent_messages[0].contains("Current provider: `openrouter`"));
+        assert!(sent_messages[0].contains("Current model: `minimax/minimax-m2.7`"));
+        assert_eq!(provider_impl.call_count.load(Ordering::SeqCst), 0);
+    }
+
+    #[tokio::test]
+    async fn process_channel_message_answers_skills_question_locally() {
+        let channel_impl = Arc::new(TelegramRecordingChannel::default());
+        let channel: Arc<dyn Channel> = channel_impl.clone();
+
+        let mut channels_by_name = HashMap::new();
+        channels_by_name.insert(channel.name().to_string(), channel);
+
+        let provider_impl = Arc::new(ModelCaptureProvider::default());
+        let provider: Arc<dyn Provider> = provider_impl.clone();
+
+        let system_prompt = r#"
+<available_skills>
+  <skill>
+    <name>find-skills</name>
+    <description>Discover installable skills.</description>
+  </skill>
+  <skill>
+    <name>safe-web-search</name>
+    <description>Browse safely.</description>
+    <tools>
+      <tool>
+        <name>web_fetch</name>
+      </tool>
+    </tools>
+  </skill>
+</available_skills>
+"#;
+
+        let runtime_ctx = Arc::new(ChannelRuntimeContext {
+            channels_by_name: Arc::new(channels_by_name),
+            provider: Arc::clone(&provider),
+            default_provider: Arc::new("test-provider".to_string()),
+            memory: Arc::new(NoopMemory),
+            tools_registry: Arc::new(vec![]),
+            observer: Arc::new(NoopObserver),
+            system_prompt: Arc::new(system_prompt.to_string()),
+            model: Arc::new("default-model".to_string()),
+            temperature: 0.0,
+            auto_save_memory: false,
+            max_tool_iterations: 5,
+            min_relevance_score: 0.0,
+            conversation_histories: Arc::new(Mutex::new(HashMap::new())),
+            provider_cache: Arc::new(Mutex::new(HashMap::new())),
+            route_overrides: Arc::new(Mutex::new(HashMap::new())),
+            api_key: None,
+            api_url: None,
+            reliability: Arc::new(crate::config::ReliabilityConfig::default()),
+            provider_runtime_options: providers::ProviderRuntimeOptions::default(),
+            workspace_dir: Arc::new(std::env::temp_dir()),
+            message_timeout_secs: CHANNEL_MESSAGE_TIMEOUT_SECS,
+            interrupt_on_new_message: false,
+            multimodal: crate::config::MultimodalConfig::default(),
+            hooks: None,
+            non_cli_excluded_tools: Arc::new(Mutex::new(Vec::new())),
+            query_classification: crate::config::QueryClassificationConfig::default(),
+            model_routes: Vec::new(),
+            approval_manager: Arc::new(ApprovalManager::from_config(
+                &autonomy_with_mock_price_auto_approve(),
+            )),
+        });
+
+        Box::pin(process_channel_message(
+            runtime_ctx,
+            traits::ChannelMessage {
+                id: "msg-skills-local".to_string(),
+                sender: "alice".to_string(),
+                reply_target: "chat-skills-local".to_string(),
+                content: "which skills do you have?".to_string(),
+                channel: "telegram".to_string(),
+                timestamp: 1,
+                thread_ts: None,
+            },
+            CancellationToken::new(),
+        ))
+        .await;
+
+        let sent_messages = channel_impl.sent_messages.lock().await;
+        assert_eq!(sent_messages.len(), 1);
+        assert!(sent_messages[0].contains("Loaded skills (2):"));
+        assert!(sent_messages[0].contains("`find-skills`"));
+        assert!(sent_messages[0].contains("`safe-web-search`"));
+        assert_eq!(provider_impl.call_count.load(Ordering::SeqCst), 0);
     }
 
     struct NoopMemory;

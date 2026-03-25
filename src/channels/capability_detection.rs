@@ -199,6 +199,64 @@ pub(crate) fn looks_like_file_write_task(user_message: &str) -> bool {
             .any(|hint| trimmed.contains(hint))
 }
 
+pub(crate) fn looks_like_current_model_question(user_message: &str) -> bool {
+    let trimmed = user_message.trim();
+    if trimmed.is_empty() || trimmed.starts_with('/') {
+        return false;
+    }
+
+    let lower = trimmed.to_ascii_lowercase();
+    let english_hints = [
+        "which model",
+        "what model",
+        "current model",
+        "model are you using",
+        "model are you on",
+        "model specifically",
+        "specific model",
+    ];
+    if english_hints.iter().any(|hint| lower.contains(hint)) {
+        return true;
+    }
+
+    let cjk_hints = [
+        "哪个模型",
+        "什么模型",
+        "当前模型",
+        "具体模型",
+        "你在用什么模型",
+    ];
+    cjk_hints.iter().any(|hint| trimmed.contains(hint))
+}
+
+pub(crate) fn looks_like_loaded_skills_question(user_message: &str) -> bool {
+    let trimmed = user_message.trim();
+    if trimmed.is_empty() || trimmed.starts_with('/') {
+        return false;
+    }
+
+    let lower = trimmed.to_ascii_lowercase();
+    let english_hints = [
+        "which skills",
+        "what skills",
+        "skills do you have",
+        "available skills",
+        "loaded skills",
+    ];
+    if english_hints.iter().any(|hint| lower.contains(hint)) {
+        return true;
+    }
+
+    let cjk_hints = [
+        "哪些技能",
+        "什么技能",
+        "你有什么技能",
+        "可用技能",
+        "已加载技能",
+    ];
+    cjk_hints.iter().any(|hint| trimmed.contains(hint))
+}
+
 pub(crate) fn should_try_llm_capability_recovery(user_message: &str) -> bool {
     let trimmed = user_message.trim();
     if trimmed.is_empty() || trimmed.starts_with('/') {

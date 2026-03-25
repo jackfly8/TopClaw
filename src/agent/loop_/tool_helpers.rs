@@ -97,37 +97,44 @@ pub(super) fn build_non_cli_approval_plan_prompt(
         .into_iter()
         .collect::<Vec<_>>();
 
-    let _ = writeln!(
-        details,
-        "This turn proposes {} tool call(s) across {} tool(s).",
-        tool_calls.len(),
-        unique_tools.len()
-    );
-    if !unique_tools.is_empty() {
-        let _ = writeln!(details, "Tools: {}.", unique_tools.join(", "));
-    }
-    details.push_str("Planned calls:\n");
-    for call in tool_calls.iter().take(MAX_NON_CLI_APPROVAL_CALLS_DISPLAY) {
+    if tool_calls.len() == 1 {
+        let call = &tool_calls[0];
         match approval_arg_preview(&call.arguments) {
             Some(preview) => {
-                let _ = writeln!(details, "- `{}`: {}", call.name, preview);
+                let _ = writeln!(details, "Run `{}` with {}.", call.name, preview);
             }
             None => {
-                let _ = writeln!(details, "- `{}`", call.name);
+                let _ = writeln!(details, "Run `{}`.", call.name);
             }
+        }
+    } else {
+        let _ = writeln!(
+            details,
+            "Run {} planned call(s) across {} tool(s): {}.",
+            tool_calls.len(),
+            unique_tools.len(),
+            unique_tools.join(", ")
+        );
+        for call in tool_calls.iter().take(MAX_NON_CLI_APPROVAL_CALLS_DISPLAY) {
+            match approval_arg_preview(&call.arguments) {
+                Some(preview) => {
+                    let _ = writeln!(details, "- `{}`: {}", call.name, preview);
+                }
+                None => {
+                    let _ = writeln!(details, "- `{}`", call.name);
+                }
+            }
+        }
+
+        let hidden_calls = tool_calls
+            .len()
+            .saturating_sub(MAX_NON_CLI_APPROVAL_CALLS_DISPLAY);
+        if hidden_calls > 0 {
+            let _ = writeln!(details, "- ... {hidden_calls} more");
         }
     }
 
-    let hidden_calls = tool_calls
-        .len()
-        .saturating_sub(MAX_NON_CLI_APPROVAL_CALLS_DISPLAY);
-    if hidden_calls > 0 {
-        let _ = writeln!(details, "- ... {hidden_calls} more planned call(s)");
-    }
-
-    details.push_str(
-        "Confirming this request approves the next non-CLI tool-execution turn only. It does not persist. Runtime safety policy still applies.",
-    );
+    details.push_str("Confirm to run this turn only. It will not persist.");
 
     (title, details)
 }
@@ -154,7 +161,11 @@ pub(super) fn collect_planned_shell_commands(tool_calls: &[ParsedToolCall]) -> V
                 call.arguments
                     .get("shell_command")
                     .and_then(serde_json::Value::as_str)
-                    .or_else(|| call.arguments.get("command").and_then(serde_json::Value::as_str))
+                    .or_else(|| {
+                        call.arguments
+                            .get("command")
+                            .and_then(serde_json::Value::as_str)
+                    })
                     .map(str::trim)
                     .filter(|command| !command.is_empty())
                     .map(ToString::to_string)

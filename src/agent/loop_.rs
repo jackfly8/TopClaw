@@ -60,8 +60,8 @@ use parsing::{
 use provider_io::{call_provider_chat, consume_provider_streaming_response};
 use tool_helpers::{
     build_non_cli_approval_plan_prompt, collect_planned_shell_commands,
-    maybe_inject_cron_add_delivery,
-    qualifies_for_non_cli_investigation_batch, truncate_tool_args_for_progress,
+    maybe_inject_cron_add_delivery, qualifies_for_non_cli_investigation_batch,
+    truncate_tool_args_for_progress,
 };
 use utilities::autosave_memory_key;
 

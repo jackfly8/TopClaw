@@ -1041,8 +1041,8 @@ impl SecurityPolicy {
             return false;
         }
 
-        let temporarily_approved = self
-            .command_matches_temporary_allowlist(command, temporary_allowed_commands);
+        let temporarily_approved =
+            self.command_matches_temporary_allowlist(command, temporary_allowed_commands);
 
         // Block subshell/expansion operators — these allow hiding arbitrary
         // commands inside an allowed command (e.g. `echo $(rm -rf /)`) and

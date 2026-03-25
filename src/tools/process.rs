@@ -173,11 +173,14 @@ impl ProcessTool {
             });
         }
 
-        if let Err(reason) = self.security.validate_command_execution_with_temporary_allowlist(
-            command,
-            approved,
-            &temporary_allowed_commands,
-        ) {
+        if let Err(reason) = self
+            .security
+            .validate_command_execution_with_temporary_allowlist(
+                command,
+                approved,
+                &temporary_allowed_commands,
+            )
+        {
             return Ok(ToolResult {
                 success: false,
                 output: String::new(),

@@ -419,14 +419,18 @@ pub(super) async fn handle_runtime_command_if_needed(
                         let tool_name = req.tool_name.clone();
                         let resume_request = req.resume_request.clone();
                         let approval_message = if tool_name == APPROVAL_ALL_TOOLS_ONCE_TOKEN {
-                            let remaining = ctx.approval_manager.grant_non_cli_turn_grant(
+                            let _remaining = ctx.approval_manager.grant_non_cli_turn_grant(
                                 crate::approval::NonCliTurnApprovalGrant {
                                     approved_shell_commands: req.approved_shell_commands.clone(),
                                 },
                             );
-                            format!(
-                                "Approved one-time all-tools bypass from request `{request_id}`.\nApplies to the next non-CLI agent tool-execution turn only.\nThis bypass is runtime-only and does not persist to config.\nChannel exclusions from `autonomy.non_cli_excluded_tools` still apply.\nQueued one-time all-tools bypass tokens: `{remaining}`."
-                            )
+                            if resume_request.is_some() {
+                                String::new()
+                            } else {
+                                format!(
+                                    "Approved one-time all-tools bypass from request `{request_id}`.\nApplies to the next non-CLI agent tool-execution turn only.\nThis bypass is runtime-only and does not persist to config.\nChannel exclusions from `autonomy.non_cli_excluded_tools` still apply."
+                                )
+                            }
                         } else {
                             ctx.approval_manager.grant_non_cli_session(&tool_name);
                             ctx.approval_manager
@@ -666,14 +670,16 @@ pub(super) async fn handle_runtime_command_if_needed(
         }
     };
 
-    if let Err(err) = channel
-        .send(&SendMessage::new(response, &msg.reply_target).in_thread(msg.thread_ts.clone()))
-        .await
-    {
-        tracing::warn!(
-            "Failed to send runtime command response on {}: {err}",
-            channel.name()
-        );
+    if !response.trim().is_empty() {
+        if let Err(err) = channel
+            .send(&SendMessage::new(response, &msg.reply_target).in_thread(msg.thread_ts.clone()))
+            .await
+        {
+            tracing::warn!(
+                "Failed to send runtime command response on {}: {err}",
+                channel.name()
+            );
+        }
     }
 
     if let Some(resume_msg) = auto_resume_message {
