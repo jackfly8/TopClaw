@@ -10,6 +10,27 @@ use tokio_util::sync::CancellationToken;
 fn find_tool<'a>(tools: &'a [Box<dyn Tool>], name: &str) -> Option<&'a dyn Tool> {
     tools.iter().find(|t| t.name() == name).map(|t| t.as_ref())
 }
+
+pub(super) fn blocked_non_cli_approval_plan_reason(
+    tool_calls: &[ParsedToolCall],
+    tools_registry: &[Box<dyn Tool>],
+) -> Option<String> {
+    for call in tool_calls {
+        let Some(tool) = find_tool(tools_registry, &call.name) else {
+            continue;
+        };
+        if let Err(reason) = tool.approval_precheck(&call.arguments) {
+            let reason = scrub_credentials(&reason);
+            return Some(format!(
+                "Approval not requested because the current execution plan includes `{}` that runtime policy would still reject: {}",
+                call.name, reason
+            ));
+        }
+    }
+
+    None
+}
+
 async fn execute_one_tool(
     call_name: &str,
     call_arguments: serde_json::Value,

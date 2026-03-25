@@ -580,8 +580,8 @@ pub(super) async fn process_channel_message_with_options(
                     .send_approval_prompt(
                         &reply_target,
                         &prompt.request_id,
-                        &prompt.display_tool_name,
-                        &prompt.arguments,
+                        &prompt.title,
+                        &prompt.details,
                         thread_ts.clone(),
                     )
                     .await

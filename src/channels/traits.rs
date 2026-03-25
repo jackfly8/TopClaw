@@ -145,19 +145,18 @@ pub trait Channel: Send + Sync {
         &self,
         recipient: &str,
         request_id: &str,
-        tool_name: &str,
-        arguments: &serde_json::Value,
+        title: &str,
+        details: &str,
         thread_ts: Option<String>,
     ) -> anyhow::Result<()> {
-        let raw_args = arguments.to_string();
-        let args_preview = if raw_args.len() > 220 {
-            format!("{}...", &raw_args[..220])
-        } else {
-            raw_args
-        };
-        let message = format!(
-            "Approval required for tool `{tool_name}`.\nRequest ID: `{request_id}`\nArgs: `{args_preview}`\nApprove: `/approve-allow {request_id}`\nDeny: `/approve-deny {request_id}`"
-        );
+        let mut message = format!("{title}\nRequest ID: `{request_id}`");
+        if !details.trim().is_empty() {
+            message.push('\n');
+            message.push_str(details);
+        }
+        message.push_str(&format!(
+            "\nConfirm: `/approve-confirm {request_id}`\nDeny: `/approve-deny {request_id}`"
+        ));
         self.send(&SendMessage::new(message, recipient).in_thread(thread_ts))
             .await
     }

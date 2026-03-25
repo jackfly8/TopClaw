@@ -1503,36 +1503,43 @@ async fn setup_provider_simple(
     config_path: &Path,
     encrypt_secrets: bool,
 ) -> Result<(String, String, String, Option<String>)> {
-    let options = vec![
-        ("openrouter", "OpenRouter"),
-        ("openai-codex", "OpenAI Codex"),
-        ("openai", "OpenAI"),
-        ("anthropic", "Anthropic"),
-        ("gemini", "Google Gemini"),
-        ("deepseek", "DeepSeek"),
-        ("groq", "Groq"),
-        ("ollama", "Ollama (local)"),
-        ("custom", "Custom OpenAI-compatible API"),
-        ("advanced", "More providers and advanced setup"),
-    ];
+    loop {
+        let options = vec![
+            ("openrouter", "OpenRouter"),
+            ("openai-codex", "OpenAI Codex"),
+            ("openai", "OpenAI"),
+            ("anthropic", "Anthropic"),
+            ("gemini", "Google Gemini"),
+            ("deepseek", "DeepSeek"),
+            ("groq", "Groq"),
+            ("ollama", "Ollama (local)"),
+            ("custom", "Custom OpenAI-compatible API"),
+            ("advanced", "More providers and advanced setup"),
+        ];
 
-    let labels: Vec<&str> = options.iter().map(|(_, label)| *label).collect();
-    let provider_idx = Select::new()
-        .with_prompt("  Select your AI provider")
-        .items(&labels)
-        .default(0)
-        .interact()?;
+        let labels: Vec<&str> = options.iter().map(|(_, label)| *label).collect();
+        let provider_idx = Select::new()
+            .with_prompt("  Select your AI provider")
+            .items(&labels)
+            .default(0)
+            .interact()?;
 
-    let choice = options[provider_idx].0;
-    if choice == "advanced" {
-        return setup_provider(workspace_dir, config_path, encrypt_secrets).await;
+        let choice = options[provider_idx].0;
+        if choice == "advanced" {
+            match setup_provider(workspace_dir, config_path, encrypt_secrets).await {
+                Ok(result) => return Ok(result),
+                Err(e) if is_back_navigation(&e) => continue,
+                Err(e) => return Err(e),
+            }
+        }
+
+        if choice == "custom" {
+            return setup_simple_custom_provider(workspace_dir, config_path, encrypt_secrets).await;
+        }
+
+        return setup_simple_named_provider(workspace_dir, config_path, encrypt_secrets, choice)
+            .await;
     }
-
-    if choice == "custom" {
-        return setup_simple_custom_provider(workspace_dir, config_path, encrypt_secrets).await;
-    }
-
-    setup_simple_named_provider(workspace_dir, config_path, encrypt_secrets, choice).await
 }
 
 #[allow(clippy::too_many_lines)]
@@ -1541,60 +1548,82 @@ async fn setup_provider(
     config_path: &Path,
     encrypt_secrets: bool,
 ) -> Result<(String, String, String, Option<String>)> {
-    // ── Tier selection ──
-    let tiers = vec![
+    loop {
+        // ── Tier selection ──
+        let tiers = vec![
         "⭐ Recommended (OpenRouter, Venice, Anthropic, OpenAI, Gemini)",
         "⚡ Fast inference (Groq, Fireworks, Together AI, NVIDIA NIM)",
         "🌐 Gateway / proxy (Vercel AI, Cloudflare AI, Amazon Bedrock)",
         "🔬 Specialized (Moonshot/Kimi, GLM/Zhipu, MiniMax, Qwen/DashScope, Qianfan, Z.AI, Synthetic, OpenCode Zen, Cohere)",
         "🏠 Local / private (Ollama, llama.cpp server, vLLM — no API key needed)",
         "🔧 Custom — bring your own OpenAI-compatible API",
+        "← Back — popular providers",
     ];
 
-    let tier_idx = Select::new()
-        .with_prompt("  Select provider category")
-        .items(&tiers)
-        .default(0)
-        .interact()?;
+        let tier_idx = Select::new()
+            .with_prompt("  Select provider category")
+            .items(&tiers)
+            .default(0)
+            .interact()?;
 
-    let providers = advanced_provider_choices(tier_idx);
+        // "Back" is the last item
+        if tier_idx == tiers.len() - 1 {
+            anyhow::bail!("{BACK_NAVIGATION_SENTINEL}");
+        }
 
-    // ── Custom / BYOP flow ──
-    if providers.is_empty() {
-        return setup_advanced_custom_provider(config_path, encrypt_secrets).await;
-    }
+        let providers = advanced_provider_choices(tier_idx);
 
-    let provider_labels: Vec<&str> = providers.iter().map(|(_, label)| *label).collect();
+        // ── Custom / BYOP flow ──
+        if providers.is_empty() {
+            return setup_advanced_custom_provider(config_path, encrypt_secrets).await;
+        }
 
-    let provider_idx = Select::new()
-        .with_prompt("  Select your AI provider")
-        .items(&provider_labels)
-        .default(0)
-        .interact()?;
+        let mut provider_labels: Vec<&str> = providers.iter().map(|(_, label)| *label).collect();
+        provider_labels.push("← Back — provider categories");
 
-    let provider_name = providers[provider_idx].0;
+        let provider_idx = Select::new()
+            .with_prompt("  Select your AI provider")
+            .items(&provider_labels)
+            .default(0)
+            .interact()?;
 
-    // ── API key / endpoint ──
-    let (api_key, provider_api_url) = prompt_advanced_provider_credentials(provider_name).await?;
+        // "Back" is the last item
+        if provider_idx == providers.len() {
+            continue;
+        }
 
-    // ── Model selection ──
-    let model = prompt_for_default_model(
-        workspace_dir,
-        provider_name,
-        &api_key,
-        provider_api_url.as_deref(),
-    )
-    .await?;
+        let provider_name = providers[provider_idx].0;
 
-    println!(
-        "  {} Provider: {} | Model: {}",
-        style("✓").green().bold(),
-        style(provider_name).green(),
-        style(&model).green()
-    );
+        // ── API key / endpoint ──
+        let (api_key, provider_api_url) =
+            prompt_advanced_provider_credentials(provider_name).await?;
 
-    maybe_prompt_openai_codex_login(provider_name, config_path, encrypt_secrets).await?;
-    Ok((provider_name.to_string(), api_key, model, provider_api_url))
+        // ── Model selection ──
+        let model = prompt_for_default_model(
+            workspace_dir,
+            provider_name,
+            &api_key,
+            provider_api_url.as_deref(),
+        )
+        .await?;
+
+        println!(
+            "  {} Provider: {} | Model: {}",
+            style("✓").green().bold(),
+            style(provider_name).green(),
+            style(&model).green()
+        );
+
+        maybe_prompt_openai_codex_login(provider_name, config_path, encrypt_secrets).await?;
+        return Ok((provider_name.to_string(), api_key, model, provider_api_url));
+    } // loop
+}
+
+/// Sentinel used to signal back-navigation via error propagation.
+const BACK_NAVIGATION_SENTINEL: &str = "__wizard_back_navigation__";
+
+fn is_back_navigation(err: &anyhow::Error) -> bool {
+    err.to_string().contains(BACK_NAVIGATION_SENTINEL)
 }
 
 async fn prompt_for_default_model(

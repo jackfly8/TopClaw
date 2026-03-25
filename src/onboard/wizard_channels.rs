@@ -115,13 +115,20 @@ pub(super) fn default_channel_menu_index(config: &ChannelsConfig) -> usize {
 }
 
 pub(super) fn default_other_channel_menu_index(config: &ChannelsConfig) -> usize {
-    other_channel_menu_choices()
+    let choices = other_channel_menu_choices();
+    choices
         .iter()
         .position(|choice| {
             !matches!(choice, ChannelMenuChoice::Back)
                 && !channel_choice_is_configured(config, *choice)
         })
-        .unwrap_or(0)
+        .unwrap_or_else(|| {
+            // All non-Back options are configured — default to "Back"
+            choices
+                .iter()
+                .position(|choice| matches!(choice, ChannelMenuChoice::Back))
+                .unwrap_or(0)
+        })
 }
 
 pub(super) fn channel_choice_is_configured(

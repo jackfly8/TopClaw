@@ -3067,29 +3067,25 @@ impl Channel for TelegramChannel {
         &self,
         recipient: &str,
         request_id: &str,
-        tool_name: &str,
-        arguments: &serde_json::Value,
+        title: &str,
+        details: &str,
         thread_ts: Option<String>,
     ) -> anyhow::Result<()> {
         let (chat_id, parsed_thread_id) = Self::parse_reply_target(recipient);
         let thread_id = parsed_thread_id.or(thread_ts);
-
-        let raw_args = arguments.to_string();
-        let args_preview = if raw_args.len() > 260 {
-            format!("{}...", &raw_args[..260])
-        } else {
-            raw_args
-        };
+        let mut text = format!("{title}\nRequest ID: `{request_id}`");
+        if !details.trim().is_empty() {
+            text.push('\n');
+            text.push_str(details);
+        }
 
         let mut body = serde_json::json!({
             "chat_id": chat_id,
-            "text": format!(
-                "Approval required for tool `{tool_name}`.\nRequest ID: `{request_id}`\nArgs: `{args_preview}`\nApprove to grant supervised access for this tool, then resend the original request.",
-            ),
+            "text": text,
             "reply_markup": {
                 "inline_keyboard": [[
                     {
-                        "text": "Approve + grant",
+                        "text": "Approve This Turn",
                         "callback_data": format!("{TELEGRAM_APPROVAL_CALLBACK_APPROVE_PREFIX}{request_id}")
                     },
                     {

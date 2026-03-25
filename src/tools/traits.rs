@@ -49,6 +49,16 @@ pub trait Tool: Send + Sync {
     /// failures that should short-circuit normal tool handling.
     async fn execute(&self, args: serde_json::Value) -> anyhow::Result<ToolResult>;
 
+    /// Validate whether this tool call could succeed in principle before
+    /// asking the user for approval.
+    ///
+    /// Default behavior allows the approval flow to continue. Tools with
+    /// stricter runtime policy, such as `shell`, can override this to reject
+    /// requests that would still fail even after approval is granted.
+    fn approval_precheck(&self, _args: &serde_json::Value) -> Result<(), String> {
+        Ok(())
+    }
+
     /// Get the full spec for LLM registration
     fn spec(&self) -> ToolSpec {
         ToolSpec {

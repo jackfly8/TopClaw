@@ -1,5 +1,6 @@
 use crate::agent::wiring;
 use crate::approval::{ApprovalManager, ApprovalRequest, ApprovalResponse};
+use crate::channels::APPROVAL_ALL_TOOLS_ONCE_TOKEN;
 use crate::config::Config;
 use crate::memory::MemoryCategory;
 use crate::multimodal;
@@ -37,8 +38,8 @@ mod utilities;
 
 use context::build_context;
 use execution::{
-    execute_tools_parallel, execute_tools_sequential, should_execute_tools_in_parallel,
-    ToolExecutionOutcome,
+    blocked_non_cli_approval_plan_reason, execute_tools_parallel, execute_tools_sequential,
+    should_execute_tools_in_parallel, ToolExecutionOutcome,
 };
 use guardrails::{
     build_tool_unavailable_retry_prompt, looks_like_tool_unavailability_claim,
@@ -58,8 +59,8 @@ use parsing::{
 };
 use provider_io::{call_provider_chat, consume_provider_streaming_response};
 use tool_helpers::{
-    maybe_inject_cron_add_delivery, qualifies_for_non_cli_investigation_batch,
-    truncate_tool_args_for_progress,
+    build_non_cli_approval_plan_prompt, maybe_inject_cron_add_delivery,
+    qualifies_for_non_cli_investigation_batch, truncate_tool_args_for_progress,
 };
 use utilities::autosave_memory_key;
 
@@ -129,8 +130,8 @@ const MISSING_TOOL_CALL_RETRY_PROMPT: &str = "Internal correction: your last rep
 #[derive(Debug, Clone)]
 pub(crate) struct NonCliApprovalPrompt {
     pub request_id: String,
-    pub display_tool_name: String,
-    pub arguments: serde_json::Value,
+    pub title: String,
+    pub details: String,
 }
 
 #[derive(Debug, Clone)]
@@ -810,6 +811,14 @@ pub(crate) async fn run_tool_call_loop(
         let mut ordered_results: Vec<Option<(String, Option<String>, ToolExecutionOutcome)>> =
             (0..tool_calls.len()).map(|_| None).collect();
         let allow_parallel_execution = should_execute_tools_in_parallel(&tool_calls, approval);
+        let blocked_non_cli_plan_reason = if !bypass_non_cli_approval_for_turn
+            && channel_name != "cli"
+            && non_cli_approval_context.is_some()
+        {
+            blocked_non_cli_approval_plan_reason(&tool_calls, tools_registry)
+        } else {
+            None
+        };
         let mut executable_indices: Vec<usize> = Vec::new();
         let mut executable_calls: Vec<ParsedToolCall> = Vec::new();
 
@@ -917,6 +926,35 @@ pub(crate) async fn run_tool_call_loop(
                             channel_name,
                         );
                     } else if mgr.needs_approval(&tool_name) {
+                        if let Some(blocked_reason) = blocked_non_cli_plan_reason.as_ref() {
+                            runtime_trace::record_event(
+                                "tool_call_result",
+                                Some(channel_name),
+                                Some(provider_name),
+                                Some(model),
+                                Some(&turn_id),
+                                Some(false),
+                                Some(blocked_reason),
+                                serde_json::json!({
+                                    "iteration": iteration + 1,
+                                    "tool": tool_name.clone(),
+                                    "arguments": scrub_credentials(&tool_args.to_string()),
+                                    "approval_prompt_suppressed": true,
+                                    "blocked_execution_plan": true,
+                                }),
+                            );
+                            ordered_results[idx] = Some((
+                                tool_name.clone(),
+                                call.tool_call_id.clone(),
+                                ToolExecutionOutcome {
+                                    output: blocked_reason.clone(),
+                                    success: false,
+                                    error_reason: Some(blocked_reason.clone()),
+                                    duration: Duration::ZERO,
+                                },
+                            ));
+                            continue;
+                        }
                         let request = ApprovalRequest {
                             tool_name: tool_name.clone(),
                             arguments: tool_args.clone(),
@@ -928,17 +966,18 @@ pub(crate) async fn run_tool_call_loop(
                             )
                         } else {
                             Some(
-                                "interactive approval required for supervised non-cli tool execution"
+                                "human confirmation required for the current supervised execution plan"
                                     .to_string(),
                             )
                         };
-                        let display_tool_name = tool_name.clone();
 
                         let decision = if channel_name == "cli" {
                             mgr.prompt_cli(&request)
                         } else if let Some(ctx) = non_cli_approval_context.as_ref() {
+                            let (prompt_title, prompt_details) =
+                                build_non_cli_approval_plan_prompt(&tool_calls);
                             let pending = mgr.create_non_cli_pending_request(
-                                &tool_name,
+                                APPROVAL_ALL_TOOLS_ONCE_TOKEN,
                                 &ctx.sender,
                                 channel_name,
                                 &ctx.reply_target,
@@ -953,13 +992,13 @@ pub(crate) async fn run_tool_call_loop(
 
                             let _ = ctx.prompt_tx.send(NonCliApprovalPrompt {
                                 request_id: pending.request_id.clone(),
-                                display_tool_name,
-                                arguments: tool_args.clone(),
+                                title: prompt_title,
+                                details: prompt_details,
                             });
 
                             return Err(NonCliApprovalPending {
                                 request_id: pending.request_id,
-                                tool_name: tool_name.clone(),
+                                tool_name: "current execution plan".to_string(),
                             }
                             .into());
                         } else {
@@ -2882,12 +2921,17 @@ mod tests {
 
         let pending = is_non_cli_approval_pending(&result)
             .expect("non-cli approval error should be surfaced");
-        assert_eq!(pending.tool_name, "shell");
+        assert_eq!(pending.tool_name, "current execution plan");
         let prompt = prompt_rx
             .recv()
             .await
             .expect("approval prompt should arrive");
-        assert_eq!(prompt.display_tool_name, "shell");
+        assert_eq!(
+            prompt.title,
+            "Approval required for current execution plan."
+        );
+        assert!(prompt.details.contains("`shell`"));
+        assert!(prompt.details.contains("echo hi"));
         assert_eq!(
             max_active.load(Ordering::SeqCst),
             0,
@@ -3089,18 +3133,190 @@ mod tests {
             .recv()
             .await
             .expect("shell approval prompt should arrive after task_plan executes");
-        assert_eq!(first_prompt.display_tool_name, "shell");
+        assert_eq!(
+            first_prompt.title,
+            "Approval required for current execution plan."
+        );
+        assert!(first_prompt.details.contains("`shell`"));
+        assert!(first_prompt.details.contains("echo hi"));
 
         let result = result_task.await.expect("tool loop task should complete");
         let err = result.expect_err("approval should fail fast");
         let pending =
             is_non_cli_approval_pending(&err).expect("pending approval error should be returned");
-        assert_eq!(pending.tool_name, "shell");
+        assert_eq!(pending.tool_name, "current execution plan");
         assert_eq!(task_plan_calls.load(Ordering::SeqCst), 1);
         assert_eq!(shell_calls.load(Ordering::SeqCst), 0);
         assert!(
             prompt_rx.try_recv().is_err(),
             "only the first non-investigation tool should prompt before the user retries"
+        );
+    }
+
+    #[tokio::test]
+    async fn run_tool_call_loop_batches_non_cli_plan_into_single_prompt() {
+        let provider = ScriptedProvider::from_text_responses(vec![
+            r#"<tool_call>
+{"name":"shell","arguments":{"command":"git status"}}
+</tool_call>
+<tool_call>
+{"name":"web_fetch","arguments":{"url":"https://example.com/docs"}}
+</tool_call>"#,
+            "done",
+        ]);
+
+        let shell_calls = Arc::new(AtomicUsize::new(0));
+        let web_calls = Arc::new(AtomicUsize::new(0));
+        let tools_registry: Vec<Box<dyn Tool>> = vec![
+            Box::new(CountingTool::new("shell", Arc::clone(&shell_calls))),
+            Box::new(CountingTool::new("web_fetch", Arc::clone(&web_calls))),
+        ];
+
+        let approval_mgr = Arc::new(ApprovalManager::from_config(
+            &crate::config::AutonomyConfig::default(),
+        ));
+        let (prompt_tx, mut prompt_rx) =
+            tokio::sync::mpsc::unbounded_channel::<NonCliApprovalPrompt>();
+
+        let mut history = vec![
+            ChatMessage::system("test-system"),
+            ChatMessage::user("inspect the docs and the repo state"),
+        ];
+        let observer = NoopObserver;
+
+        let err = run_tool_call_loop_with_non_cli_approval_context(
+            &provider,
+            &mut history,
+            &tools_registry,
+            &observer,
+            "mock-provider",
+            "mock-model",
+            0.0,
+            true,
+            Some(approval_mgr.as_ref()),
+            "telegram",
+            Some(NonCliApprovalContext {
+                sender: "alice".to_string(),
+                reply_target: "chat-batch".to_string(),
+                message_id: "msg-batch".to_string(),
+                content: "inspect the docs and the repo state".to_string(),
+                timestamp: 1,
+                thread_ts: None,
+                prompt_tx,
+            }),
+            &crate::config::MultimodalConfig::default(),
+            4,
+            None,
+            None,
+            None,
+            &[],
+        )
+        .await
+        .expect_err("batched non-cli plan should wait for approval");
+
+        let pending =
+            is_non_cli_approval_pending(&err).expect("pending approval error should be returned");
+        assert_eq!(pending.tool_name, "current execution plan");
+
+        let prompt = prompt_rx
+            .recv()
+            .await
+            .expect("batched approval prompt should arrive");
+        assert_eq!(
+            prompt.title,
+            "Approval required for current execution plan."
+        );
+        assert!(prompt.details.contains("`shell`"));
+        assert!(prompt.details.contains("git status"));
+        assert!(prompt.details.contains("`web_fetch`"));
+        assert!(prompt.details.contains("https://example.com/docs"));
+        assert!(
+            prompt_rx.try_recv().is_err(),
+            "only one approval prompt should be emitted for the current plan"
+        );
+        assert_eq!(shell_calls.load(Ordering::SeqCst), 0);
+        assert_eq!(web_calls.load(Ordering::SeqCst), 0);
+    }
+
+    #[tokio::test]
+    async fn run_tool_call_loop_suppresses_approval_prompt_for_blocked_shell_plan() {
+        let provider = ScriptedProvider::from_text_responses(vec![
+            r#"<tool_call>
+{"name":"shell","arguments":{"command":"git status"}}
+</tool_call>
+<tool_call>
+{"name":"web_fetch","arguments":{"url":"https://example.com/docs"}}
+</tool_call>"#,
+            "done",
+        ]);
+
+        let web_calls = Arc::new(AtomicUsize::new(0));
+        let tools_registry: Vec<Box<dyn Tool>> = vec![
+            Box::new(crate::tools::ShellTool::new(
+                Arc::new(SecurityPolicy {
+                    autonomy: AutonomyLevel::Supervised,
+                    allowed_commands: vec!["echo".into()],
+                    workspace_dir: std::env::temp_dir(),
+                    ..SecurityPolicy::default()
+                }),
+                Arc::new(NativeRuntime::new()),
+            )),
+            Box::new(CountingTool::new("web_fetch", Arc::clone(&web_calls))),
+        ];
+
+        let approval_mgr = Arc::new(ApprovalManager::from_config(
+            &crate::config::AutonomyConfig::default(),
+        ));
+        let (prompt_tx, mut prompt_rx) =
+            tokio::sync::mpsc::unbounded_channel::<NonCliApprovalPrompt>();
+
+        let mut history = vec![
+            ChatMessage::system("test-system"),
+            ChatMessage::user("inspect the repo and docs"),
+        ];
+        let observer = NoopObserver;
+
+        let result = run_tool_call_loop_with_non_cli_approval_context(
+            &provider,
+            &mut history,
+            &tools_registry,
+            &observer,
+            "mock-provider",
+            "mock-model",
+            0.0,
+            true,
+            Some(approval_mgr.as_ref()),
+            "telegram",
+            Some(NonCliApprovalContext {
+                sender: "alice".to_string(),
+                reply_target: "chat-blocked-shell".to_string(),
+                message_id: "msg-blocked-shell".to_string(),
+                content: "inspect the repo and docs".to_string(),
+                timestamp: 1,
+                thread_ts: None,
+                prompt_tx,
+            }),
+            &crate::config::MultimodalConfig::default(),
+            4,
+            None,
+            None,
+            None,
+            &[],
+        )
+        .await
+        .expect("blocked shell plan should continue without approval prompt");
+
+        assert_eq!(result, "done");
+        assert!(
+            prompt_rx.try_recv().is_err(),
+            "blocked shell plans should not emit approval prompts"
+        );
+        assert_eq!(web_calls.load(Ordering::SeqCst), 0);
+        assert!(
+            history.iter().any(|message| message.content.contains(
+                "Approval not requested because the current execution plan includes `shell`"
+            )),
+            "tool results should explain why approval was suppressed"
         );
     }
 

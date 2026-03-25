@@ -1,6 +1,11 @@
+use super::parsing::ParsedToolCall;
 use crate::util::truncate_with_ellipsis;
+use std::collections::BTreeSet;
+use std::fmt::Write;
 
 const AUTO_CRON_DELIVERY_CHANNELS: &[&str] = &["telegram", "discord", "slack", "mattermost"];
+const MAX_NON_CLI_APPROVAL_CALLS_DISPLAY: usize = 6;
+const MAX_NON_CLI_APPROVAL_DETAIL_CHARS: usize = 140;
 
 /// Extract a short hint from tool call arguments for progress display.
 pub(super) fn truncate_tool_args_for_progress(
@@ -37,6 +42,94 @@ pub(super) fn qualifies_for_non_cli_investigation_batch(
         ),
         _ => false,
     }
+}
+
+fn approval_arg_preview(args: &serde_json::Value) -> Option<String> {
+    for (label, key) in [
+        ("command", "command"),
+        ("url", "url"),
+        ("path", "path"),
+        ("operation", "operation"),
+        ("query", "query"),
+        ("action", "action"),
+        ("pattern", "pattern"),
+        ("name", "name"),
+        ("prompt", "prompt"),
+        ("value", "value"),
+    ] {
+        if let Some(value) = args
+            .get(key)
+            .and_then(serde_json::Value::as_str)
+            .map(str::trim)
+            .filter(|value| !value.is_empty())
+        {
+            let compact = value.replace('\n', " ");
+            return Some(format!(
+                "{label}: {}",
+                truncate_with_ellipsis(&compact, MAX_NON_CLI_APPROVAL_DETAIL_CHARS)
+            ));
+        }
+    }
+
+    match args {
+        serde_json::Value::Null => None,
+        serde_json::Value::Object(map) if map.is_empty() => None,
+        _ => {
+            let compact = args.to_string().replace('\n', " ");
+            Some(format!(
+                "args: {}",
+                truncate_with_ellipsis(&compact, MAX_NON_CLI_APPROVAL_DETAIL_CHARS)
+            ))
+        }
+    }
+}
+
+pub(super) fn build_non_cli_approval_plan_prompt(
+    tool_calls: &[ParsedToolCall],
+) -> (String, String) {
+    let title = "Approval required for current execution plan.".to_string();
+    let mut details = String::new();
+
+    let unique_tools = tool_calls
+        .iter()
+        .map(|call| format!("`{}`", call.name))
+        .collect::<BTreeSet<_>>()
+        .into_iter()
+        .collect::<Vec<_>>();
+
+    let _ = writeln!(
+        details,
+        "This turn proposes {} tool call(s) across {} tool(s).",
+        tool_calls.len(),
+        unique_tools.len()
+    );
+    if !unique_tools.is_empty() {
+        let _ = writeln!(details, "Tools: {}.", unique_tools.join(", "));
+    }
+    details.push_str("Planned calls:\n");
+    for call in tool_calls.iter().take(MAX_NON_CLI_APPROVAL_CALLS_DISPLAY) {
+        match approval_arg_preview(&call.arguments) {
+            Some(preview) => {
+                let _ = writeln!(details, "- `{}`: {}", call.name, preview);
+            }
+            None => {
+                let _ = writeln!(details, "- `{}`", call.name);
+            }
+        }
+    }
+
+    let hidden_calls = tool_calls
+        .len()
+        .saturating_sub(MAX_NON_CLI_APPROVAL_CALLS_DISPLAY);
+    if hidden_calls > 0 {
+        let _ = writeln!(details, "- ... {hidden_calls} more planned call(s)");
+    }
+
+    details.push_str(
+        "Confirming this request approves the next non-CLI tool-execution turn only. It does not persist. Runtime safety policy still applies.",
+    );
+
+    (title, details)
 }
 
 pub(super) fn maybe_inject_cron_add_delivery(

@@ -61,6 +61,7 @@ pub use telegram::TelegramChannel;
 pub use traits::{Channel, SendMessage};
 
 // Re-export for crate-internal use
+pub(crate) use runtime_commands::APPROVAL_ALL_TOOLS_ONCE_TOKEN;
 pub(crate) use sanitize::sanitize_channel_response;
 
 // Re-export constants needed by parent module
@@ -2625,7 +2626,8 @@ BTC is currently around $65,000 based on latest tool output."#
         let request_id = {
             let sent = channel_impl.sent_messages.lock().await;
             assert_eq!(sent.len(), 1);
-            assert!(sent[0].contains("Approval required for tool `mock_price`."));
+            assert!(sent[0].contains("Approval required for current execution plan."));
+            assert!(sent[0].contains("`mock_price`"));
             let request_line = sent[0]
                 .lines()
                 .find(|line| line.starts_with("Request ID: `"))
@@ -2670,7 +2672,7 @@ BTC is currently around $65,000 based on latest tool output."#
         let sent = channel_impl.sent_messages.lock().await;
         assert!(sent
             .iter()
-            .any(|entry| entry.contains("Approved supervised execution for `mock_price`")));
+            .any(|entry| entry.contains("Approved one-time all-tools bypass from request")));
         assert!(sent
             .iter()
             .any(|entry| entry

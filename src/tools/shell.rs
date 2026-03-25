@@ -138,6 +138,18 @@ impl Tool for ShellTool {
         })
     }
 
+    fn approval_precheck(&self, args: &serde_json::Value) -> Result<(), String> {
+        let command = extract_command_argument(args)
+            .ok_or_else(|| "Missing 'command' parameter".to_string())?;
+        let effective_command = self.security.apply_shell_redirect_policy(&command);
+
+        self.security.validate_command_execution(&command, true)?;
+        self.runtime
+            .build_shell_command(&effective_command, &self.security.workspace_dir)
+            .map(|_| ())
+            .map_err(|e| format!("Failed to build runtime command: {e}"))
+    }
+
     #[allow(clippy::incompatible_msrv)]
     async fn execute(&self, args: serde_json::Value) -> anyhow::Result<ToolResult> {
         let command = extract_command_argument(&args)
@@ -266,6 +278,8 @@ mod tests {
         AutonomyLevel, OtpValidator, SecretStore, SecurityPolicy, ShellRedirectPolicy,
         SyscallAnomalyDetector,
     };
+    use std::any::Any;
+    use std::path::{Path, PathBuf};
     use std::time::{SystemTime, UNIX_EPOCH};
     use tempfile::TempDir;
 
@@ -300,6 +314,63 @@ mod tests {
 
     fn test_runtime() -> Arc<dyn RuntimeAdapter> {
         Arc::new(NativeRuntime::new())
+    }
+
+    struct ApprovalPrecheckRuntime {
+        build_error: Option<String>,
+    }
+
+    impl RuntimeAdapter for ApprovalPrecheckRuntime {
+        fn as_any(&self) -> &dyn Any {
+            self
+        }
+
+        fn name(&self) -> &str {
+            "approval-precheck-runtime"
+        }
+
+        fn has_shell_access(&self) -> bool {
+            self.build_error.is_none()
+        }
+
+        fn has_filesystem_access(&self) -> bool {
+            true
+        }
+
+        fn storage_path(&self) -> PathBuf {
+            PathBuf::from("/tmp/approval-precheck-runtime")
+        }
+
+        fn supports_long_running(&self) -> bool {
+            true
+        }
+
+        fn build_shell_command(
+            &self,
+            command: &str,
+            workspace_dir: &Path,
+        ) -> anyhow::Result<tokio::process::Command> {
+            if let Some(error) = &self.build_error {
+                anyhow::bail!(error.clone());
+            }
+
+            let mut cmd = tokio::process::Command::new("echo");
+            cmd.arg(command);
+            cmd.current_dir(workspace_dir);
+            Ok(cmd)
+        }
+
+        fn build_exec_command(
+            &self,
+            program: &str,
+            args: &[String],
+            workspace_dir: &Path,
+        ) -> anyhow::Result<tokio::process::Command> {
+            let mut cmd = tokio::process::Command::new(program);
+            cmd.args(args);
+            cmd.current_dir(workspace_dir);
+            Ok(cmd)
+        }
     }
 
     fn test_security_with_otp(tmp: &TempDir) -> (Arc<SecurityPolicy>, String) {
@@ -382,6 +453,52 @@ mod tests {
             extract_command_argument(&json!("echo from-string")).as_deref(),
             Some("echo from-string")
         );
+    }
+
+    #[test]
+    fn shell_approval_precheck_accepts_medium_risk_command_with_allowlist() {
+        let security = Arc::new(SecurityPolicy {
+            autonomy: AutonomyLevel::Supervised,
+            allowed_commands: vec!["touch".into()],
+            workspace_dir: std::env::temp_dir(),
+            ..SecurityPolicy::default()
+        });
+        let runtime: Arc<dyn RuntimeAdapter> =
+            Arc::new(ApprovalPrecheckRuntime { build_error: None });
+        let tool = ShellTool::new(security, runtime);
+
+        assert!(tool
+            .approval_precheck(&json!({"command": "touch topclaw_shell_precheck_test"}))
+            .is_ok());
+    }
+
+    #[test]
+    fn shell_approval_precheck_rejects_disallowed_command() {
+        let tool = ShellTool::new(
+            test_security(AutonomyLevel::Supervised),
+            Arc::new(ApprovalPrecheckRuntime { build_error: None }),
+        );
+
+        let err = tool
+            .approval_precheck(&json!({"command": "git status"}))
+            .expect_err("disallowed command should fail precheck");
+        assert!(err.contains("Command not allowed by security policy"));
+    }
+
+    #[test]
+    fn shell_approval_precheck_rejects_runtime_builder_failure() {
+        let tool = ShellTool::new(
+            test_security(AutonomyLevel::Supervised),
+            Arc::new(ApprovalPrecheckRuntime {
+                build_error: Some("no shell runtime".to_string()),
+            }),
+        );
+
+        let err = tool
+            .approval_precheck(&json!({"command": "echo hello"}))
+            .expect_err("runtime build failure should fail precheck");
+        assert!(err.contains("Failed to build runtime command"));
+        assert!(err.contains("no shell runtime"));
     }
 
     #[tokio::test]
