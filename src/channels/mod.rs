@@ -969,6 +969,54 @@ mod tests {
         }
     }
 
+    #[derive(Default)]
+    struct ApprovedResumeShellProvider {
+        classifier_calls: AtomicUsize,
+    }
+
+    #[async_trait::async_trait]
+    impl Provider for ApprovedResumeShellProvider {
+        async fn chat_with_system(
+            &self,
+            _system_prompt: Option<&str>,
+            _message: &str,
+            _model: &str,
+            _temperature: f64,
+        ) -> anyhow::Result<String> {
+            let call_index = self.classifier_calls.fetch_add(1, Ordering::SeqCst);
+            if call_index == 0 {
+                Ok(
+                    r#"{"intent":"needs_tools","reason":"repo inspection requires an approved shell command"}"#
+                        .to_string(),
+                )
+            } else {
+                Ok(
+                    r#"{"intent":"direct_reply","reason":"would incorrectly suppress the resumed approved turn"}"#
+                        .to_string(),
+                )
+            }
+        }
+
+        async fn chat_with_history(
+            &self,
+            messages: &[ChatMessage],
+            _model: &str,
+            _temperature: f64,
+        ) -> anyhow::Result<String> {
+            let has_tool_results = messages
+                .iter()
+                .any(|msg| msg.role == "user" && msg.content.contains("[Tool results]"));
+            if has_tool_results {
+                Ok("I inspected the repo with the approved shell command.".to_string())
+            } else {
+                Ok(r#"<tool_call>
+{"name":"shell","arguments":{"command":"touch approved-auto-resume-shell.txt"}}
+</tool_call>"#
+                    .to_string())
+            }
+        }
+    }
+
     struct ToolCallingAliasProvider;
 
     #[async_trait::async_trait]
@@ -2704,6 +2752,151 @@ BTC is currently around $65,000 based on latest tool output."#
     }
 
     #[tokio::test]
+    async fn process_channel_message_confirm_auto_resume_skips_reclassification_for_approved_shell_plan(
+    ) {
+        let channel_impl = Arc::new(TelegramRecordingChannel::default());
+        let channel: Arc<dyn Channel> = channel_impl.clone();
+
+        let mut channels_by_name = HashMap::new();
+        channels_by_name.insert(channel.name().to_string(), channel);
+
+        let temp = tempfile::TempDir::new().expect("temp dir");
+        let workspace_dir = temp.path().join("workspace");
+        std::fs::create_dir_all(&workspace_dir).expect("workspace dir");
+
+        let provider_impl = Arc::new(ApprovedResumeShellProvider::default());
+        let provider: Arc<dyn Provider> = provider_impl.clone();
+        let mut provider_cache_seed: HashMap<String, Arc<dyn Provider>> = HashMap::new();
+        provider_cache_seed.insert("test-provider".to_string(), Arc::clone(&provider));
+
+        let shell_tool = crate::tools::ShellTool::new(
+            Arc::new(crate::security::policy::SecurityPolicy {
+                autonomy: crate::security::AutonomyLevel::Supervised,
+                allowed_commands: vec![],
+                workspace_dir: workspace_dir.clone(),
+                ..crate::security::policy::SecurityPolicy::default()
+            }),
+            Arc::new(crate::runtime::NativeRuntime::new()),
+        );
+
+        let runtime_ctx = Arc::new(ChannelRuntimeContext {
+            channels_by_name: Arc::new(channels_by_name),
+            provider: Arc::clone(&provider),
+            default_provider: Arc::new("test-provider".to_string()),
+            memory: Arc::new(NoopMemory),
+            tools_registry: Arc::new(vec![Box::new(shell_tool)]),
+            observer: Arc::new(NoopObserver),
+            system_prompt: Arc::new("test-system-prompt".to_string()),
+            model: Arc::new("test-model".to_string()),
+            temperature: 0.0,
+            auto_save_memory: false,
+            max_tool_iterations: 5,
+            min_relevance_score: 0.0,
+            conversation_histories: Arc::new(Mutex::new(HashMap::new())),
+            provider_cache: Arc::new(Mutex::new(provider_cache_seed)),
+            route_overrides: Arc::new(Mutex::new(HashMap::new())),
+            api_key: None,
+            api_url: None,
+            reliability: Arc::new(crate::config::ReliabilityConfig::default()),
+            provider_runtime_options: providers::ProviderRuntimeOptions::default(),
+            workspace_dir: Arc::new(workspace_dir.clone()),
+            message_timeout_secs: CHANNEL_MESSAGE_TIMEOUT_SECS,
+            interrupt_on_new_message: false,
+            non_cli_excluded_tools: Arc::new(Mutex::new(Vec::new())),
+            approval_manager: Arc::new(ApprovalManager::from_config(
+                &crate::config::AutonomyConfig {
+                    always_ask: vec!["shell".to_string()],
+                    ..crate::config::AutonomyConfig::default()
+                },
+            )),
+            multimodal: crate::config::MultimodalConfig::default(),
+            hooks: None,
+            query_classification: crate::config::QueryClassificationConfig::default(),
+            model_routes: Vec::new(),
+        });
+        runtime_ctx
+            .route_overrides
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .insert(
+                "telegram_alice".to_string(),
+                ChannelRouteSelection {
+                    provider: "test-provider".to_string(),
+                    model: "test-model".to_string(),
+                },
+            );
+
+        Box::pin(process_channel_message(
+            runtime_ctx.clone(),
+            traits::ChannelMessage {
+                id: "msg-shell-auto-resume-1".to_string(),
+                sender: "alice".to_string(),
+                reply_target: "chat-shell-1".to_string(),
+                content: "Inspect your own repo and tell me what needs improvement.".to_string(),
+                channel: "telegram".to_string(),
+                timestamp: 1,
+                thread_ts: None,
+            },
+            CancellationToken::new(),
+        ))
+        .await;
+
+        let request_id = {
+            let sent = channel_impl.sent_messages.lock().await;
+            assert_eq!(sent.len(), 1);
+            assert!(sent[0].contains("Approval required for current execution plan."));
+            assert!(sent[0].contains("`shell`"));
+            let request_line = sent[0]
+                .lines()
+                .find(|line| line.starts_with("Request ID: `"))
+                .expect("request line");
+            request_line
+                .trim_start_matches("Request ID: `")
+                .trim_end_matches('`')
+                .to_string()
+        };
+
+        Box::pin(process_channel_message(
+            runtime_ctx.clone(),
+            traits::ChannelMessage {
+                id: "msg-shell-auto-resume-2".to_string(),
+                sender: "alice".to_string(),
+                reply_target: "chat-shell-1".to_string(),
+                content: format!("/approve-confirm {request_id}"),
+                channel: "telegram".to_string(),
+                timestamp: 2,
+                thread_ts: None,
+            },
+            CancellationToken::new(),
+        ))
+        .await;
+
+        tokio::time::timeout(Duration::from_secs(3), async {
+            loop {
+                let sent = channel_impl.sent_messages.lock().await;
+                if sent.iter().any(|entry| {
+                    entry.contains("I inspected the repo with the approved shell command.")
+                }) {
+                    break;
+                }
+                drop(sent);
+                tokio::time::sleep(Duration::from_millis(20)).await;
+            }
+        })
+        .await
+        .expect("approved shell auto-resume should finish");
+
+        assert!(workspace_dir
+            .join("approved-auto-resume-shell.txt")
+            .exists());
+        assert_eq!(
+            provider_impl.classifier_calls.load(Ordering::SeqCst),
+            1,
+            "approved auto-resume should skip reclassification on the resumed turn"
+        );
+    }
+
+    #[tokio::test]
     async fn process_channel_message_all_tools_once_requires_confirm_and_stays_runtime_only() {
         let channel_impl = Arc::new(TelegramRecordingChannel::default());
         let channel: Arc<dyn Channel> = channel_impl.clone();
@@ -4345,9 +4538,11 @@ BTC is currently around $65,000 based on latest tool output."#
         let system_prompt = &calls[0][0].1;
         assert!(system_prompt
             .contains("Turn-intent policy: This turn is best handled as a direct reply"));
-        assert!(system_prompt.contains("Allowed tools: (none)"));
+        assert!(system_prompt.contains("Tool execution in this turn: disabled by turn policy"));
+        assert!(system_prompt.contains("Installed runtime tools available outside this turn (1):"));
         assert!(system_prompt.contains("No tool calls are allowed in this turn"));
-        assert!(!system_prompt.contains("`shell`"));
+        assert!(system_prompt.contains("`shell`"));
+        assert!(system_prompt.contains("Do not describe the listed runtime tools as missing"));
     }
 
     #[tokio::test]
@@ -4433,9 +4628,10 @@ BTC is currently around $65,000 based on latest tool output."#
         let system_prompt = &calls[0][0].1;
         assert!(system_prompt
             .contains("The user likely wants action, but this request is underspecified"));
-        assert!(system_prompt.contains("Allowed tools: (none)"));
+        assert!(system_prompt.contains("Tool execution in this turn: disabled by turn policy"));
+        assert!(system_prompt.contains("Installed runtime tools available outside this turn (1):"));
         assert!(system_prompt.contains("No tool calls are allowed in this turn"));
-        assert!(!system_prompt.contains("`shell`"));
+        assert!(system_prompt.contains("`shell`"));
     }
 
     #[tokio::test]
@@ -5463,6 +5659,20 @@ BTC is currently around $65,000 based on latest tool output."#
         assert!(prompt.contains("If the user asks what you can do"));
         assert!(prompt.contains("actions that still require approval"));
         assert!(prompt.contains("Self-improvement is not automatic by default"));
+    }
+
+    #[test]
+    fn runtime_capability_inventory_prompt_preserves_hidden_runtime_tools() {
+        let tools: Vec<Box<dyn Tool>> = vec![Box::new(MockPriceTool), Box::new(MockEchoTool)];
+        let prompt = build_runtime_capability_inventory_prompt(&tools, &[]);
+
+        assert!(prompt.contains("Tool execution in this turn: disabled by turn policy"));
+        assert!(prompt.contains("Installed runtime tools available outside this turn (2):"));
+        assert!(prompt.contains("`mock_price`"));
+        assert!(prompt.contains("`mock_echo`"));
+        assert!(prompt.contains("Do not describe the listed runtime tools as missing"));
+        assert!(prompt.contains("No tool calls are allowed in this turn"));
+        assert!(!prompt.contains("Allowed tools: (none)"));
     }
 
     #[test]
