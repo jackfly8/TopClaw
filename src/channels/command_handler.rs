@@ -705,6 +705,7 @@ pub(super) async fn handle_runtime_command_if_needed(
                 CancellationToken::new(),
                 ProcessChannelMessageOptions {
                     resume_existing_user_turn: true,
+                    approved_auto_resume: true,
                 },
             ),
         )

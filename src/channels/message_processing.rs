@@ -37,7 +37,8 @@ use super::runtime_config::{
     maybe_apply_runtime_config_update, runtime_config_path, runtime_defaults_snapshot,
 };
 use super::runtime_helpers::{
-    build_runtime_tool_visibility_prompt, snapshot_non_cli_excluded_tools,
+    build_runtime_capability_inventory_prompt, build_runtime_tool_visibility_prompt,
+    snapshot_non_cli_excluded_tools,
 };
 use super::sanitize::sanitize_channel_response;
 use super::traits::{self, SendMessage};
@@ -287,19 +288,21 @@ pub(super) async fn process_channel_message_with_options(
     } else {
         snapshot_non_cli_excluded_tools(ctx.as_ref())
     };
-    let turn_intent = if msg.channel != "cli" && !ctx.tools_registry.is_empty() {
-        try_llm_turn_intent(
-            active_provider.as_ref(),
-            &msg,
-            route.model.as_str(),
-            runtime_defaults.temperature,
-            ctx.tools_registry.as_ref(),
-            &excluded_tools_snapshot,
-        )
-        .await
-    } else {
-        None
-    };
+    let skip_pre_tool_turn_routing = options.approved_auto_resume;
+    let turn_intent =
+        if !skip_pre_tool_turn_routing && msg.channel != "cli" && !ctx.tools_registry.is_empty() {
+            try_llm_turn_intent(
+                active_provider.as_ref(),
+                &msg,
+                route.model.as_str(),
+                runtime_defaults.temperature,
+                ctx.tools_registry.as_ref(),
+                &excluded_tools_snapshot,
+            )
+            .await
+        } else {
+            None
+        };
     if let Some(plan) = turn_intent.as_ref() {
         runtime_trace::record_event(
             "channel_message_turn_intent",
@@ -375,7 +378,7 @@ pub(super) async fn process_channel_message_with_options(
     let expose_internal_tool_details =
         msg.channel == "cli" || should_expose_internal_tool_details(&msg.content);
 
-    if msg.channel != "cli" && !suppress_tools_for_turn {
+    if msg.channel != "cli" && !suppress_tools_for_turn && !skip_pre_tool_turn_routing {
         if let Some(plan) = try_llm_capability_recovery_plan(
             active_provider.as_ref(),
             ctx.as_ref(),
@@ -438,22 +441,34 @@ pub(super) async fn process_channel_message_with_options(
         Some(ChannelTurnIntent::DirectReply) => {
             system_prompt.push_str(
                 "\n\nTurn-intent policy: This turn is best handled as a direct reply from current context. \
-Reply naturally and helpfully without calling tools or requesting approval. Ask one brief clarifying question only if the user is clearly asking for action but the target remains unclear.",
+Reply naturally and helpfully without calling tools or requesting approval. \
+Do not generalize this turn-scoped tool pause into a permanent limitation. \
+If the user asks about capabilities, describe the runtime tools as existing but not being executed in this turn. \
+Ask one brief clarifying question only if the user is clearly asking for action but the target remains unclear.",
             );
         }
         Some(ChannelTurnIntent::NeedsClarification) => {
             system_prompt.push_str(
                 "\n\nTurn-intent policy: The user likely wants action, but this request is underspecified. \
-Do not call tools or request approval in this turn. Ask one brief clarifying question that identifies the missing target, artifact, or desired outcome.",
+Do not call tools or request approval in this turn. \
+Do not describe runtime tools as missing or permanently unavailable just because you are not executing them yet. \
+Ask one brief clarifying question that identifies the missing target, artifact, or desired outcome.",
             );
         }
         _ => {}
     }
-    system_prompt.push_str(&build_runtime_tool_visibility_prompt(
-        effective_tools_registry,
-        &excluded_tools_snapshot,
-        !suppress_tools_for_turn && active_provider.supports_native_tools(),
-    ));
+    if suppress_tools_for_turn {
+        system_prompt.push_str(&build_runtime_capability_inventory_prompt(
+            ctx.tools_registry.as_ref(),
+            &excluded_tools_snapshot,
+        ));
+    } else {
+        system_prompt.push_str(&build_runtime_tool_visibility_prompt(
+            effective_tools_registry,
+            &excluded_tools_snapshot,
+            active_provider.supports_native_tools(),
+        ));
+    }
     let canary_guard = crate::security::CanaryGuard::new(canary_enabled_for_turn);
     let (system_prompt, turn_canary_token) = canary_guard.inject_turn_token(&system_prompt);
     if !options.resume_existing_user_turn {

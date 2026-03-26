@@ -147,6 +147,7 @@ impl InFlightTaskCompletion {
 #[derive(Clone, Copy, Debug, Default)]
 pub(super) struct ProcessChannelMessageOptions {
     pub(super) resume_existing_user_turn: bool,
+    pub(super) approved_auto_resume: bool,
 }
 
 pub(super) fn effective_channel_message_timeout_secs(configured: u64) -> u64 {
