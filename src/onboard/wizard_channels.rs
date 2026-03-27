@@ -136,9 +136,7 @@ pub(super) fn channel_choice_is_configured(
     choice: ChannelMenuChoice,
 ) -> bool {
     match choice {
-        #[cfg(feature = "channel-telegram")]
         ChannelMenuChoice::Telegram => config.telegram.is_some(),
-        #[cfg(feature = "channel-discord")]
         ChannelMenuChoice::Discord => config.discord.is_some(),
         ChannelMenuChoice::OtherChannels => false,
         ChannelMenuChoice::Webhook => config.webhook.is_some(),

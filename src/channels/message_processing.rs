@@ -71,12 +71,25 @@ async fn dispatch_capability_recovery(
         metadata,
     );
     if let Some(channel) = target_channel {
-        let _ = channel
-            .send(
-                &SendMessage::new(&plan.message, &msg.reply_target)
-                    .in_thread(msg.thread_ts.clone()),
-            )
-            .await;
+        let send_result = if let Some(prompt) = plan.approval_prompt.as_ref() {
+            channel
+                .send_approval_prompt(
+                    &msg.reply_target,
+                    &prompt.request_id,
+                    &prompt.title,
+                    &prompt.details,
+                    msg.thread_ts.clone(),
+                )
+                .await
+        } else {
+            channel
+                .send(
+                    &SendMessage::new(&plan.message, &msg.reply_target)
+                        .in_thread(msg.thread_ts.clone()),
+                )
+                .await
+        };
+        let _ = send_result;
     }
 }
 
@@ -389,6 +402,22 @@ pub(super) async fn process_channel_message_with_options(
         )
         .await
         {
+            if matches!(plan.state, CapabilityState::NeedsApproval) {
+                if let Err(err) =
+                    lossless_context.record_raw_message(&ChatMessage::user(&timestamped_content))
+                {
+                    tracing::warn!(
+                        channel = %msg.channel,
+                        sender = %msg.sender,
+                        "failed to persist blocked channel user turn before approval prompt: {err}"
+                    );
+                }
+                append_sender_turn(
+                    ctx.as_ref(),
+                    &history_key,
+                    ChatMessage::user(&timestamped_content),
+                );
+            }
             dispatch_capability_recovery(
                 &plan,
                 &msg,
@@ -402,6 +431,22 @@ pub(super) async fn process_channel_message_with_options(
         if let Some(plan) =
             infer_capability_recovery_plan(ctx.as_ref(), &msg, &excluded_tools_snapshot)
         {
+            if matches!(plan.state, CapabilityState::NeedsApproval) {
+                if let Err(err) =
+                    lossless_context.record_raw_message(&ChatMessage::user(&timestamped_content))
+                {
+                    tracing::warn!(
+                        channel = %msg.channel,
+                        sender = %msg.sender,
+                        "failed to persist blocked channel user turn before approval prompt: {err}"
+                    );
+                }
+                append_sender_turn(
+                    ctx.as_ref(),
+                    &history_key,
+                    ChatMessage::user(&timestamped_content),
+                );
+            }
             dispatch_capability_recovery(&plan, &msg, target_channel.as_ref(), None).await;
             return;
         }

@@ -4590,6 +4590,51 @@ mod tests {
     }
 
     #[test]
+    fn onboarding_skill_selection_adds_required_shell_commands_to_policy() {
+        let selection = SkillOnboardingSelection {
+            selected_curated_slugs: vec![
+                "workspace-search".into(),
+                "code-explainer".into(),
+                "change-summary".into(),
+                "skill-creator".into(),
+            ],
+        };
+        let mut config = Config::default();
+
+        apply_onboarding_skill_tool_defaults(&mut config, &selection);
+
+        assert_eq!(
+            config.autonomy.allowed_commands,
+            vec!["rg", "find", "ls", "cat", "grep", "wc", "git", "python", "python3",]
+        );
+    }
+
+    #[test]
+    fn onboarding_skill_selection_preserves_existing_allowed_commands_when_adding_defaults() {
+        let selection = SkillOnboardingSelection {
+            selected_curated_slugs: vec!["workspace-search".into(), "change-summary".into()],
+        };
+        let mut config = Config::default();
+        config.autonomy.allowed_commands = vec!["git".into(), "rg".into(), "custom-check".into()];
+
+        apply_onboarding_skill_tool_defaults(&mut config, &selection);
+
+        assert_eq!(
+            config.autonomy.allowed_commands,
+            vec![
+                "git",
+                "rg",
+                "custom-check",
+                "find",
+                "ls",
+                "cat",
+                "grep",
+                "wc",
+            ]
+        );
+    }
+
+    #[test]
     fn launchable_channels_detects_configured_channels() {
         let mut channels = ChannelsConfig::default();
         assert!(!has_launchable_channels(&channels));
