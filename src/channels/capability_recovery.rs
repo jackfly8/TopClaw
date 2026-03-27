@@ -35,12 +35,33 @@ struct CapabilityToolCandidate {
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
+pub(super) struct CapabilityRecoveryApprovalPrompt {
+    pub(super) request_id: String,
+    pub(super) title: String,
+    pub(super) details: String,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub(super) struct CapabilityRecoveryPlan {
     pub(super) kind: CapabilityRecoveryKind,
     pub(super) tool_name: String,
     pub(super) state: CapabilityState,
     pub(super) reason: String,
     pub(super) message: String,
+    pub(super) approval_prompt: Option<CapabilityRecoveryApprovalPrompt>,
+}
+
+fn build_capability_recovery_approval_prompt(
+    tool_name: &str,
+    request_id: &str,
+) -> CapabilityRecoveryApprovalPrompt {
+    CapabilityRecoveryApprovalPrompt {
+        request_id: request_id.to_string(),
+        title: format!("I can finish this, but I need supervised access to `{tool_name}` first."),
+        details:
+            "Confirm from this same chat/channel and I’ll resume the blocked request automatically."
+                .to_string(),
+    }
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -148,9 +169,11 @@ fn create_capability_recovery_plan(
                     Some(reason.to_string()),
                     Vec::new(),
                 );
+                let approval_prompt =
+                    build_capability_recovery_approval_prompt(candidate.tool_name, &req.request_id);
                 let message = format!(
-                    "I can finish this, but I need supervised access to `{}` first.\nRequest ID: `{}`\nConfirm with `/approve-confirm {}` from this same chat/channel and I’ll resume the blocked request automatically.",
-                    candidate.tool_name, req.request_id, req.request_id
+                    "{}\nRequest ID: `{}`\nConfirm with `/approve-confirm {}` from this same chat/channel and I’ll resume the blocked request automatically.",
+                    approval_prompt.title, req.request_id, req.request_id
                 );
                 return Some(CapabilityRecoveryPlan {
                     kind,
@@ -158,6 +181,7 @@ fn create_capability_recovery_plan(
                     state: CapabilityState::NeedsApproval,
                     reason: reason.to_string(),
                     message,
+                    approval_prompt: Some(approval_prompt),
                 });
             }
             CapabilityState::Excluded => {
@@ -183,6 +207,7 @@ fn create_capability_recovery_plan(
                 "I need `{}` for this request, but it’s currently blocked for chat channels.\nUse `/approve {}` to enable it, then retry your request.",
                 candidate.tool_name, candidate.tool_name
             ),
+            approval_prompt: None,
         });
     }
 
@@ -192,6 +217,7 @@ fn create_capability_recovery_plan(
         state: CapabilityState::Missing,
         reason: reason.to_string(),
         message: candidate.setup_hint.to_string(),
+        approval_prompt: None,
     })
 }
 
@@ -469,9 +495,15 @@ User request:\n{}",
                 state,
                 reason,
                 message: format!(
-                    "I can finish this, but I need supervised access to `{}` first.\nRequest ID: `{}`\nConfirm with `/approve-confirm {}` from this same chat/channel and I’ll resume the blocked request automatically.",
-                    tool_name, req.request_id, req.request_id
+                    "{}\nRequest ID: `{}`\nConfirm with `/approve-confirm {}` from this same chat/channel and I’ll resume the blocked request automatically.",
+                    build_capability_recovery_approval_prompt(tool_name, &req.request_id).title,
+                    req.request_id,
+                    req.request_id
                 ),
+                approval_prompt: Some(build_capability_recovery_approval_prompt(
+                    tool_name,
+                    &req.request_id,
+                )),
             })
         }
         CapabilityState::Excluded => Some(CapabilityRecoveryPlan {
@@ -482,6 +514,7 @@ User request:\n{}",
             message: format!(
                 "I need `{tool_name}` for this request, but it's currently blocked for chat channels.\nUse `/approve {tool_name}` to enable it, then retry your request.",
             ),
+            approval_prompt: None,
         }),
         CapabilityState::Missing => Some(CapabilityRecoveryPlan {
             kind,
@@ -492,6 +525,7 @@ User request:\n{}",
                 "I identified `{}` as the missing capability for this request, but this runtime does not currently expose it.\nEnable that tool for channel use, or provide the needed material manually so I can continue.",
                 tool_name
             ),
+            approval_prompt: None,
         }),
     }
 }

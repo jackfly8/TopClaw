@@ -17,7 +17,7 @@ pub mod discover;
 pub mod introspect;
 
 use crate::config::Config;
-use anyhow::{bail, Result};
+use anyhow::Result;
 
 // Re-export config types so wizard can use `hardware::HardwareConfig` etc.
 pub use crate::config::{HardwareConfig, HardwareTransport};

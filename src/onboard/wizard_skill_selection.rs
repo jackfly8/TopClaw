@@ -82,48 +82,67 @@ fn prompt_skill_selection_instruction(help_text: &str) {
     print_onboarding_skill_controls();
 }
 
-/// Declarative mapping from skill slugs to the non-CLI tools they require.
-/// Used during onboarding to automatically un-exclude tools when the user
-/// selects the corresponding skill.
-struct SkillToolMapping {
+const READ_ONLY_SHELL_COMMANDS: &[&str] = &["rg", "find", "ls", "cat", "grep", "wc"];
+
+/// Declarative mapping from skill slugs to the policy defaults they require.
+/// Used during onboarding to automatically un-exclude tools and seed shell
+/// allowlist entries when the user selects the corresponding skill.
+struct SkillPolicyMapping {
     slug: &'static str,
     tools_to_unexclude: &'static [&'static str],
+    allowed_commands_to_add: &'static [&'static str],
 }
 
-const SKILL_TOOL_MAPPINGS: &[SkillToolMapping] = &[
-    SkillToolMapping {
+const SKILL_POLICY_MAPPINGS: &[SkillPolicyMapping] = &[
+    SkillPolicyMapping {
         slug: "workspace-search",
         tools_to_unexclude: &["shell"],
+        allowed_commands_to_add: READ_ONLY_SHELL_COMMANDS,
     },
-    SkillToolMapping {
+    SkillPolicyMapping {
         slug: "code-explainer",
         tools_to_unexclude: &["shell"],
+        allowed_commands_to_add: READ_ONLY_SHELL_COMMANDS,
     },
-    SkillToolMapping {
+    SkillPolicyMapping {
         slug: "change-summary",
         tools_to_unexclude: &["shell", "git_operations"],
+        allowed_commands_to_add: &["git"],
     },
-    SkillToolMapping {
+    SkillPolicyMapping {
         slug: "self-improving-agent",
         tools_to_unexclude: &["file_write", "file_edit", "memory_store"],
+        allowed_commands_to_add: &[],
     },
-    SkillToolMapping {
+    SkillPolicyMapping {
         slug: "skill-creator",
         tools_to_unexclude: &["shell", "file_write", "file_edit"],
+        allowed_commands_to_add: &["python", "python3"],
     },
-    SkillToolMapping {
+    SkillPolicyMapping {
         slug: "multi-search-engine",
         tools_to_unexclude: &["http_request"],
+        allowed_commands_to_add: &[],
     },
-    SkillToolMapping {
+    SkillPolicyMapping {
         slug: "agent-browser-extension",
         tools_to_unexclude: &["browser", "browser_open"],
+        allowed_commands_to_add: &[],
     },
-    SkillToolMapping {
+    SkillPolicyMapping {
         slug: "desktop-computer-use",
         tools_to_unexclude: &["browser", "browser_open", "screenshot"],
+        allowed_commands_to_add: &[],
     },
 ];
+
+fn append_unique_strings(target: &mut Vec<String>, entries: &[&str]) {
+    for entry in entries {
+        if !target.iter().any(|existing| existing == entry) {
+            target.push((*entry).to_string());
+        }
+    }
+}
 
 pub(super) fn apply_onboarding_skill_tool_defaults(
     config: &mut Config,
@@ -160,9 +179,13 @@ pub(super) fn apply_onboarding_skill_tool_defaults(
     // Un-exclude tools required by selected skills so they work on non-CLI
     // channels (Telegram, Discord, etc.) without manual config edits.
     let mut tools_to_unexclude = std::collections::HashSet::new();
-    for mapping in SKILL_TOOL_MAPPINGS {
+    for mapping in SKILL_POLICY_MAPPINGS {
         if has_skill(mapping.slug) {
             tools_to_unexclude.extend(mapping.tools_to_unexclude.iter().copied());
+            append_unique_strings(
+                &mut config.autonomy.allowed_commands,
+                mapping.allowed_commands_to_add,
+            );
         }
     }
 

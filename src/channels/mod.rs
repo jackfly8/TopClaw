@@ -613,6 +613,7 @@ mod tests {
     #[derive(Default)]
     struct TelegramRecordingChannel {
         sent_messages: tokio::sync::Mutex<Vec<String>>,
+        approval_prompts: tokio::sync::Mutex<Vec<String>>,
     }
 
     #[derive(Default)]
@@ -655,6 +656,34 @@ mod tests {
         }
 
         async fn stop_typing(&self, _recipient: &str) -> anyhow::Result<()> {
+            Ok(())
+        }
+
+        async fn send_approval_prompt(
+            &self,
+            recipient: &str,
+            request_id: &str,
+            title: &str,
+            details: &str,
+            _thread_ts: Option<String>,
+        ) -> anyhow::Result<()> {
+            let mut message = format!("{title}\nRequest ID: `{request_id}`");
+            if !details.trim().is_empty() {
+                message.push('\n');
+                message.push_str(details);
+            }
+            message.push_str(&format!(
+                "\nConfirm: `/approve-confirm {request_id}`\nDeny: `/approve-deny {request_id}`"
+            ));
+
+            self.approval_prompts
+                .lock()
+                .await
+                .push(format!("{recipient}:{message}"));
+            self.sent_messages
+                .lock()
+                .await
+                .push(format!("{recipient}:{message}"));
             Ok(())
         }
     }
@@ -3006,6 +3035,24 @@ BTC is currently around $65,000 based on latest tool output."#
             CancellationToken::new(),
         ))
         .await;
+
+        let approval_prompts = channel_impl.approval_prompts.lock().await;
+        assert_eq!(approval_prompts.len(), 1);
+        assert!(approval_prompts[0].contains("supervised access to `shell`"));
+        drop(approval_prompts);
+
+        let history_key = "telegram_alice".to_string();
+        let histories = runtime_ctx
+            .conversation_histories
+            .lock()
+            .unwrap_or_else(|e| e.into_inner());
+        let cached = histories
+            .get(&history_key)
+            .expect("blocked shell request should remain in sender history");
+        assert!(cached
+            .iter()
+            .any(|entry| entry.role == "user" && entry.content.contains("please run cargo test")));
+        drop(histories);
 
         let request_id = {
             let sent = channel_impl.sent_messages.lock().await;
@@ -7179,6 +7226,11 @@ Done reminder set for 1:38 AM."#;
         assert!(sent[0]
             .contains("I can finish this, but I need supervised access to `web_fetch` first."));
         assert!(sent[0].contains("/approve-confirm apr-"));
+        drop(sent);
+
+        let approval_prompts = channel_impl.approval_prompts.lock().await;
+        assert_eq!(approval_prompts.len(), 1);
+        assert!(approval_prompts[0].contains("supervised access to `web_fetch`"));
 
         let calls = provider_impl
             .calls
