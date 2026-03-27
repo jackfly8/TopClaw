@@ -49,6 +49,7 @@ use main_handlers::{
     handle_auth_command, handle_estop_command, handle_security_command, handle_uninstall_command,
     handle_workspace_command, write_shell_completion,
 };
+use std::ffi::OsString;
 
 // Re-export so binary modules can use crate::<CommandEnum> while keeping a single source of truth.
 pub use topclaw::{
@@ -89,6 +90,10 @@ enum EstopLevelArg {
 #[command(version)]
 #[command(about = "TopClaw command-line interface", long_about = None)]
 #[command(after_help = "\
+Syntax note:
+  `[OPTIONS]` and `<COMMAND>` are placeholders in help output. Do not type the brackets.
+  Example: `topclaw providers` or `topclaw --providers`
+
 Start here:
   topclaw bootstrap                # first-time setup
   topclaw agent                    # interactive chat
@@ -123,6 +128,26 @@ struct Cli {
 
     #[command(subcommand)]
     command: Commands,
+}
+
+fn normalize_cli_args<I, S>(args: I) -> Vec<OsString>
+where
+    I: IntoIterator<Item = S>,
+    S: Into<OsString>,
+{
+    args.into_iter()
+        .enumerate()
+        .filter_map(|(idx, arg)| {
+            let arg = arg.into();
+            if idx > 0 && arg == "[OPTIONS]" {
+                return None;
+            }
+            if idx > 0 && arg == "--providers" {
+                return Some(OsString::from("providers"));
+            }
+            Some(arg)
+        })
+        .collect()
 }
 
 #[derive(Subcommand, Debug)]
@@ -796,7 +821,7 @@ async fn main() -> Result<()> {
         eprintln!("Warning: Failed to install default crypto provider: {e:?}");
     }
 
-    let cli = Cli::parse();
+    let cli = Cli::parse_from(normalize_cli_args(std::env::args_os()));
 
     if let Some(config_dir) = &cli.config_dir {
         if config_dir.trim().is_empty() {
@@ -1308,6 +1333,34 @@ mod tests {
             has_model_flag,
             "bootstrap help should include --model for quick setup overrides"
         );
+    }
+
+    #[test]
+    fn normalize_cli_args_rewrites_common_root_usage_mistakes() {
+        let providers = normalize_cli_args(["topclaw", "--providers"]);
+        assert_eq!(providers, vec!["topclaw", "providers"]);
+
+        let copied_usage = normalize_cli_args(["topclaw", "[OPTIONS]", "providers"]);
+        assert_eq!(copied_usage, vec!["topclaw", "providers"]);
+    }
+
+    #[test]
+    fn providers_shortcut_flag_parses_as_subcommand() {
+        let cli = Cli::try_parse_from(normalize_cli_args(["topclaw", "--providers"]))
+            .expect("--providers should normalize to the providers subcommand");
+
+        match cli.command {
+            Commands::Providers => {}
+            other => panic!("expected providers command, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn root_help_explains_usage_placeholders() {
+        let mut cmd = Cli::command();
+        let help = cmd.render_long_help().to_string();
+        assert!(help.contains("`[OPTIONS]` and `<COMMAND>` are placeholders"));
+        assert!(help.contains("topclaw --providers"));
     }
 
     #[test]
