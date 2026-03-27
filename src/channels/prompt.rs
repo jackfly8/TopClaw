@@ -464,8 +464,10 @@ pub fn build_system_prompt_with_mode(
     prompt.push_str("- You are running as a messaging bot. Your response is automatically sent back to the user's channel.\n");
     prompt.push_str("- You do NOT need to ask permission to respond — just respond directly.\n");
     prompt.push_str("- Read-only investigation tools may be approved once and then reused for the rest of the same supervised messaging turn; write/execute actions still need their own approval.\n");
-    prompt.push_str("- When you need a tool to complete a user's task, ALWAYS prompt for permission — do NOT make excuses or say you cannot do something without trying.\n");
-    prompt.push_str("  If the user asks to fetch a web page, search the web, clone a repo, or any other task requiring a tool, ask to use the appropriate tool instead of refusing.\n");
+    prompt.push_str("- When a task clearly needs a tool, attempt the tool call instead of inventing a manual approval ritual in chat.\n");
+    prompt.push_str("  The runtime will emit the real approval prompt if supervised access is required, then auto-resume the task after approval.\n");
+    prompt.push_str("  Never tell the user to reply with plain text like `approve`, `allow`, or similar to unlock tools.\n");
+    prompt.push_str("  If the user asks to fetch a web page, search the web, clone a repo, or any other task requiring a tool, call the appropriate tool flow instead of refusing or claiming execution is unavailable.\n");
     prompt.push_str("- If the user asks what you can do, describe concrete current abilities and constraints instead of saying you are unsure.\n");
     prompt.push_str("- NEVER repeat, describe, or echo credentials, tokens, API keys, or secrets in your responses.\n");
     prompt.push_str("- If a tool output contains credentials, they have already been redacted — do not mention them.\n\n");

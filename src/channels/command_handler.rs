@@ -92,6 +92,43 @@ fn split_runtime_request_id_and_followup(raw: &str) -> (String, Option<String>) 
     (request_id, follow_up)
 }
 
+fn resolve_scoped_pending_request_id(
+    ctx: &ChannelRuntimeContext,
+    sender: &str,
+    source_channel: &str,
+    reply_target: &str,
+    action_label: &str,
+) -> Result<String, String> {
+    let rows = ctx.approval_manager.list_non_cli_pending_requests(
+        Some(sender),
+        Some(source_channel),
+        Some(reply_target),
+    );
+
+    match rows.as_slice() {
+        [req] => Ok(req.request_id.clone()),
+        [] => Err(format!(
+            "No pending approval requests were found for this sender+chat/channel scope, so I could not {action_label} anything. Use `/approve-pending` to inspect pending approvals or retry the task so the runtime can create a fresh request."
+        )),
+        many => {
+            let preview = many
+                .iter()
+                .map(|req| {
+                    format!(
+                        "`{}` ({})",
+                        req.request_id,
+                        approval_target_label(&req.tool_name)
+                    )
+                })
+                .collect::<Vec<_>>()
+                .join(", ");
+            Err(format!(
+                "Multiple pending approval requests match this sender+chat/channel scope: {preview}\nUse `/approve-confirm <request-id>` or `/approve-deny <request-id>` explicitly."
+            ))
+        }
+    }
+}
+
 pub(super) async fn handle_runtime_command_if_needed(
     ctx: Arc<ChannelRuntimeContext>,
     msg: &traits::ChannelMessage,
@@ -419,152 +456,196 @@ pub(super) async fn handle_runtime_command_if_needed(
             }
         }
         ChannelRuntimeCommand::ConfirmToolApproval(raw_request_id) => {
-            let (request_id, follow_up_content) =
+            let (mut request_id, follow_up_content) =
                 split_runtime_request_id_and_followup(&raw_request_id);
-            if request_id.is_empty() {
-                "Usage: `/approve-confirm <request-id>`".to_string()
+            let request_resolution = if request_id.is_empty() {
+                if is_slash_command {
+                    Err("Usage: `/approve-confirm <request-id>`".to_string())
+                } else {
+                    resolve_scoped_pending_request_id(
+                        ctx.as_ref(),
+                        sender,
+                        source_channel,
+                        reply_target,
+                        "confirm",
+                    )
+                }
             } else {
-                match ctx.approval_manager.confirm_non_cli_pending_request(
-                    &request_id,
-                    sender,
-                    source_channel,
-                    reply_target,
-                ) {
-                    Ok(req) => {
-                        ctx.approval_manager
-                            .record_non_cli_pending_resolution(&request_id, ApprovalResponse::Yes);
-                        let tool_name = req.tool_name.clone();
-                        let resume_request = req.resume_request.clone();
-                        let approval_message = if tool_name == APPROVAL_ALL_TOOLS_ONCE_TOKEN {
-                            let _remaining = ctx.approval_manager.grant_non_cli_turn_grant(
-                                crate::approval::NonCliTurnApprovalGrant {
-                                    approved_shell_commands: req.approved_shell_commands.clone(),
-                                },
-                            );
-                            if resume_request.is_some() {
-                                String::new()
-                            } else {
-                                format!(
-                                    "Approved one-time all-tools bypass from request `{request_id}`.\nApplies to the next non-CLI agent tool-execution turn only.\nThis bypass is runtime-only and does not persist to config.\nChannel exclusions from `autonomy.non_cli_excluded_tools` still apply."
-                                )
-                            }
-                        } else {
-                            ctx.approval_manager.grant_non_cli_session(&tool_name);
-                            ctx.approval_manager
-                                .apply_persistent_runtime_grant(&tool_name);
-                            match persist_non_cli_approval_to_config(ctx.as_ref(), &tool_name).await {
-                                Ok(Some(path)) => format!(
-                                    "Approved supervised execution for `{tool_name}` from request `{request_id}`.\nPersisted to `{}` so future channel sessions (including after restart) remain approved.",
-                                    path.display()
-                                ),
-                                Ok(None) => format!(
-                                    "Approved supervised execution for `{tool_name}` from request `{request_id}`.\nNo runtime config path was found, so this approval is active for the current daemon runtime only."
-                                ),
-                                Err(err) => format!(
-                                    "Approved supervised execution for `{tool_name}` from request `{request_id}` in-memory.\nFailed to persist this approval to config: {err}"
-                                ),
-                            }
-                        };
-                        runtime_trace::record_event(
-                            "approval_request_confirmed",
-                            Some(source_channel),
-                            None,
-                            None,
-                            None,
-                            Some(true),
-                            Some("pending request confirmed"),
-                            serde_json::json!({
-                                "request_id": request_id,
-                                "tool_name": tool_name,
-                                "sender": sender,
-                                "channel": source_channel,
-                            }),
-                        );
+                Ok(request_id.clone())
+            };
 
-                        if let Some(content) = follow_up_content {
-                            auto_resume_message = Some(traits::ChannelMessage {
-                                id: format!("{}:approval-followup", msg.id),
-                                sender: msg.sender.clone(),
-                                reply_target: msg.reply_target.clone(),
-                                content,
-                                channel: msg.channel.clone(),
-                                timestamp: msg.timestamp,
-                                thread_ts: msg.thread_ts.clone(),
-                            });
-                        } else if let Some(resume_request) = resume_request {
-                            auto_resume_message = Some(traits::ChannelMessage {
-                                id: resume_request.message_id,
-                                sender: req.requested_by.clone(),
-                                reply_target: req.requested_reply_target.clone(),
-                                content: resume_request.content,
-                                channel: req.requested_channel.clone(),
-                                timestamp: resume_request.timestamp,
-                                thread_ts: resume_request.thread_ts,
-                            });
-                        }
-
-                        if tool_name != APPROVAL_ALL_TOOLS_ONCE_TOKEN
-                            && is_non_cli_tool_excluded(ctx.as_ref(), &tool_name)
-                        {
-                            let note = auto_unexclude_tool(ctx.as_ref(), &tool_name).await;
-                            format!("{approval_message}\n{note}")
-                        } else {
-                            approval_message
-                        }
-                    }
-                    Err(err) => format_pending_approval_error(
-                        err,
+            match request_resolution {
+                Err(message) => message,
+                Ok(scoped_request_id) => {
+                    request_id = scoped_request_id;
+                    match ctx.approval_manager.confirm_non_cli_pending_request(
                         &request_id,
                         sender,
                         source_channel,
-                        "approval_request_confirmed",
-                        "confirmed",
-                    ),
+                        reply_target,
+                    ) {
+                        Ok(req) => {
+                            ctx.approval_manager.record_non_cli_pending_resolution(
+                                &request_id,
+                                ApprovalResponse::Yes,
+                            );
+                            let tool_name = req.tool_name.clone();
+                            let resume_request = req.resume_request.clone();
+                            let approval_message = if tool_name == APPROVAL_ALL_TOOLS_ONCE_TOKEN {
+                                let _remaining = ctx.approval_manager.grant_non_cli_turn_grant(
+                                    crate::approval::NonCliTurnApprovalGrant {
+                                        approved_shell_commands: req
+                                            .approved_shell_commands
+                                            .clone(),
+                                    },
+                                );
+                                if resume_request.is_some() {
+                                    String::new()
+                                } else {
+                                    format!(
+                                        "Approved one-time all-tools bypass from request `{request_id}`.\nApplies to the next non-CLI agent tool-execution turn only.\nThis bypass is runtime-only and does not persist to config.\nChannel exclusions from `autonomy.non_cli_excluded_tools` still apply."
+                                    )
+                                }
+                            } else {
+                                ctx.approval_manager.grant_non_cli_session(&tool_name);
+                                ctx.approval_manager
+                                    .apply_persistent_runtime_grant(&tool_name);
+                                match persist_non_cli_approval_to_config(ctx.as_ref(), &tool_name)
+                                    .await
+                                {
+                                    Ok(Some(path)) => format!(
+                                        "Approved supervised execution for `{tool_name}` from request `{request_id}`.\nPersisted to `{}` so future channel sessions (including after restart) remain approved.",
+                                        path.display()
+                                    ),
+                                    Ok(None) => format!(
+                                        "Approved supervised execution for `{tool_name}` from request `{request_id}`.\nNo runtime config path was found, so this approval is active for the current daemon runtime only."
+                                    ),
+                                    Err(err) => format!(
+                                        "Approved supervised execution for `{tool_name}` from request `{request_id}` in-memory.\nFailed to persist this approval to config: {err}"
+                                    ),
+                                }
+                            };
+                            runtime_trace::record_event(
+                                "approval_request_confirmed",
+                                Some(source_channel),
+                                None,
+                                None,
+                                None,
+                                Some(true),
+                                Some("pending request confirmed"),
+                                serde_json::json!({
+                                    "request_id": request_id,
+                                    "tool_name": tool_name,
+                                    "sender": sender,
+                                    "channel": source_channel,
+                                }),
+                            );
+
+                            if let Some(content) = follow_up_content {
+                                auto_resume_message = Some(traits::ChannelMessage {
+                                    id: format!("{}:approval-followup", msg.id),
+                                    sender: msg.sender.clone(),
+                                    reply_target: msg.reply_target.clone(),
+                                    content,
+                                    channel: msg.channel.clone(),
+                                    timestamp: msg.timestamp,
+                                    thread_ts: msg.thread_ts.clone(),
+                                });
+                            } else if let Some(resume_request) = resume_request {
+                                auto_resume_message = Some(traits::ChannelMessage {
+                                    id: resume_request.message_id,
+                                    sender: req.requested_by.clone(),
+                                    reply_target: req.requested_reply_target.clone(),
+                                    content: resume_request.content,
+                                    channel: req.requested_channel.clone(),
+                                    timestamp: resume_request.timestamp,
+                                    thread_ts: resume_request.thread_ts,
+                                });
+                            }
+
+                            if tool_name != APPROVAL_ALL_TOOLS_ONCE_TOKEN
+                                && is_non_cli_tool_excluded(ctx.as_ref(), &tool_name)
+                            {
+                                let note = auto_unexclude_tool(ctx.as_ref(), &tool_name).await;
+                                format!("{approval_message}\n{note}")
+                            } else {
+                                approval_message
+                            }
+                        }
+                        Err(err) => format_pending_approval_error(
+                            err,
+                            &request_id,
+                            sender,
+                            source_channel,
+                            "approval_request_confirmed",
+                            "confirmed",
+                        ),
+                    }
                 }
             }
         }
         ChannelRuntimeCommand::DenyToolApproval(raw_request_id) => {
-            let (request_id, _) = split_runtime_request_id_and_followup(&raw_request_id);
-            if request_id.is_empty() {
-                "Usage: `/approve-deny <request-id>`".to_string()
+            let (mut request_id, _) = split_runtime_request_id_and_followup(&raw_request_id);
+            let request_resolution = if request_id.is_empty() {
+                if is_slash_command {
+                    Err("Usage: `/approve-deny <request-id>`".to_string())
+                } else {
+                    resolve_scoped_pending_request_id(
+                        ctx.as_ref(),
+                        sender,
+                        source_channel,
+                        reply_target,
+                        "deny",
+                    )
+                }
             } else {
-                match ctx.approval_manager.reject_non_cli_pending_request(
-                    &request_id,
-                    sender,
-                    source_channel,
-                    reply_target,
-                ) {
-                    Ok(req) => {
-                        ctx.approval_manager
-                            .record_non_cli_pending_resolution(&request_id, ApprovalResponse::No);
-                        runtime_trace::record_event(
-                            "approval_request_denied",
-                            Some(source_channel),
-                            None,
-                            None,
-                            None,
-                            Some(true),
-                            Some("pending request denied"),
-                            serde_json::json!({
-                                "request_id": request_id,
-                                "tool_name": req.tool_name,
-                                "sender": sender,
-                                "channel": source_channel,
-                            }),
-                        );
-                        format!(
-                            "Denied pending approval request `{}` for tool `{}`.",
-                            req.request_id, req.tool_name
-                        )
-                    }
-                    Err(err) => format_pending_approval_error(
-                        err,
+                Ok(request_id.clone())
+            };
+
+            match request_resolution {
+                Err(message) => message,
+                Ok(scoped_request_id) => {
+                    request_id = scoped_request_id;
+                    match ctx.approval_manager.reject_non_cli_pending_request(
                         &request_id,
                         sender,
                         source_channel,
-                        "approval_request_denied",
-                        "denied",
-                    ),
+                        reply_target,
+                    ) {
+                        Ok(req) => {
+                            ctx.approval_manager.record_non_cli_pending_resolution(
+                                &request_id,
+                                ApprovalResponse::No,
+                            );
+                            runtime_trace::record_event(
+                                "approval_request_denied",
+                                Some(source_channel),
+                                None,
+                                None,
+                                None,
+                                Some(true),
+                                Some("pending request denied"),
+                                serde_json::json!({
+                                    "request_id": request_id,
+                                    "tool_name": req.tool_name,
+                                    "sender": sender,
+                                    "channel": source_channel,
+                                }),
+                            );
+                            format!(
+                                "Denied pending approval request `{}` for tool `{}`.",
+                                req.request_id, req.tool_name
+                            )
+                        }
+                        Err(err) => format_pending_approval_error(
+                            err,
+                            &request_id,
+                            sender,
+                            source_channel,
+                            "approval_request_denied",
+                            "denied",
+                        ),
+                    }
                 }
             }
         }

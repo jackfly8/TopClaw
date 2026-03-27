@@ -248,6 +248,14 @@ mod tests {
             ))
         );
         assert_eq!(
+            parse_runtime_command("telegram", "approve"),
+            Some(ChannelRuntimeCommand::ConfirmToolApproval(String::new()))
+        );
+        assert_eq!(
+            parse_runtime_command("telegram", "deny"),
+            Some(ChannelRuntimeCommand::DenyToolApproval(String::new()))
+        );
+        assert_eq!(
             parse_runtime_command("telegram", "撤销工具 shell"),
             Some(ChannelRuntimeCommand::UnapproveTool("shell".to_string()))
         );
@@ -2806,6 +2814,137 @@ BTC is currently around $65,000 based on latest tool output."#
         })
         .await
         .expect("auto-resumed request should finish");
+
+        let sent = channel_impl.sent_messages.lock().await;
+        assert!(sent
+            .iter()
+            .any(|entry| entry
+                .contains("BTC is currently around $65,000 based on latest tool output.")));
+    }
+
+    #[tokio::test]
+    async fn process_channel_message_plain_approve_auto_resumes_original_request() {
+        let channel_impl = Arc::new(TelegramRecordingChannel::default());
+        let channel: Arc<dyn Channel> = channel_impl.clone();
+
+        let mut channels_by_name = HashMap::new();
+        channels_by_name.insert(channel.name().to_string(), channel);
+
+        let temp = tempfile::TempDir::new().expect("temp dir");
+        let config_path = temp.path().join("config.toml");
+        let workspace_dir = temp.path().join("workspace");
+        std::fs::create_dir_all(&workspace_dir).expect("workspace dir");
+        let provider: Arc<dyn Provider> = Arc::new(ToolCallingProvider);
+        let mut provider_cache_seed: HashMap<String, Arc<dyn Provider>> = HashMap::new();
+        provider_cache_seed.insert("test-provider".to_string(), Arc::clone(&provider));
+        let mut persisted = Config::default();
+        persisted.config_path = config_path.clone();
+        persisted.workspace_dir = workspace_dir.clone();
+        persisted.autonomy.always_ask = vec!["mock_price".to_string()];
+        persisted.save().await.expect("save config");
+
+        let runtime_ctx = Arc::new(ChannelRuntimeContext {
+            channels_by_name: Arc::new(channels_by_name),
+            provider,
+            default_provider: Arc::new("test-provider".to_string()),
+            memory: Arc::new(NoopMemory),
+            tools_registry: Arc::new(vec![Box::new(MockPriceTool)]),
+            observer: Arc::new(NoopObserver),
+            system_prompt: Arc::new("test-system-prompt".to_string()),
+            model: Arc::new("test-model".to_string()),
+            temperature: 0.0,
+            auto_save_memory: false,
+            max_tool_iterations: 5,
+            min_relevance_score: 0.0,
+            conversation_histories: Arc::new(Mutex::new(HashMap::new())),
+            provider_cache: Arc::new(Mutex::new(provider_cache_seed)),
+            route_overrides: Arc::new(Mutex::new(HashMap::new())),
+            api_key: None,
+            api_url: None,
+            reliability: Arc::new(crate::config::ReliabilityConfig::default()),
+            provider_runtime_options: providers::ProviderRuntimeOptions {
+                topclaw_dir: Some(temp.path().to_path_buf()),
+                ..providers::ProviderRuntimeOptions::default()
+            },
+            workspace_dir: Arc::new(workspace_dir),
+            message_timeout_secs: CHANNEL_MESSAGE_TIMEOUT_SECS,
+            interrupt_on_new_message: false,
+            non_cli_excluded_tools: Arc::new(Mutex::new(Vec::new())),
+            approval_manager: Arc::new(ApprovalManager::from_config(
+                &crate::config::AutonomyConfig {
+                    always_ask: vec!["mock_price".to_string()],
+                    ..crate::config::AutonomyConfig::default()
+                },
+            )),
+            multimodal: crate::config::MultimodalConfig::default(),
+            hooks: None,
+            query_classification: crate::config::QueryClassificationConfig::default(),
+            model_routes: Vec::new(),
+        });
+        runtime_ctx
+            .route_overrides
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .insert(
+                "telegram_alice".to_string(),
+                ChannelRouteSelection {
+                    provider: "test-provider".to_string(),
+                    model: "test-model".to_string(),
+                },
+            );
+
+        Box::pin(process_channel_message(
+            runtime_ctx.clone(),
+            traits::ChannelMessage {
+                id: "msg-plain-approve-1".to_string(),
+                sender: "alice".to_string(),
+                reply_target: "chat-plain-approve".to_string(),
+                content: "What is the BTC price now?".to_string(),
+                channel: "telegram".to_string(),
+                timestamp: 1,
+                thread_ts: None,
+            },
+            CancellationToken::new(),
+        ))
+        .await;
+
+        {
+            let sent = channel_impl.sent_messages.lock().await;
+            assert_eq!(sent.len(), 1);
+            assert!(sent[0].contains("Approval required for current execution plan."));
+            assert!(sent[0].contains("Request ID: `apr-"));
+        }
+
+        Box::pin(process_channel_message(
+            runtime_ctx.clone(),
+            traits::ChannelMessage {
+                id: "msg-plain-approve-2".to_string(),
+                sender: "alice".to_string(),
+                reply_target: "chat-plain-approve".to_string(),
+                content: "approve".to_string(),
+                channel: "telegram".to_string(),
+                timestamp: 2,
+                thread_ts: None,
+            },
+            CancellationToken::new(),
+        ))
+        .await;
+
+        tokio::time::timeout(Duration::from_secs(2), async {
+            loop {
+                let sent = channel_impl.sent_messages.lock().await;
+                if sent
+                    .iter()
+                    .any(|entry| entry.contains("BTC is currently around $65,000"))
+                {
+                    break;
+                }
+                drop(sent);
+                tokio::time::sleep(Duration::from_millis(20)).await;
+            }
+        })
+        .await
+        .expect("plain approve should auto-resume the scoped pending request");
 
         let sent = channel_impl.sent_messages.lock().await;
         assert!(sent
@@ -6090,6 +6229,10 @@ BTC is currently around $65,000 based on latest tool output."#
         assert!(
             prompt.contains("Read-only investigation tools may be approved once"),
             "missing scoped approval guidance"
+        );
+        assert!(
+            prompt.contains("Never tell the user to reply with plain text like `approve`"),
+            "missing manual approval anti-pattern guidance"
         );
     }
 
