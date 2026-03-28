@@ -1930,7 +1930,7 @@ always_ask = []
     #[test]
     async fn cron_config_default() {
         let c = CronConfig::default();
-        assert!(c.enabled);
+        assert!(!c.enabled);
         assert_eq!(c.max_run_history, 50);
     }
 
@@ -1955,7 +1955,7 @@ default_temperature = 0.7
 "#;
 
         let parsed: Config = toml::from_str(toml_str).unwrap();
-        assert!(parsed.cron.enabled);
+        assert!(!parsed.cron.enabled);
         assert_eq!(parsed.cron.max_run_history, 50);
     }
 

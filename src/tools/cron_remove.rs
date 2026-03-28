@@ -99,6 +99,10 @@ mod tests {
                 allowed_commands: test_allowed_commands(),
                 ..crate::config::AutonomyConfig::default()
             },
+            cron: crate::config::CronConfig {
+                enabled: true,
+                ..crate::config::CronConfig::default()
+            },
             ..Config::default()
         };
         tokio::fs::create_dir_all(&config.workspace_dir)
@@ -155,6 +159,10 @@ mod tests {
         let mut config = Config {
             workspace_dir: tmp.path().join("workspace"),
             config_path: tmp.path().join("config.toml"),
+            cron: crate::config::CronConfig {
+                enabled: true,
+                ..crate::config::CronConfig::default()
+            },
             ..Config::default()
         };
         config.autonomy.allowed_commands = vec!["echo".into()];
@@ -177,6 +185,10 @@ mod tests {
         let mut config = Config {
             workspace_dir: tmp.path().join("workspace"),
             config_path: tmp.path().join("config.toml"),
+            cron: crate::config::CronConfig {
+                enabled: true,
+                ..crate::config::CronConfig::default()
+            },
             ..Config::default()
         };
         config.autonomy.level = AutonomyLevel::Full;

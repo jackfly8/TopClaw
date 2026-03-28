@@ -178,6 +178,82 @@ fn boxed_registry_from_arcs(tools: Vec<Arc<dyn Tool>>) -> Vec<Box<dyn Tool>> {
     tools.into_iter().map(ArcDelegatingTool::boxed).collect()
 }
 
+fn core_non_shell_tool_arcs(
+    config: &Arc<Config>,
+    security: &Arc<SecurityPolicy>,
+    memory: Arc<dyn Memory>,
+    workspace_dir: &std::path::Path,
+    root_config: &crate::config::Config,
+) -> Vec<Arc<dyn Tool>> {
+    let mut tool_arcs: Vec<Arc<dyn Tool>> = vec![
+        Arc::new(MemoryStoreTool::new(memory.clone(), security.clone())),
+        Arc::new(MemoryRecallTool::new(memory.clone())),
+        Arc::new(MemoryForgetTool::new(memory, security.clone())),
+        Arc::new(TaskPlanTool::new(security.clone())),
+        Arc::new(ModelRoutingConfigTool::new(
+            config.clone(),
+            security.clone(),
+        )),
+        Arc::new(ProxyConfigTool::new(config.clone(), security.clone())),
+        Arc::new(LosslessDescribeTool::new(workspace_dir.to_path_buf())),
+        Arc::new(LosslessSearchTool::new(workspace_dir.to_path_buf())),
+        Arc::new(PdfReadTool::new(security.clone())),
+        Arc::new(ScreenshotTool::new(security.clone())),
+        Arc::new(ImageInfoTool::new(security.clone())),
+    ];
+
+    if root_config.cron.enabled {
+        tool_arcs.extend([
+            Arc::new(CronAddTool::new(config.clone(), security.clone())) as Arc<dyn Tool>,
+            Arc::new(CronListTool::new(config.clone())),
+            Arc::new(CronRemoveTool::new(config.clone(), security.clone())),
+            Arc::new(CronUpdateTool::new(config.clone(), security.clone())),
+            Arc::new(CronRunTool::new(config.clone(), security.clone())),
+            Arc::new(CronRunsTool::new(config.clone())),
+            Arc::new(ScheduleTool::new(security.clone(), root_config.clone())),
+        ]);
+    }
+
+    if pushover_credentials_present(workspace_dir) {
+        tool_arcs.push(Arc::new(PushoverTool::new(
+            security.clone(),
+            workspace_dir.to_path_buf(),
+        )));
+    }
+
+    tool_arcs
+}
+
+fn pushover_credentials_present(workspace_dir: &std::path::Path) -> bool {
+    let env_path = workspace_dir.join(".env");
+    let Ok(content) = std::fs::read_to_string(env_path) else {
+        return false;
+    };
+
+    let mut has_token = false;
+    let mut has_user_key = false;
+    for line in content.lines() {
+        let line = line.trim();
+        if line.is_empty() || line.starts_with('#') {
+            continue;
+        }
+        let line = line.strip_prefix("export ").map(str::trim).unwrap_or(line);
+        let Some((key, value)) = line.split_once('=') else {
+            continue;
+        };
+        if value.trim().is_empty() {
+            continue;
+        }
+        if key.trim().eq_ignore_ascii_case("PUSHOVER_TOKEN") {
+            has_token = true;
+        } else if key.trim().eq_ignore_ascii_case("PUSHOVER_USER_KEY") {
+            has_user_key = true;
+        }
+    }
+
+    has_token && has_user_key
+}
+
 // ============================================================================
 // SECTION 2: Tool Registry Functions
 // ============================================================================
@@ -277,30 +353,8 @@ pub fn all_tools_with_runtime(
         root_config.security.audit.clone(),
     ));
 
-    let mut tool_arcs: Vec<Arc<dyn Tool>> = vec![
-        Arc::new(CronAddTool::new(config.clone(), security.clone())),
-        Arc::new(CronListTool::new(config.clone())),
-        Arc::new(CronRemoveTool::new(config.clone(), security.clone())),
-        Arc::new(CronUpdateTool::new(config.clone(), security.clone())),
-        Arc::new(CronRunTool::new(config.clone(), security.clone())),
-        Arc::new(CronRunsTool::new(config.clone())),
-        Arc::new(MemoryStoreTool::new(memory.clone(), security.clone())),
-        Arc::new(MemoryRecallTool::new(memory.clone())),
-        Arc::new(MemoryForgetTool::new(memory, security.clone())),
-        Arc::new(ScheduleTool::new(security.clone(), root_config.clone())),
-        Arc::new(TaskPlanTool::new(security.clone())),
-        Arc::new(ModelRoutingConfigTool::new(
-            config.clone(),
-            security.clone(),
-        )),
-        Arc::new(ProxyConfigTool::new(config.clone(), security.clone())),
-        Arc::new(PushoverTool::new(
-            security.clone(),
-            workspace_dir.to_path_buf(),
-        )),
-        Arc::new(LosslessDescribeTool::new(workspace_dir.to_path_buf())),
-        Arc::new(LosslessSearchTool::new(workspace_dir.to_path_buf())),
-    ];
+    let mut tool_arcs =
+        core_non_shell_tool_arcs(&config, security, memory, workspace_dir, root_config);
 
     if let Some(discord) = root_config.channels_config.discord.as_ref() {
         let token = discord.bot_token.trim();
@@ -425,13 +479,6 @@ pub fn all_tools_with_runtime(
             root_config.web_search.user_agent.clone(),
         )));
     }
-
-    // PDF extraction (feature-gated at compile time via rag-pdf)
-    tool_arcs.push(Arc::new(PdfReadTool::new(security.clone())));
-
-    // Vision tools are always available
-    tool_arcs.push(Arc::new(ScreenshotTool::new(security.clone())));
-    tool_arcs.push(Arc::new(ImageInfoTool::new(security.clone())));
 
     if let Some(key) = composio_key {
         if !key.is_empty() {
@@ -643,9 +690,9 @@ mod tests {
         let names: Vec<&str> = tools.iter().map(|t| t.name()).collect();
         assert!(!names.contains(&"browser_open"));
         assert!(!names.contains(&"discord_history_fetch"));
-        assert!(names.contains(&"schedule"));
+        assert!(!names.contains(&"schedule"));
         assert!(names.contains(&"model_routing_config"));
-        assert!(names.contains(&"pushover"));
+        assert!(!names.contains(&"pushover"));
         assert!(names.contains(&"proxy_config"));
     }
 
@@ -731,8 +778,119 @@ mod tests {
         assert!(names.contains(&"browser_open"));
         assert!(names.contains(&"content_search"));
         assert!(names.contains(&"model_routing_config"));
-        assert!(names.contains(&"pushover"));
+        assert!(!names.contains(&"pushover"));
         assert!(names.contains(&"proxy_config"));
+    }
+
+    #[test]
+    fn all_tools_include_cron_tools_only_when_cron_enabled() {
+        let tmp = TempDir::new().unwrap();
+        let security = Arc::new(SecurityPolicy::default());
+        let mem_cfg = MemoryConfig {
+            backend: "markdown".into(),
+            ..MemoryConfig::default()
+        };
+        let mem: Arc<dyn Memory> =
+            Arc::from(crate::memory::create_memory(&mem_cfg, tmp.path(), None).unwrap());
+
+        let browser = BrowserConfig::default();
+        let http = crate::config::HttpRequestConfig::default();
+
+        let disabled_cfg = test_config(&tmp);
+        let disabled_tools = all_tools(
+            Arc::new(disabled_cfg.clone()),
+            &security,
+            mem.clone(),
+            None,
+            None,
+            &browser,
+            &http,
+            &crate::config::WebFetchConfig::default(),
+            tmp.path(),
+            &HashMap::new(),
+            None,
+            &disabled_cfg,
+        );
+        let disabled_names: Vec<&str> = disabled_tools.iter().map(|t| t.name()).collect();
+        assert!(!disabled_names.contains(&"cron_add"));
+        assert!(!disabled_names.contains(&"cron_list"));
+        assert!(!disabled_names.contains(&"schedule"));
+
+        let mut enabled_cfg = test_config(&tmp);
+        enabled_cfg.cron.enabled = true;
+        let enabled_tools = all_tools(
+            Arc::new(enabled_cfg.clone()),
+            &security,
+            mem,
+            None,
+            None,
+            &browser,
+            &http,
+            &crate::config::WebFetchConfig::default(),
+            tmp.path(),
+            &HashMap::new(),
+            None,
+            &enabled_cfg,
+        );
+        let enabled_names: Vec<&str> = enabled_tools.iter().map(|t| t.name()).collect();
+        assert!(enabled_names.contains(&"cron_add"));
+        assert!(enabled_names.contains(&"cron_list"));
+        assert!(enabled_names.contains(&"schedule"));
+    }
+
+    #[test]
+    fn all_tools_include_pushover_only_when_workspace_has_credentials() {
+        let tmp = TempDir::new().unwrap();
+        let security = Arc::new(SecurityPolicy::default());
+        let mem_cfg = MemoryConfig {
+            backend: "markdown".into(),
+            ..MemoryConfig::default()
+        };
+        let mem: Arc<dyn Memory> =
+            Arc::from(crate::memory::create_memory(&mem_cfg, tmp.path(), None).unwrap());
+
+        let browser = BrowserConfig::default();
+        let http = crate::config::HttpRequestConfig::default();
+        let cfg = test_config(&tmp);
+
+        let tools_without_env = all_tools(
+            Arc::new(cfg.clone()),
+            &security,
+            mem.clone(),
+            None,
+            None,
+            &browser,
+            &http,
+            &crate::config::WebFetchConfig::default(),
+            tmp.path(),
+            &HashMap::new(),
+            None,
+            &cfg,
+        );
+        let names_without_env: Vec<&str> = tools_without_env.iter().map(|t| t.name()).collect();
+        assert!(!names_without_env.contains(&"pushover"));
+
+        std::fs::write(
+            tmp.path().join(".env"),
+            "PUSHOVER_TOKEN=test-token\nPUSHOVER_USER_KEY=test-user\n",
+        )
+        .unwrap();
+        let tools_with_env = all_tools(
+            Arc::new(cfg.clone()),
+            &security,
+            mem,
+            None,
+            None,
+            &browser,
+            &http,
+            &crate::config::WebFetchConfig::default(),
+            tmp.path(),
+            &HashMap::new(),
+            None,
+            &cfg,
+        );
+        let names_with_env: Vec<&str> = tools_with_env.iter().map(|t| t.name()).collect();
+        assert!(names_with_env.contains(&"pushover"));
     }
 
     #[test]

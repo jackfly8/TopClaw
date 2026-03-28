@@ -67,6 +67,10 @@ mod tests {
         let config = Config {
             workspace_dir: tmp.path().join("workspace"),
             config_path: tmp.path().join("config.toml"),
+            cron: crate::config::CronConfig {
+                enabled: true,
+                ..crate::config::CronConfig::default()
+            },
             ..Config::default()
         };
         tokio::fs::create_dir_all(&config.workspace_dir)
