@@ -5,7 +5,9 @@ use crate::config::{
     SecretsConfig, StorageConfig, TelegramConfig, WebFetchConfig, WebSearchConfig, WebhookConfig,
 };
 use crate::hardware::{self, HardwareConfig};
-use crate::memory::{default_memory_backend_key, memory_backend_profile};
+use crate::memory::{
+    default_memory_backend_key, memory_backend_profile, selectable_memory_backends,
+};
 use crate::providers::{
     canonical_china_provider_name, is_glm_alias, is_glm_cn_alias, is_minimax_alias,
     is_moonshot_alias, is_qianfan_alias, is_qwen_alias, is_qwen_oauth_alias, is_zai_alias,
@@ -544,7 +546,7 @@ fn ensure_background_service_for_channels(config: &Config) -> Result<BackgroundS
 // ── Quick setup (zero prompts) ───────────────────────────────────
 
 /// Non-interactive setup: generates a sensible default config instantly.
-/// Use `topclaw bootstrap` or `topclaw bootstrap --api-key sk-... --provider openrouter --memory sqlite|lucid`.
+/// Use `topclaw bootstrap` or `topclaw bootstrap --api-key sk-... --provider openrouter --memory sqlite|markdown|none`.
 /// Use `topclaw bootstrap --interactive` for the full wizard.
 fn memory_config_defaults_for_backend(backend: &str) -> MemoryConfig {
     let profile = memory_backend_profile(backend);
@@ -585,6 +587,43 @@ fn default_quick_setup_provider(credential_override: Option<&str>) -> &'static s
     } else {
         crate::providers::DEFAULT_PROVIDER_NAME
     }
+}
+
+fn resolve_quick_setup_provider(provider: Option<&str>) -> Result<String> {
+    let provider_name = provider
+        .unwrap_or_else(|| default_quick_setup_provider(None))
+        .trim();
+    let canonical = canonical_provider_name(provider_name);
+    if crate::providers::is_first_class_provider(canonical) {
+        return Ok(canonical.to_string());
+    }
+
+    anyhow::bail!(
+        "Quick setup only supports first-class providers: {}. Configure '{provider_name}' later via config.toml or the interactive wizard.",
+        crate::providers::FIRST_CLASS_PROVIDER_PRIORITY.join(", ")
+    );
+}
+
+fn resolve_quick_setup_memory_backend(memory_backend: Option<&str>) -> Result<String> {
+    let backend = memory_backend
+        .unwrap_or(default_memory_backend_key())
+        .trim()
+        .to_ascii_lowercase();
+    if selectable_memory_backends()
+        .iter()
+        .any(|profile| profile.key == backend)
+    {
+        return Ok(backend);
+    }
+
+    let allowed = selectable_memory_backends()
+        .iter()
+        .map(|profile| profile.key)
+        .collect::<Vec<_>>()
+        .join(", ");
+    anyhow::bail!(
+        "Quick setup only supports default memory backends: {allowed}. Configure '{backend}' later in config.toml if you need an advanced backend."
+    );
 }
 
 #[allow(clippy::too_many_lines)]
@@ -674,15 +713,14 @@ async fn run_quick_setup_with_home(
         .await
         .context("Failed to create workspace directory")?;
 
-    let provider_name = provider
-        .unwrap_or_else(|| default_quick_setup_provider(credential_override))
-        .to_string();
+    let provider_name = match provider {
+        Some(provider_name) => resolve_quick_setup_provider(Some(provider_name))?,
+        None => default_quick_setup_provider(credential_override).to_string(),
+    };
     let model = model_override
         .map(str::to_string)
         .unwrap_or_else(|| default_model_for_provider(&provider_name));
-    let memory_backend_name = memory_backend
-        .unwrap_or(default_memory_backend_key())
-        .to_string();
+    let memory_backend_name = resolve_quick_setup_memory_backend(memory_backend)?;
 
     // Create memory config based on backend choice
     let memory_config = memory_config_defaults_for_backend(&memory_backend_name);
@@ -2908,7 +2946,7 @@ mod tests {
 
         let config = Box::pin(run_quick_setup_with_clean_env(
             Some("sk-issue946"),
-            Some("anthropic"),
+            Some("openrouter"),
             None,
             Some("sqlite"),
             false,
@@ -2917,8 +2955,8 @@ mod tests {
         .await
         .unwrap();
 
-        let expected = default_model_for_provider("anthropic");
-        assert_eq!(config.default_provider.as_deref(), Some("anthropic"));
+        let expected = default_model_for_provider("openrouter");
+        assert_eq!(config.default_provider.as_deref(), Some("openrouter"));
         assert_eq!(config.default_model.as_deref(), Some(expected.as_str()));
     }
 
@@ -4786,5 +4824,47 @@ mod tests {
             crate::providers::DEFAULT_PROVIDER_NAME
         );
         assert_eq!(default_quick_setup_provider(Some("sk-test")), "openrouter");
+    }
+
+    #[test]
+    fn resolve_quick_setup_provider_limits_default_path_to_first_class_providers() {
+        assert_eq!(
+            resolve_quick_setup_provider(Some("codex")).unwrap(),
+            "openai-codex"
+        );
+        assert_eq!(
+            resolve_quick_setup_provider(Some("openrouter")).unwrap(),
+            "openrouter"
+        );
+        assert_eq!(
+            resolve_quick_setup_provider(Some("ollama")).unwrap(),
+            "ollama"
+        );
+
+        let err = resolve_quick_setup_provider(Some("anthropic")).unwrap_err();
+        assert!(err
+            .to_string()
+            .contains("Quick setup only supports first-class providers"));
+    }
+
+    #[test]
+    fn resolve_quick_setup_memory_backend_limits_default_path_to_selectable_backends() {
+        assert_eq!(
+            resolve_quick_setup_memory_backend(Some("sqlite")).unwrap(),
+            "sqlite"
+        );
+        assert_eq!(
+            resolve_quick_setup_memory_backend(Some("markdown")).unwrap(),
+            "markdown"
+        );
+        assert_eq!(
+            resolve_quick_setup_memory_backend(Some("none")).unwrap(),
+            "none"
+        );
+
+        let err = resolve_quick_setup_memory_backend(Some("lucid")).unwrap_err();
+        assert!(err
+            .to_string()
+            .contains("Quick setup only supports default memory backends"));
     }
 }

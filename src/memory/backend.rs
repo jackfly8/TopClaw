@@ -93,12 +93,8 @@ const CUSTOM_PROFILE: MemoryBackendProfile = MemoryBackendProfile {
     optional_dependency: false,
 };
 
-const SELECTABLE_MEMORY_BACKENDS: [MemoryBackendProfile; 4] = [
-    SQLITE_PROFILE,
-    LUCID_PROFILE,
-    MARKDOWN_PROFILE,
-    NONE_PROFILE,
-];
+const SELECTABLE_MEMORY_BACKENDS: [MemoryBackendProfile; 3] =
+    [SQLITE_PROFILE, MARKDOWN_PROFILE, NONE_PROFILE];
 
 pub fn selectable_memory_backends() -> &'static [MemoryBackendProfile] {
     &SELECTABLE_MEMORY_BACKENDS
@@ -166,11 +162,10 @@ mod tests {
     #[test]
     fn selectable_backends_are_ordered_for_onboarding() {
         let backends = selectable_memory_backends();
-        assert_eq!(backends.len(), 4);
+        assert_eq!(backends.len(), 3);
         assert_eq!(backends[0].key, "sqlite");
-        assert_eq!(backends[1].key, "lucid");
-        assert_eq!(backends[2].key, "markdown");
-        assert_eq!(backends[3].key, "none");
+        assert_eq!(backends[1].key, "markdown");
+        assert_eq!(backends[2].key, "none");
     }
 
     #[test]
