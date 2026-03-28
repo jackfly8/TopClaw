@@ -32,7 +32,7 @@ const SQLITE_PROFILE: MemoryBackendProfile = MemoryBackendProfile {
 
 const LUCID_PROFILE: MemoryBackendProfile = MemoryBackendProfile {
     key: "lucid",
-    label: "Lucid Memory bridge — sync with local lucid-memory CLI, keep SQLite fallback",
+    label: "Lucid Memory bridge — optional `memory-lucid` build, keep SQLite fallback",
     auto_save_default: true,
     uses_sqlite_hygiene: true,
     sqlite_based: true,

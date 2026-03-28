@@ -3,6 +3,7 @@ pub mod chunker;
 pub mod cli;
 pub mod embeddings;
 pub mod hygiene;
+#[cfg(feature = "memory-lucid")]
 pub mod lucid;
 #[cfg(feature = "memory-mariadb")]
 pub mod mariadb;
@@ -23,6 +24,7 @@ pub use backend::{
     classify_memory_backend, default_memory_backend_key, memory_backend_profile,
     selectable_memory_backends, MemoryBackendKind, MemoryBackendProfile,
 };
+#[cfg(feature = "memory-lucid")]
 pub use lucid::LucidMemory;
 #[cfg(feature = "memory-mariadb")]
 pub use mariadb::MariadbMemory;
@@ -57,9 +59,16 @@ where
 {
     match classify_memory_backend(backend_name) {
         MemoryBackendKind::Sqlite => Ok(Box::new(sqlite_builder()?)),
+        #[cfg(feature = "memory-lucid")]
         MemoryBackendKind::Lucid => {
             let local = sqlite_builder()?;
             Ok(Box::new(LucidMemory::new(workspace_dir, local)))
+        }
+        #[cfg(not(feature = "memory-lucid"))]
+        MemoryBackendKind::Lucid => {
+            anyhow::bail!(
+                "memory backend 'lucid' requested but this build was compiled without `memory-lucid`; rebuild with `--features memory-lucid`"
+            )
         }
         MemoryBackendKind::Postgres => postgres_builder(),
         MemoryBackendKind::Mariadb => {
@@ -222,10 +231,7 @@ pub fn prepare_memory_workspace(
     // If snapshot_on_hygiene is enabled, export core memories during hygiene.
     if config.snapshot_enabled
         && config.snapshot_on_hygiene
-        && matches!(
-            backend_kind,
-            MemoryBackendKind::Sqlite | MemoryBackendKind::Lucid
-        )
+        && matches!(backend_kind, MemoryBackendKind::Sqlite)
     {
         if let Err(e) = snapshot::export_snapshot(workspace_dir) {
             tracing::warn!("memory snapshot skipped: {e}");
@@ -235,10 +241,7 @@ pub fn prepare_memory_workspace(
     // Auto-hydration: if brain.db is missing but MEMORY_SNAPSHOT.md exists,
     // restore the "soul" from the snapshot before creating the backend.
     if config.auto_hydrate
-        && matches!(
-            backend_kind,
-            MemoryBackendKind::Sqlite | MemoryBackendKind::Lucid
-        )
+        && matches!(backend_kind, MemoryBackendKind::Sqlite)
         && snapshot::should_hydrate(workspace_dir)
     {
         tracing::info!("🧬 Cold boot detected — hydrating from MEMORY_SNAPSHOT.md");
@@ -531,6 +534,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(feature = "memory-lucid")]
     fn factory_lucid() {
         let tmp = TempDir::new().unwrap();
         let cfg = MemoryConfig {
@@ -539,6 +543,20 @@ mod tests {
         };
         let mem = create_memory(&cfg, tmp.path(), None).unwrap();
         assert_eq!(mem.name(), "lucid");
+    }
+
+    #[test]
+    #[cfg(not(feature = "memory-lucid"))]
+    fn factory_lucid_requires_feature() {
+        let tmp = TempDir::new().unwrap();
+        let cfg = MemoryConfig {
+            backend: "lucid".into(),
+            ..MemoryConfig::default()
+        };
+        let err = create_memory(&cfg, tmp.path(), None)
+            .err()
+            .expect("backend=lucid should require the memory-lucid feature");
+        assert!(err.to_string().contains("memory-lucid"));
     }
 
     #[test]
@@ -564,10 +582,21 @@ mod tests {
     }
 
     #[test]
+    #[cfg(feature = "memory-lucid")]
     fn migration_factory_lucid() {
         let tmp = TempDir::new().unwrap();
         let mem = create_memory_for_migration("lucid", tmp.path()).unwrap();
         assert_eq!(mem.name(), "lucid");
+    }
+
+    #[test]
+    #[cfg(not(feature = "memory-lucid"))]
+    fn migration_factory_lucid_requires_feature() {
+        let tmp = TempDir::new().unwrap();
+        let err = create_memory_for_migration("lucid", tmp.path())
+            .err()
+            .expect("backend=lucid should require the memory-lucid feature");
+        assert!(err.to_string().contains("memory-lucid"));
     }
 
     #[test]
