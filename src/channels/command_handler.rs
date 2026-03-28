@@ -261,7 +261,7 @@ pub(super) async fn handle_runtime_command_if_needed(
             build_providers_help_response(&current.provider, &current.model)
         }
         ChannelRuntimeCommand::SetProvider(raw_provider) => {
-            match super::runtime_helpers::resolve_provider_alias(&raw_provider) {
+            match super::runtime_helpers::resolve_product_priority_provider_alias(&raw_provider) {
                 Some(provider_name) => {
                     match get_or_create_provider(ctx.as_ref(), &provider_name).await {
                         Ok(_) => {
@@ -288,9 +288,15 @@ pub(super) async fn handle_runtime_command_if_needed(
                         }
                     }
                 }
-                None => format!(
-                    "Unknown provider `{raw_provider}`. Use `/models` to list valid providers."
-                ),
+                None => match super::runtime_helpers::canonical_known_provider_name(&raw_provider) {
+                    Some(provider_name) => format!(
+                        "Channel provider switching is limited to product-priority providers: {}. `{provider_name}` remains available through config.toml or CLI, not `/models`.",
+                        providers::PRODUCT_PROVIDER_PRIORITY.join(", ")
+                    ),
+                    None => format!(
+                        "Unknown provider `{raw_provider}`. Use `/models` to list valid providers."
+                    ),
+                },
             }
         }
         ChannelRuntimeCommand::ShowModel => build_models_help_response(

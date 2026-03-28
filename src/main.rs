@@ -770,7 +770,7 @@ enum ModelCommands {
         #[arg(long)]
         provider: Option<String>,
 
-        /// Refresh first-class providers in priority order
+        /// Refresh product-priority providers in priority order
         #[arg(long)]
         all: bool,
 
@@ -801,11 +801,11 @@ enum ModelCommands {
 enum DoctorCommands {
     /// Probe model catalogs across providers and report availability
     Models {
-        /// Probe a specific provider only (default: first-class providers)
+        /// Probe a specific provider only (default: product-priority providers)
         #[arg(long)]
         provider: Option<String>,
 
-        /// Probe all known providers instead of the first-class default set
+        /// Probe all known providers instead of the product-priority default set
         #[arg(long)]
         all_providers: bool,
 
@@ -1314,18 +1314,18 @@ async fn main() -> Result<()> {
                 println!();
             };
 
-            let first_class: Vec<&providers::ProviderInfo> = provider_list
+            let product_priority: Vec<&providers::ProviderInfo> = provider_list
                 .iter()
-                .filter(|provider| providers::is_first_class_provider(provider.name))
+                .filter(|provider| providers::is_product_priority_provider(provider.name))
                 .collect();
             let additional: Vec<&providers::ProviderInfo> = provider_list
                 .iter()
-                .filter(|provider| !providers::is_first_class_provider(provider.name))
+                .filter(|provider| !providers::is_product_priority_provider(provider.name))
                 .collect();
 
             print_section(
-                "First-class providers (default product path: Codex -> OpenRouter -> Ollama)",
-                first_class,
+                "Product-priority providers (default product path: Codex -> OpenRouter -> Ollama)",
+                product_priority,
             );
             print_section("Additional providers (advanced/compatibility)", additional);
             println!("\n  custom:<URL>   Any OpenAI-compatible endpoint");

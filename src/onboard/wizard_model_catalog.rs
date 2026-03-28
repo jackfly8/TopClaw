@@ -30,7 +30,7 @@ pub(super) fn models_endpoint_for_provider(provider_name: &str) -> Option<&'stat
             "mistral" => Some("https://api.mistral.ai/v1/models"),
             "deepseek" => Some("https://api.deepseek.com/v1/models"),
             "xai" => Some("https://api.x.ai/v1/models"),
-            "together-ai" => Some("https://api.together.xyz/v1/models"),
+            "together" => Some("https://api.together.xyz/v1/models"),
             "fireworks" => Some("https://api.fireworks.ai/inference/v1/models"),
             "novita" => Some("https://api.novita.ai/openai/v1/models"),
             "cohere" => Some("https://api.cohere.com/compatibility/v1/models"),
@@ -1081,7 +1081,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn default_live_model_refresh_targets_follow_first_class_priority() {
+    fn default_live_model_refresh_targets_follow_product_priority() {
         assert_eq!(
             default_live_model_refresh_targets(),
             crate::providers::MODEL_CATALOG_PROVIDER_PRIORITY

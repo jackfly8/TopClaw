@@ -5,7 +5,7 @@ use crate::providers;
 use crate::tools::{Tool, ToolSpec};
 use std::collections::HashSet;
 
-pub(super) fn resolve_provider_alias(name: &str) -> Option<String> {
+pub(super) fn canonical_known_provider_name(name: &str) -> Option<String> {
     let candidate = name.trim();
     if candidate.is_empty() {
         return None;
@@ -26,10 +26,18 @@ pub(super) fn resolve_provider_alias(name: &str) -> Option<String> {
     None
 }
 
+pub(super) fn resolve_product_priority_provider_alias(name: &str) -> Option<String> {
+    let provider_name = canonical_known_provider_name(name)?;
+    providers::is_product_priority_provider(&provider_name).then_some(provider_name)
+}
+
 pub(super) fn resolved_default_provider(config: &Config) -> String {
     config
         .default_provider
-        .clone()
+        .as_deref()
+        .map(str::trim)
+        .filter(|provider| !provider.is_empty())
+        .map(str::to_string)
         .unwrap_or_else(|| providers::DEFAULT_PROVIDER_NAME.to_string())
 }
 

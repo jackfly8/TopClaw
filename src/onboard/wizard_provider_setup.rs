@@ -10,32 +10,6 @@ use console::style;
 use dialoguer::{Confirm, Input};
 use std::path::Path;
 
-pub(super) async fn setup_simple_custom_provider(
-    workspace_dir: &Path,
-    config_path: &Path,
-    encrypt_secrets: bool,
-) -> Result<(String, String, String, Option<String>)> {
-    println!();
-    print_bullet("Enter the base URL for any OpenAI-compatible endpoint.");
-    let base_url: String = Input::new().with_prompt("  API base URL").interact_text()?;
-
-    let base_url = base_url.trim().trim_end_matches('/').to_string();
-    if base_url.is_empty() {
-        anyhow::bail!("Custom provider requires a base URL.");
-    }
-
-    let api_key: String = Input::new()
-        .with_prompt("  API key (or Enter to skip if not needed)")
-        .allow_empty(true)
-        .interact_text()?;
-
-    let model = prompt_for_default_model(workspace_dir, "openai", &api_key, None).await?;
-
-    let provider_name = format!("custom:{base_url}");
-    maybe_prompt_openai_codex_login(&provider_name, config_path, encrypt_secrets).await?;
-    Ok((provider_name, api_key, model, None))
-}
-
 pub(super) async fn setup_simple_named_provider(
     workspace_dir: &Path,
     config_path: &Path,
@@ -110,7 +84,7 @@ pub(super) fn advanced_provider_choices(tier_idx: usize) -> Vec<(&'static str, &
             ("groq", "Groq — ultra-fast LPU inference"),
             ("fireworks", "Fireworks AI — fast open-source inference"),
             ("novita", "Novita AI — affordable open-source inference"),
-            ("together-ai", "Together AI — open-source model hosting"),
+            ("together", "Together AI — open-source model hosting"),
             ("nvidia", "NVIDIA NIM — DeepSeek, Llama, & more"),
         ],
         2 => vec![
@@ -535,7 +509,7 @@ pub(super) async fn prompt_advanced_provider_credentials(
                 "groq" => "https://console.groq.com/keys",
                 "mistral" => "https://console.mistral.ai/api-keys",
                 "deepseek" => "https://platform.deepseek.com/api_keys",
-                "together-ai" => "https://api.together.xyz/settings/api-keys",
+                "together" => "https://api.together.xyz/settings/api-keys",
                 "fireworks" => "https://fireworks.ai/account/api-keys",
                 "novita" => "https://novita.ai/settings/key-management",
                 "perplexity" => "https://www.perplexity.ai/settings/api",

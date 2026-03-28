@@ -43,7 +43,7 @@ pub(super) fn build_models_help_response(
         } else {
             let _ = writeln!(
                 response,
-                "\n`{provider_name}` does not expose a live model catalog refresh path. Switch with `/models <provider>` or set a model directly with `/model <model-id>`."
+                "\n`{provider_name}` does not expose a live model catalog refresh path. Switch with `/models <product-priority-provider>` or set a model directly with `/model <model-id>`."
             );
         }
     } else {
@@ -63,14 +63,16 @@ pub(super) fn build_models_help_response(
 pub(super) fn build_providers_help_response(provider_name: &str, model_name: &str) -> String {
     let mut response = String::new();
     append_current_route(&mut response, provider_name, model_name);
-    response.push_str("\nSwitch provider with `/models <provider>`.\n");
+    response.push_str(
+        "\nSwitch provider with `/models <provider>` for product-priority providers only.\n",
+    );
     response.push_str("Switch model with `/model <model-id>`.\n\n");
     append_approval_management_help(&mut response);
     response.push('\n');
     response.push_str("Product-priority providers:\n");
     for provider in providers::list_providers()
         .into_iter()
-        .filter(|provider| providers::is_first_class_provider(provider.name))
+        .filter(|provider| providers::is_product_priority_provider(provider.name))
     {
         if provider.aliases.is_empty() {
             let _ = writeln!(response, "- {}", provider.name);
@@ -83,10 +85,10 @@ pub(super) fn build_providers_help_response(provider_name: &str, model_name: &st
             );
         }
     }
-    response.push_str("\nAdvanced/compatibility providers:\n");
+    response.push_str("\nAdvanced/compatibility providers (configure via CLI or config.toml):\n");
     for provider in providers::list_providers()
         .into_iter()
-        .filter(|provider| !providers::is_first_class_provider(provider.name))
+        .filter(|provider| !providers::is_product_priority_provider(provider.name))
     {
         if provider.aliases.is_empty() {
             let _ = writeln!(response, "- {}", provider.name);
@@ -123,8 +125,11 @@ mod tests {
         assert!(response.contains("Current provider: `anthropic`"));
         assert!(response.contains("Current model: `claude-sonnet-4`"));
         assert!(response.contains("Product-priority providers:"));
-        assert!(response.contains("Advanced/compatibility providers:"));
-        assert!(response.contains("Switch provider with `/models <provider>`."));
+        assert!(response
+            .contains("Advanced/compatibility providers (configure via CLI or config.toml):"));
+        assert!(response.contains(
+            "Switch provider with `/models <provider>` for product-priority providers only."
+        ));
     }
 
     #[test]

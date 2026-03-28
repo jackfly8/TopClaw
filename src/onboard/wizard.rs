@@ -11,9 +11,8 @@ use crate::memory::{
     default_memory_backend_key, memory_backend_profile, selectable_memory_backends,
 };
 use crate::providers::{
-    canonical_china_provider_name, is_glm_alias, is_glm_cn_alias, is_minimax_alias,
-    is_moonshot_alias, is_qianfan_alias, is_qwen_alias, is_qwen_oauth_alias, is_zai_alias,
-    is_zai_cn_alias, list_providers,
+    is_glm_alias, is_glm_cn_alias, is_minimax_alias, is_moonshot_alias, is_qianfan_alias,
+    is_qwen_alias, is_qwen_oauth_alias, is_zai_alias, is_zai_cn_alias, list_providers,
 };
 use anyhow::{bail, Context, Result};
 use console::style;
@@ -64,7 +63,7 @@ use model_catalog::{
 };
 use provider_setup::{
     advanced_provider_choices, prompt_advanced_provider_credentials,
-    setup_advanced_custom_provider, setup_simple_custom_provider, setup_simple_named_provider,
+    setup_advanced_custom_provider, setup_simple_named_provider,
 };
 #[cfg(test)]
 use skill_selection::{
@@ -596,12 +595,12 @@ fn resolve_quick_setup_provider(provider: Option<&str>) -> Result<String> {
         .unwrap_or_else(|| default_quick_setup_provider(None))
         .trim();
     let canonical = canonical_provider_name(provider_name);
-    if crate::providers::is_first_class_provider(canonical) {
+    if crate::providers::is_product_priority_provider(canonical) {
         return Ok(canonical.to_string());
     }
 
     anyhow::bail!(
-        "Quick setup only supports first-class providers: {}. Configure '{provider_name}' later via config.toml or the interactive wizard.",
+        "Quick setup only supports product-priority providers: {}. Configure '{provider_name}' later via config.toml or the interactive wizard.",
         crate::providers::PRODUCT_PROVIDER_PRIORITY.join(", ")
     );
 }
@@ -922,22 +921,7 @@ fn canonical_provider_name(provider_name: &str) -> &str {
         return "qwen-code";
     }
 
-    if let Some(canonical) = canonical_china_provider_name(provider_name) {
-        return canonical;
-    }
-
-    match provider_name {
-        "grok" => "xai",
-        "together" => "together-ai",
-        "google" | "google-gemini" => "gemini",
-        "github-copilot" => "copilot",
-        "openai_codex" | "codex" => "openai-codex",
-        "kimi_coding" | "kimi_for_coding" => "kimi-code",
-        "nvidia-nim" | "build.nvidia.com" => "nvidia",
-        "aws-bedrock" => "bedrock",
-        "llama.cpp" => "llamacpp",
-        _ => provider_name,
-    }
+    crate::providers::canonical_provider_name(provider_name)
 }
 
 fn allows_unauthenticated_model_fetch(provider_name: &str) -> bool {
@@ -969,7 +953,7 @@ fn default_model_for_provider(provider: &str) -> String {
         "perplexity" => "sonar-pro".into(),
         "fireworks" => "accounts/fireworks/models/llama-v3p3-70b-instruct".into(),
         "novita" => "minimax/minimax-m2.5".into(),
-        "together-ai" => "meta-llama/Llama-3.3-70B-Instruct-Turbo".into(),
+        "together" => "meta-llama/Llama-3.3-70B-Instruct-Turbo".into(),
         "cohere" => "command-a-03-2025".into(),
         "moonshot" => "kimi-k2.5".into(),
         "hunyuan" => "hunyuan-t1-latest".into(),
@@ -1182,7 +1166,7 @@ fn curated_models_for_provider(provider_name: &str) -> Vec<(String, String)> {
             "minimax/minimax-m2.5".to_string(),
             "MiniMax M2.5".to_string(),
         )],
-        "together-ai" => vec![
+        "together" => vec![
             (
                 "meta-llama/Llama-3.3-70B-Instruct-Turbo".to_string(),
                 "Llama 3.3 70B Instruct Turbo (recommended)".to_string(),
@@ -1572,38 +1556,39 @@ async fn setup_workspace() -> Result<(PathBuf, PathBuf)> {
 
 // ── Step 2: Provider & Authentication ────────────────────────────
 
+const SIMPLE_PROVIDER_OPTIONS: [(&str, &str); 4] = [
+    ("openai-codex", "OpenAI Codex"),
+    ("openrouter", "OpenRouter"),
+    ("ollama", "Ollama (local)"),
+    (
+        "advanced",
+        "Advanced/custom providers and compatibility setup",
+    ),
+];
+
 async fn setup_provider_simple(
     workspace_dir: &Path,
     config_path: &Path,
     encrypt_secrets: bool,
 ) -> Result<(String, String, String, Option<String>)> {
     loop {
-        let options = [
-            ("openai-codex", "OpenAI Codex"),
-            ("openrouter", "OpenRouter"),
-            ("ollama", "Ollama (local)"),
-            ("custom", "Custom OpenAI-compatible API"),
-            ("advanced", "Advanced providers and compatibility setup"),
-        ];
-
-        let labels: Vec<&str> = options.iter().map(|(_, label)| *label).collect();
+        let labels: Vec<&str> = SIMPLE_PROVIDER_OPTIONS
+            .iter()
+            .map(|(_, label)| *label)
+            .collect();
         let provider_idx = Select::new()
             .with_prompt("  Select your AI provider")
             .items(&labels)
             .default(0)
             .interact()?;
 
-        let choice = options[provider_idx].0;
+        let choice = SIMPLE_PROVIDER_OPTIONS[provider_idx].0;
         if choice == "advanced" {
             match setup_provider(workspace_dir, config_path, encrypt_secrets).await {
                 Ok(result) => return Ok(result),
                 Err(e) if is_back_navigation(&e) => continue,
                 Err(e) => return Err(e),
             }
-        }
-
-        if choice == "custom" {
-            return setup_simple_custom_provider(workspace_dir, config_path, encrypt_secrets).await;
         }
 
         return setup_simple_named_provider(workspace_dir, config_path, encrypt_secrets, choice)
@@ -1966,7 +1951,7 @@ fn provider_env_var(name: &str) -> &'static str {
         "mistral" => "MISTRAL_API_KEY",
         "deepseek" => "DEEPSEEK_API_KEY",
         "xai" => "XAI_API_KEY",
-        "together-ai" => "TOGETHER_API_KEY",
+        "together" => "TOGETHER_API_KEY",
         "fireworks" | "fireworks-ai" => "FIREWORKS_API_KEY",
         "novita" => "NOVITA_API_KEY",
         "perplexity" => "PERPLEXITY_API_KEY",
@@ -3637,6 +3622,8 @@ mod tests {
         assert_eq!(canonical_provider_name("aws-bedrock"), "bedrock");
         assert_eq!(canonical_provider_name("build.nvidia.com"), "nvidia");
         assert_eq!(canonical_provider_name("llama.cpp"), "llamacpp");
+        assert_eq!(canonical_provider_name("together"), "together");
+        assert_eq!(canonical_provider_name("together-ai"), "together");
     }
 
     #[test]
@@ -4827,7 +4814,7 @@ mod tests {
     }
 
     #[test]
-    fn resolve_quick_setup_provider_limits_default_path_to_first_class_providers() {
+    fn resolve_quick_setup_provider_limits_default_path_to_product_priority_providers() {
         assert_eq!(
             resolve_quick_setup_provider(Some("codex")).unwrap(),
             "openai-codex"
@@ -4844,7 +4831,19 @@ mod tests {
         let err = resolve_quick_setup_provider(Some("anthropic")).unwrap_err();
         assert!(err
             .to_string()
-            .contains("Quick setup only supports first-class providers"));
+            .contains("Quick setup only supports product-priority providers"));
+    }
+
+    #[test]
+    fn simple_provider_menu_keeps_default_path_to_product_priority_plus_advanced() {
+        let ids: Vec<&str> = SIMPLE_PROVIDER_OPTIONS
+            .iter()
+            .map(|(provider, _)| *provider)
+            .collect();
+        assert_eq!(
+            ids,
+            vec!["openai-codex", "openrouter", "ollama", "advanced"]
+        );
     }
 
     #[test]

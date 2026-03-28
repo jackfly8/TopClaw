@@ -1391,7 +1391,7 @@ pub const MODEL_CATALOG_PROVIDER_PRIORITY: [&str; 2] = ["openrouter", "ollama"];
 pub const DEFAULT_PROVIDER_NAME: &str = PRODUCT_PROVIDER_PRIORITY[0];
 pub const DEFAULT_PROVIDER_MODEL: &str = "gpt-5.4";
 
-fn canonical_priority_provider_name(name: &str) -> &str {
+pub fn canonical_provider_name(name: &str) -> &str {
     let (provider_name, _) = parse_provider_profile(name.trim());
 
     if let Some(canonical) = canonical_china_provider_name(provider_name) {
@@ -1401,6 +1401,7 @@ fn canonical_priority_provider_name(name: &str) -> &str {
     match provider_name {
         "openai_codex" | "codex" => "openai-codex",
         "google" | "google-gemini" => "gemini",
+        "github-copilot" => "copilot",
         "grok" => "xai",
         "together-ai" => "together",
         "vercel-ai" => "vercel",
@@ -1413,8 +1414,8 @@ fn canonical_priority_provider_name(name: &str) -> &str {
     }
 }
 
-pub fn is_first_class_provider(name: &str) -> bool {
-    PRODUCT_PROVIDER_PRIORITY.contains(&canonical_priority_provider_name(name))
+pub fn is_product_priority_provider(name: &str) -> bool {
+    PRODUCT_PROVIDER_PRIORITY.contains(&canonical_provider_name(name))
 }
 
 pub fn supports_model_catalog_refresh(name: &str) -> bool {
@@ -1423,7 +1424,7 @@ pub fn supports_model_catalog_refresh(name: &str) -> bool {
     }
 
     matches!(
-        canonical_priority_provider_name(name),
+        canonical_provider_name(name),
         "openrouter"
             | "openai"
             | "anthropic"
@@ -1457,7 +1458,7 @@ pub fn supports_model_catalog_refresh(name: &str) -> bool {
 /// (display concern vs. construction concern).
 pub fn list_providers() -> Vec<ProviderInfo> {
     vec![
-        // ── First-class core providers ──────────────────────
+        // ── Product-priority providers ──────────────────────
         ProviderInfo {
             name: "openai-codex",
             display_name: "OpenAI Codex (OAuth)",
@@ -2762,7 +2763,7 @@ mod tests {
     }
 
     #[test]
-    fn first_class_providers_are_listed_first_in_priority_order() {
+    fn product_priority_providers_are_listed_first_in_priority_order() {
         let providers = list_providers();
         let listed: Vec<&str> = providers
             .iter()
@@ -2772,9 +2773,12 @@ mod tests {
 
         assert_eq!(listed, PRODUCT_PROVIDER_PRIORITY);
         for name in PRODUCT_PROVIDER_PRIORITY {
-            assert!(is_first_class_provider(name));
+            assert!(is_product_priority_provider(name));
         }
-        assert!(!is_first_class_provider("anthropic"));
+        assert!(is_product_priority_provider("codex"));
+        assert!(!is_product_priority_provider("anthropic"));
+        assert_eq!(canonical_provider_name("together-ai"), "together");
+        assert_eq!(canonical_provider_name("github-copilot"), "copilot");
     }
 
     #[test]
