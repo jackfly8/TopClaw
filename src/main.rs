@@ -3,9 +3,11 @@
 
 use anyhow::{bail, Context, Result};
 use clap::{Parser, Subcommand, ValueEnum};
+#[cfg(feature = "gateway")]
+use topclaw::gateway;
 use topclaw::{
-    agent, auth, backup, channels, config, cron, daemon, doctor, gateway, hardware, memory,
-    observability, onboard, peripherals, providers, security, service, skills, update, Config,
+    agent, auth, backup, channels, config, cron, daemon, doctor, hardware, memory, observability,
+    onboard, peripherals, providers, security, service, skills, update, Config,
 };
 use tracing::info;
 use tracing_subscriber::{fmt, EnvFilter};
@@ -181,7 +183,7 @@ enum Commands {
         /// Model ID override (used in quick mode)
         #[arg(long)]
         model: Option<String>,
-        /// Memory backend (sqlite, lucid, markdown, none) - used in quick mode, default: sqlite
+        /// Memory backend (sqlite, markdown, none) - used in quick mode, default: sqlite
         #[arg(long)]
         memory: Option<String>,
     },
@@ -247,6 +249,7 @@ Examples:
     },
 
     /// Run the HTTP/WebSocket gateway
+    #[cfg(feature = "gateway")]
     #[command(long_about = "\
 Start the gateway server (webhooks, websockets).
 
@@ -279,17 +282,16 @@ Examples:
 Start the long-running autonomous daemon.
 
 Launches the long-running TopClaw runtime for configured channels, \
-heartbeat monitoring, and the cron scheduler. The gateway surface is \
+heartbeat monitoring, and any explicitly enabled scheduler work. The gateway surface is \
 started only when webhook/API features are configured or you explicitly \
-override the gateway bind host/port for debugging.
+override the gateway bind host/port for debugging. Gateway/API support is \
+available only in builds with the `gateway` feature.
 
 Use 'topclaw service install' to register the daemon as an OS \
 service (systemd/launchd) for auto-start on boot.
 
 Examples:
-  topclaw daemon                   # use config defaults
-  topclaw daemon -p 9090           # also expose gateway on port 9090
-  topclaw daemon --host 127.0.0.1  # localhost only")]
+  topclaw daemon                   # use config defaults")]
     Daemon {
         /// Port to listen on (use 0 for random available port); defaults to config gateway.port
         #[arg(short, long)]
@@ -987,6 +989,7 @@ async fn main() -> Result<()> {
             .map(|_| ())
         }
 
+        #[cfg(feature = "gateway")]
         Commands::Gateway {
             port,
             host,
@@ -1148,6 +1151,13 @@ async fn main() -> Result<()> {
             }
             println!();
             println!("Gateway Surface:");
+            #[cfg(feature = "gateway")]
+            println!("  Build:     {}", "✅ gateway-enabled");
+            #[cfg(not(feature = "gateway"))]
+            println!(
+                "  Build:     {}",
+                "ℹ️  unavailable in this build (`--features gateway`)"
+            );
             println!(
                 "  Webhook:   {}",
                 if config.channels_config.webhook.is_some() {
@@ -1455,6 +1465,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(feature = "gateway")]
     fn gateway_help_includes_new_pairing_flag() {
         let cmd = Cli::command();
         let gateway = cmd
@@ -1473,6 +1484,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(feature = "gateway")]
     fn gateway_cli_accepts_new_pairing_flag() {
         let cli = Cli::try_parse_from(["topclaw", "gateway", "--new-pairing"])
             .expect("gateway --new-pairing should parse");
@@ -1484,6 +1496,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(feature = "gateway")]
     fn gateway_cli_defaults_new_pairing_to_false() {
         let cli = Cli::try_parse_from(["topclaw", "gateway"]).expect("gateway should parse");
 
@@ -1491,6 +1504,17 @@ mod tests {
             Commands::Gateway { new_pairing, .. } => assert!(!new_pairing),
             other => panic!("expected gateway command, got {other:?}"),
         }
+    }
+
+    #[test]
+    #[cfg(not(feature = "gateway"))]
+    fn gateway_command_hidden_without_gateway_feature() {
+        let cmd = Cli::command();
+        assert!(
+            cmd.get_subcommands()
+                .all(|subcommand| subcommand.get_name() != "gateway"),
+            "gateway subcommand should be hidden without the gateway feature"
+        );
     }
 
     #[test]

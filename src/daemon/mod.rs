@@ -2,8 +2,8 @@
 //!
 //! The daemon is the long-lived orchestration process behind `topclaw daemon`
 //! and the installed background service. It starts the configured channel
-//! listeners, scheduler, gateway, and health/heartbeat writers, then waits for
-//! an OS shutdown signal.
+//! listeners, scheduler, optional gateway, and health/heartbeat writers, then
+//! waits for an OS shutdown signal.
 use crate::config::Config;
 use anyhow::Result;
 use chrono::Utc;
@@ -78,8 +78,18 @@ pub async fn run(config: Config, host: String, port: u16) -> Result<()> {
     }
 
     let mut handles: Vec<JoinHandle<()>> = vec![spawn_state_writer(config.clone())];
-    let gateway_enabled = should_run_gateway(&config, &host, port);
+    let gateway_requested = should_run_gateway(&config, &host, port);
 
+    #[cfg(not(feature = "gateway"))]
+    if gateway_requested {
+        anyhow::bail!(
+            "gateway/webhook/node-control/tunnel surfaces require a build with `--features gateway`"
+        );
+    }
+
+    let gateway_enabled = gateway_requested;
+
+    #[cfg(feature = "gateway")]
     if gateway_enabled {
         let gateway_cfg = config.clone();
         let gateway_host = host.clone();
@@ -96,6 +106,11 @@ pub async fn run(config: Config, host: String, port: u16) -> Result<()> {
     } else {
         crate::health::mark_component_ok("gateway");
         tracing::info!("Gateway supervisor disabled; Telegram/Discord runtime does not need it");
+    }
+
+    #[cfg(not(feature = "gateway"))]
+    {
+        crate::health::mark_component_ok("gateway");
     }
 
     {

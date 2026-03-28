@@ -1,6 +1,6 @@
 #![forbid(unsafe_code)]
-//! TopClaw is a trait-driven Rust runtime for agentic CLI, channel, gateway,
-//! and hardware workflows.
+//! TopClaw is a trait-driven Rust runtime for agentic CLI, channel, optional
+//! gateway, and hardware workflows.
 //!
 //! The crate is organized around a small set of extension traits:
 //!
@@ -18,7 +18,7 @@
 //!
 //! 1. load and normalize [`Config`]
 //! 2. build runtime, security, memory, provider, observer, and tool instances
-//! 3. receive input from the CLI, a channel, or the gateway
+//! 3. receive input from the CLI, a channel, or the optional gateway
 //! 4. construct the system prompt and conversation history
 //! 5. call the active provider
 //! 6. execute any requested tool calls, subject to runtime and security policy
@@ -35,7 +35,7 @@
 //! - [`tools`] for agent-callable capabilities
 //! - [`memory`] for memory backends and retrieval
 //! - [`security`] for policy, pairing, secrets, and sandboxing
-//! - [`gateway`] for HTTP and OpenAI-compatible endpoints
+//! - optional gateway support for HTTP and OpenAI-compatible endpoints
 //!
 //! # Example
 //!
@@ -70,6 +70,7 @@ pub(crate) mod cost;
 pub mod cron;
 pub mod daemon;
 pub mod doctor;
+#[cfg(feature = "gateway")]
 pub mod gateway;
 pub mod hardware;
 pub(crate) mod health;
