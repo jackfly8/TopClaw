@@ -68,11 +68,11 @@ const MARIADB_PROFILE: MemoryBackendProfile = MemoryBackendProfile {
 
 const QDRANT_PROFILE: MemoryBackendProfile = MemoryBackendProfile {
     key: "qdrant",
-    label: "Qdrant — vector database for semantic search via [memory.qdrant]",
+    label: "Qdrant — optional vector database for semantic search via [memory.qdrant]",
     auto_save_default: true,
     uses_sqlite_hygiene: false,
     sqlite_based: false,
-    optional_dependency: false,
+    optional_dependency: true,
 };
 
 const NONE_PROFILE: MemoryBackendProfile = MemoryBackendProfile {
@@ -174,6 +174,13 @@ mod tests {
         assert!(profile.sqlite_based);
         assert!(profile.optional_dependency);
         assert!(profile.uses_sqlite_hygiene);
+    }
+
+    #[test]
+    fn qdrant_profile_is_optional_backend() {
+        let profile = memory_backend_profile("qdrant");
+        assert!(profile.optional_dependency);
+        assert!(!profile.sqlite_based);
     }
 
     #[test]

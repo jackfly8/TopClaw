@@ -421,7 +421,7 @@ pub struct MemoryConfig {
     /// "sqlite" | "lucid" | "postgres" | "mariadb" | "qdrant" | "markdown" | "none" (`none` = explicit no-op memory)
     ///
     /// `postgres` / `mariadb` require `[storage.provider.config]` with `db_url`.
-    /// `qdrant` uses `[memory.qdrant]` config or `QDRANT_URL` env var.
+    /// `qdrant` uses `[memory.qdrant]` config or `QDRANT_URL` env var and requires the `memory-qdrant` feature.
     pub backend: String,
     /// Auto-save user-stated conversation input to memory (assistant output is excluded)
     pub auto_save: bool,

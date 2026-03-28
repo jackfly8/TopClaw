@@ -5,7 +5,9 @@
 
 use crate::config::{Config, MemoryConfig};
 use crate::memory::embeddings::{create_embedding_provider, EmbeddingProvider};
-use crate::memory::{Memory, MemoryCategory, QdrantMemory};
+#[cfg(feature = "memory-qdrant")]
+use crate::memory::QdrantMemory;
+use crate::memory::{Memory, MemoryCategory};
 use anyhow::{bail, Context, Result};
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
@@ -21,6 +23,7 @@ pub struct SemanticGuard {
     collection: String,
     threshold: f64,
     qdrant_url: Option<String>,
+    #[cfg(feature = "memory-qdrant")]
     qdrant_api_key: Option<String>,
     embedder: Arc<dyn EmbeddingProvider>,
 }
@@ -66,6 +69,7 @@ impl SemanticGuard {
         embedding_api_key: Option<&str>,
     ) -> Self {
         let qdrant_url = resolve_qdrant_url(memory);
+        #[cfg(feature = "memory-qdrant")]
         let qdrant_api_key = resolve_qdrant_api_key(memory);
         let embedder: Arc<dyn EmbeddingProvider> = Arc::from(create_embedding_provider(
             memory.embedding_provider.trim(),
@@ -79,6 +83,7 @@ impl SemanticGuard {
             collection: collection.trim().to_string(),
             threshold: threshold.clamp(0.0, 1.0),
             qdrant_url,
+            #[cfg(feature = "memory-qdrant")]
             qdrant_api_key,
             embedder,
         }
@@ -90,7 +95,7 @@ impl SemanticGuard {
         collection: &str,
         threshold: f64,
         qdrant_url: Option<String>,
-        qdrant_api_key: Option<String>,
+        #[cfg(feature = "memory-qdrant")] qdrant_api_key: Option<String>,
         embedder: Arc<dyn EmbeddingProvider>,
     ) -> Self {
         Self {
@@ -98,9 +103,20 @@ impl SemanticGuard {
             collection: collection.to_string(),
             threshold,
             qdrant_url,
+            #[cfg(feature = "memory-qdrant")]
             qdrant_api_key,
             embedder,
         }
+    }
+
+    #[cfg(feature = "memory-qdrant")]
+    fn missing_feature_reason(&self) -> Option<String> {
+        None
+    }
+
+    #[cfg(not(feature = "memory-qdrant"))]
+    fn missing_feature_reason(&self) -> Option<String> {
+        Some("semantic guard requires a build with the `memory-qdrant` feature".to_string())
     }
 
     pub fn startup_status(&self) -> SemanticGuardStartupStatus {
@@ -108,6 +124,13 @@ impl SemanticGuard {
             return SemanticGuardStartupStatus {
                 active: false,
                 reason: Some("security.semantic_guard=false".to_string()),
+            };
+        }
+
+        if let Some(reason) = self.missing_feature_reason() {
+            return SemanticGuardStartupStatus {
+                active: false,
+                reason: Some(reason),
             };
         }
 
@@ -151,6 +174,11 @@ impl SemanticGuard {
             );
         }
 
+        self.create_qdrant_memory()
+    }
+
+    #[cfg(feature = "memory-qdrant")]
+    fn create_qdrant_memory(&self) -> Result<Arc<dyn Memory>> {
         let Some(url) = self.qdrant_url.as_deref() else {
             bail!("missing qdrant url");
         };
@@ -164,6 +192,11 @@ impl SemanticGuard {
 
         let memory: Arc<dyn Memory> = Arc::new(backend);
         Ok(memory)
+    }
+
+    #[cfg(not(feature = "memory-qdrant"))]
+    fn create_qdrant_memory(&self) -> Result<Arc<dyn Memory>> {
+        bail!("semantic guard requires the `memory-qdrant` feature");
     }
 
     /// Detect a semantic prompt-injection match.
@@ -298,6 +331,7 @@ fn resolve_qdrant_url(memory: &MemoryConfig) -> Option<String> {
         })
 }
 
+#[cfg(feature = "memory-qdrant")]
 fn resolve_qdrant_api_key(memory: &MemoryConfig) -> Option<String> {
     memory
         .qdrant
@@ -489,12 +523,22 @@ mod tests {
             let _ = axum::serve(listener, app).await;
         });
 
+        #[cfg(feature = "memory-qdrant")]
         let guard = SemanticGuard::with_embedder_for_tests(
             true,
             "semantic_guard",
             0.82,
             Some(format!("http://{addr}")),
             None,
+            Arc::new(FakeEmbedding),
+        );
+
+        #[cfg(not(feature = "memory-qdrant"))]
+        let guard = SemanticGuard::with_embedder_for_tests(
+            true,
+            "semantic_guard",
+            0.82,
+            Some(format!("http://{addr}")),
             Arc::new(FakeEmbedding),
         );
 

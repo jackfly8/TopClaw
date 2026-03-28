@@ -10,6 +10,7 @@ pub mod markdown;
 pub mod none;
 #[cfg(feature = "memory-postgres")]
 pub mod postgres;
+#[cfg(feature = "memory-qdrant")]
 pub mod qdrant;
 pub mod response_cache;
 pub mod snapshot;
@@ -29,6 +30,7 @@ pub use markdown::MarkdownMemory;
 pub use none::NoneMemory;
 #[cfg(feature = "memory-postgres")]
 pub use postgres::PostgresMemory;
+#[cfg(feature = "memory-qdrant")]
 pub use qdrant::QdrantMemory;
 pub use response_cache::ResponseCache;
 pub use sqlite::SqliteMemory;
@@ -37,6 +39,7 @@ pub use traits::Memory;
 pub use traits::{MemoryCategory, MemoryEntry};
 
 use crate::config::{EmbeddingRouteConfig, MemoryConfig, StorageProviderConfig};
+#[cfg(feature = "memory-qdrant")]
 use anyhow::Context;
 use std::path::Path;
 use std::sync::Arc;
@@ -374,6 +377,7 @@ pub fn create_memory_backend_with_storage_and_routes(
         );
     }
 
+    #[cfg(feature = "memory-qdrant")]
     if matches!(backend_kind, MemoryBackendKind::Qdrant) {
         let url = config
             .qdrant
@@ -413,6 +417,13 @@ pub fn create_memory_backend_with_storage_and_routes(
             qdrant_api_key,
             embedder,
         )));
+    }
+
+    #[cfg(not(feature = "memory-qdrant"))]
+    if matches!(backend_kind, MemoryBackendKind::Qdrant) {
+        anyhow::bail!(
+            "memory backend 'qdrant' requested but this build was compiled without `memory-qdrant`; rebuild with `--features memory-qdrant`"
+        );
     }
 
     if matches!(backend_kind, MemoryBackendKind::Mariadb) {

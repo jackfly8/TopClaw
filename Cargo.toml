@@ -182,6 +182,7 @@ gateway = ["dep:axum", "dep:tower", "dep:tower-http", "dep:http-body-util"]
 
 builtin-preloaded-skills = []
 hardware = ["nusb", "tokio-serial"]
+memory-qdrant = []
 memory-postgres = ["dep:postgres", "dep:tokio-postgres-rustls"]
 memory-mariadb = ["dep:mysql"]
 observability-otel = ["dep:opentelemetry", "dep:opentelemetry_sdk", "dep:opentelemetry-otlp"]
