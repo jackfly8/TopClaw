@@ -1846,7 +1846,10 @@ mod tests {
         assert!(a.block_high_risk_commands);
         assert_eq!(a.shell_redirect_policy, ShellRedirectPolicy::Block);
         assert!(a.shell_env_passthrough.is_empty());
-        assert!(a.non_cli_excluded_tools.is_empty());
+        assert_eq!(
+            a.non_cli_excluded_tools,
+            crate::config::autonomy::default_non_cli_excluded_tools()
+        );
         assert!(a.auto_approve.contains(&"file_read".to_string()));
         assert!(a.auto_approve.contains(&"glob_search".to_string()));
     }

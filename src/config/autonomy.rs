@@ -93,7 +93,10 @@ pub(crate) fn default_always_ask() -> Vec<String> {
 }
 
 pub(crate) fn default_non_cli_excluded_tools() -> Vec<String> {
-    Vec::new()
+    ["proxy_config", "model_routing_config"]
+        .into_iter()
+        .map(std::string::ToString::to_string)
+        .collect()
 }
 
 pub(crate) fn is_valid_env_var_name(name: &str) -> bool {
@@ -174,8 +177,10 @@ mod tests {
     }
 
     #[test]
-    fn default_non_cli_exclusions_are_empty() {
-        assert!(default_non_cli_excluded_tools().is_empty());
-        assert!(AutonomyConfig::default().non_cli_excluded_tools.is_empty());
+    fn default_non_cli_exclusions_focus_channels_on_work_tools() {
+        let defaults = default_non_cli_excluded_tools();
+        assert!(defaults.contains(&"proxy_config".to_string()));
+        assert!(defaults.contains(&"model_routing_config".to_string()));
+        assert_eq!(AutonomyConfig::default().non_cli_excluded_tools, defaults);
     }
 }
