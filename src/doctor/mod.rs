@@ -366,10 +366,11 @@ fn doctor_model_targets(provider_override: Option<&str>, all_known_providers: bo
         return crate::providers::list_providers()
             .into_iter()
             .map(|provider| provider.name.to_string())
+            .filter(|provider| crate::providers::supports_model_catalog_refresh(provider))
             .collect();
     }
 
-    crate::providers::FIRST_CLASS_PROVIDER_PRIORITY
+    crate::providers::MODEL_CATALOG_PROVIDER_PRIORITY
         .iter()
         .map(|provider| (*provider).to_string())
         .collect()
@@ -394,9 +395,9 @@ pub async fn run_models(
         if provider_override.is_some() {
             "single provider override"
         } else if all_known_providers {
-            "all known providers"
+            "all catalog-refresh-capable providers"
         } else {
-            "first-class priority set"
+            "product-priority providers with live catalog support"
         }
     );
     println!(
@@ -1266,10 +1267,10 @@ mod tests {
     }
 
     #[test]
-    fn doctor_model_targets_default_to_first_class_priority() {
+    fn doctor_model_targets_default_to_catalog_capable_product_priority() {
         assert_eq!(
             doctor_model_targets(None, false),
-            crate::providers::FIRST_CLASS_PROVIDER_PRIORITY
+            crate::providers::MODEL_CATALOG_PROVIDER_PRIORITY
                 .iter()
                 .map(|provider| (*provider).to_string())
                 .collect::<Vec<_>>()
@@ -1277,10 +1278,11 @@ mod tests {
     }
 
     #[test]
-    fn doctor_model_targets_can_expand_to_all_known_providers() {
+    fn doctor_model_targets_can_expand_to_all_catalog_capable_providers() {
         let targets = doctor_model_targets(None, true);
         assert!(targets.contains(&"anthropic".to_string()));
         assert!(targets.contains(&"openrouter".to_string()));
+        assert!(!targets.contains(&"openai-codex".to_string()));
     }
 
     #[test]

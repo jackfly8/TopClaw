@@ -35,10 +35,17 @@ pub(super) fn build_models_help_response(
     append_approval_management_help(&mut response);
 
     if cached_models.is_empty() {
-        let _ = writeln!(
-            response,
-            "\nNo cached model list found for `{provider_name}`. Ask the operator to run `topclaw models refresh --provider {provider_name}`."
-        );
+        if providers::supports_model_catalog_refresh(provider_name) {
+            let _ = writeln!(
+                response,
+                "\nNo cached model list found for `{provider_name}`. Ask the operator to run `topclaw models refresh --provider {provider_name}`."
+            );
+        } else {
+            let _ = writeln!(
+                response,
+                "\n`{provider_name}` does not expose a live model catalog refresh path. Switch with `/models <provider>` or set a model directly with `/model <model-id>`."
+            );
+        }
     } else {
         let _ = writeln!(
             response,
@@ -60,8 +67,27 @@ pub(super) fn build_providers_help_response(provider_name: &str, model_name: &st
     response.push_str("Switch model with `/model <model-id>`.\n\n");
     append_approval_management_help(&mut response);
     response.push('\n');
-    response.push_str("Available providers:\n");
-    for provider in providers::list_providers() {
+    response.push_str("Product-priority providers:\n");
+    for provider in providers::list_providers()
+        .into_iter()
+        .filter(|provider| providers::is_first_class_provider(provider.name))
+    {
+        if provider.aliases.is_empty() {
+            let _ = writeln!(response, "- {}", provider.name);
+        } else {
+            let _ = writeln!(
+                response,
+                "- {} (aliases: {})",
+                provider.name,
+                provider.aliases.join(", ")
+            );
+        }
+    }
+    response.push_str("\nAdvanced/compatibility providers:\n");
+    for provider in providers::list_providers()
+        .into_iter()
+        .filter(|provider| !providers::is_first_class_provider(provider.name))
+    {
         if provider.aliases.is_empty() {
             let _ = writeln!(response, "- {}", provider.name);
         } else {
@@ -96,7 +122,16 @@ mod tests {
 
         assert!(response.contains("Current provider: `anthropic`"));
         assert!(response.contains("Current model: `claude-sonnet-4`"));
-        assert!(response.contains("Available providers:"));
+        assert!(response.contains("Product-priority providers:"));
+        assert!(response.contains("Advanced/compatibility providers:"));
         assert!(response.contains("Switch provider with `/models <provider>`."));
+    }
+
+    #[test]
+    fn models_help_response_explains_missing_catalog_refresh_for_codex() {
+        let response = build_models_help_response("openai-codex", "gpt-5.4", &[]);
+
+        assert!(response.contains("does not expose a live model catalog refresh path"));
+        assert!(!response.contains("topclaw models refresh --provider openai-codex"));
     }
 }

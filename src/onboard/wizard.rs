@@ -602,7 +602,7 @@ fn resolve_quick_setup_provider(provider: Option<&str>) -> Result<String> {
 
     anyhow::bail!(
         "Quick setup only supports first-class providers: {}. Configure '{provider_name}' later via config.toml or the interactive wizard.",
-        crate::providers::FIRST_CLASS_PROVIDER_PRIORITY.join(", ")
+        crate::providers::PRODUCT_PROVIDER_PRIORITY.join(", ")
     );
 }
 

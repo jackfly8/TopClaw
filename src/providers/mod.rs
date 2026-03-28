@@ -1386,12 +1386,69 @@ pub struct ProviderInfo {
     pub local: bool,
 }
 
-pub const FIRST_CLASS_PROVIDER_PRIORITY: [&str; 3] = ["openai-codex", "openrouter", "ollama"];
-pub const DEFAULT_PROVIDER_NAME: &str = FIRST_CLASS_PROVIDER_PRIORITY[0];
+pub const PRODUCT_PROVIDER_PRIORITY: [&str; 3] = ["openai-codex", "openrouter", "ollama"];
+pub const MODEL_CATALOG_PROVIDER_PRIORITY: [&str; 2] = ["openrouter", "ollama"];
+pub const DEFAULT_PROVIDER_NAME: &str = PRODUCT_PROVIDER_PRIORITY[0];
 pub const DEFAULT_PROVIDER_MODEL: &str = "gpt-5.4";
 
+fn canonical_priority_provider_name(name: &str) -> &str {
+    let (provider_name, _) = parse_provider_profile(name.trim());
+
+    if let Some(canonical) = canonical_china_provider_name(provider_name) {
+        return canonical;
+    }
+
+    match provider_name {
+        "openai_codex" | "codex" => "openai-codex",
+        "google" | "google-gemini" => "gemini",
+        "grok" => "xai",
+        "together-ai" => "together",
+        "vercel-ai" => "vercel",
+        "cloudflare-ai" => "cloudflare",
+        "aws-bedrock" => "bedrock",
+        "nvidia-nim" | "build.nvidia.com" => "nvidia",
+        "llama.cpp" => "llamacpp",
+        "kimi_coding" | "kimi_for_coding" => "kimi-code",
+        other => other,
+    }
+}
+
 pub fn is_first_class_provider(name: &str) -> bool {
-    FIRST_CLASS_PROVIDER_PRIORITY.contains(&name)
+    PRODUCT_PROVIDER_PRIORITY.contains(&canonical_priority_provider_name(name))
+}
+
+pub fn supports_model_catalog_refresh(name: &str) -> bool {
+    if name.trim().starts_with("custom:") {
+        return true;
+    }
+
+    matches!(
+        canonical_priority_provider_name(name),
+        "openrouter"
+            | "openai"
+            | "anthropic"
+            | "groq"
+            | "mistral"
+            | "deepseek"
+            | "xai"
+            | "together"
+            | "gemini"
+            | "ollama"
+            | "llamacpp"
+            | "sglang"
+            | "vllm"
+            | "osaurus"
+            | "astrai"
+            | "venice"
+            | "fireworks"
+            | "novita"
+            | "cohere"
+            | "moonshot"
+            | "glm"
+            | "zai"
+            | "qwen"
+            | "nvidia"
+    )
 }
 
 /// Return the list of all known providers for display in `topclaw providers list`.
@@ -2709,15 +2766,27 @@ mod tests {
         let providers = list_providers();
         let listed: Vec<&str> = providers
             .iter()
-            .take(FIRST_CLASS_PROVIDER_PRIORITY.len())
+            .take(PRODUCT_PROVIDER_PRIORITY.len())
             .map(|provider| provider.name)
             .collect();
 
-        assert_eq!(listed, FIRST_CLASS_PROVIDER_PRIORITY);
-        for name in FIRST_CLASS_PROVIDER_PRIORITY {
+        assert_eq!(listed, PRODUCT_PROVIDER_PRIORITY);
+        for name in PRODUCT_PROVIDER_PRIORITY {
             assert!(is_first_class_provider(name));
         }
         assert!(!is_first_class_provider("anthropic"));
+    }
+
+    #[test]
+    fn model_catalog_priority_targets_catalog_capable_product_providers() {
+        assert_eq!(MODEL_CATALOG_PROVIDER_PRIORITY, ["openrouter", "ollama"]);
+        assert!(!supports_model_catalog_refresh("openai-codex"));
+        assert!(supports_model_catalog_refresh("openrouter"));
+        assert!(supports_model_catalog_refresh("ollama"));
+        assert!(supports_model_catalog_refresh("nvidia-nim"));
+        assert!(supports_model_catalog_refresh(
+            "custom:https://example.com/v1"
+        ));
     }
 
     // ── API error sanitization ───────────────────────────────
