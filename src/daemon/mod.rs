@@ -62,7 +62,7 @@ async fn wait_for_shutdown_signal() -> Result<ShutdownSignal> {
     }
 }
 
-pub async fn run(config: Config, host: String, port: u16) -> Result<()> {
+pub async fn run(config: Config) -> Result<()> {
     let initial_backoff = config.reliability.channel_initial_backoff_secs.max(1);
     let max_backoff = config
         .reliability
@@ -78,7 +78,7 @@ pub async fn run(config: Config, host: String, port: u16) -> Result<()> {
     }
 
     let mut handles: Vec<JoinHandle<()>> = vec![spawn_state_writer(config.clone())];
-    let gateway_requested = should_run_gateway(&config, &host, port);
+    let gateway_requested = should_run_gateway(&config);
 
     #[cfg(not(feature = "gateway"))]
     if gateway_requested {
@@ -92,14 +92,14 @@ pub async fn run(config: Config, host: String, port: u16) -> Result<()> {
     #[cfg(feature = "gateway")]
     if gateway_enabled {
         let gateway_cfg = config.clone();
-        let gateway_host = host.clone();
         handles.push(spawn_component_supervisor(
             "gateway",
             initial_backoff,
             max_backoff,
             move || {
                 let cfg = gateway_cfg.clone();
-                let host = gateway_host.clone();
+                let host = cfg.gateway.host.clone();
+                let port = cfg.gateway.port;
                 async move { crate::gateway::run_gateway(&host, port, cfg).await }
             },
         ));
@@ -162,7 +162,10 @@ pub async fn run(config: Config, host: String, port: u16) -> Result<()> {
 
     println!("🧠 TopClaw daemon started");
     if gateway_enabled {
-        println!("   Gateway:  http://{host}:{port}");
+        println!(
+            "   Gateway:  http://{}:{}",
+            config.gateway.host, config.gateway.port
+        );
     } else {
         println!("   Gateway:  disabled (use `topclaw gateway` for webhook/API surfaces)");
     }
@@ -408,12 +411,10 @@ fn tunnel_enabled(config: &Config) -> bool {
     !provider.is_empty() && !provider.eq_ignore_ascii_case("none")
 }
 
-fn should_run_gateway(config: &Config, host: &str, port: u16) -> bool {
+fn should_run_gateway(config: &Config) -> bool {
     config.channels_config.webhook.is_some()
         || config.gateway.node_control.enabled
         || tunnel_enabled(config)
-        || host != config.gateway.host
-        || port != config.gateway.port
 }
 
 fn active_component_labels(config: &Config, gateway_enabled: bool) -> Vec<&'static str> {
@@ -570,28 +571,25 @@ mod tests {
     #[test]
     fn gateway_disabled_for_plain_channel_runtime() {
         let config = Config::default();
-        assert!(!should_run_gateway(
-            &config,
-            &config.gateway.host,
-            config.gateway.port
-        ));
+        assert!(!should_run_gateway(&config));
     }
 
     #[test]
-    fn gateway_enabled_for_webhook_or_override() {
+    fn gateway_enabled_for_webhook_or_auxiliary_surfaces() {
         let mut config = Config::default();
         config.channels_config.webhook = Some(crate::config::WebhookConfig {
             port: 8080,
             secret: None,
         });
-        assert!(should_run_gateway(
-            &config,
-            &config.gateway.host,
-            config.gateway.port
-        ));
+        assert!(should_run_gateway(&config));
 
-        let config = Config::default();
-        assert!(should_run_gateway(&config, "0.0.0.0", config.gateway.port));
+        let mut config = Config::default();
+        config.gateway.node_control.enabled = true;
+        assert!(should_run_gateway(&config));
+
+        let mut config = Config::default();
+        config.tunnel.provider = "cloudflare".into();
+        assert!(should_run_gateway(&config));
     }
 
     #[test]

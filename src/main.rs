@@ -296,8 +296,7 @@ Start the long-running autonomous daemon.
 
 Launches the long-running TopClaw runtime for configured channels, \
 heartbeat monitoring, and any explicitly enabled scheduler work. The gateway surface is \
-started only when webhook/API features are configured or you explicitly \
-override the gateway bind host/port for debugging. Gateway/API support is \
+started only when webhook/API features are configured in the runtime config. Gateway/API support is \
 available only in builds with the `gateway` feature.
 
 Use 'topclaw service install' to register the daemon as an OS \
@@ -305,15 +304,7 @@ service (systemd/launchd) for auto-start on boot.
 
 Examples:
   topclaw daemon                   # use config defaults")]
-    Daemon {
-        /// Port to listen on (use 0 for random available port); defaults to config gateway.port
-        #[arg(short, long)]
-        port: Option<u16>,
-
-        /// Host to bind to; defaults to config gateway.host
-        #[arg(long)]
-        host: Option<String>,
-    },
+    Daemon,
 
     /// Manage the background service
     #[command(long_about = "\
@@ -1040,15 +1031,9 @@ async fn main() -> Result<()> {
             gateway::run_gateway(&host, port, config).await
         }
 
-        Commands::Daemon { port, host } => {
-            let port = port.unwrap_or(config.gateway.port);
-            let host = host.unwrap_or_else(|| config.gateway.host.clone());
-            if port == 0 {
-                info!("🧠 Starting TopClaw Daemon on {host} (random port)");
-            } else {
-                info!("🧠 Starting TopClaw Daemon on {host}:{port}");
-            }
-            daemon::run(config, host, port).await
+        Commands::Daemon => {
+            info!("🧠 Starting TopClaw Daemon");
+            daemon::run(config).await
         }
 
         Commands::Status { diagnose } => {
