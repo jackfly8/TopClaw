@@ -122,7 +122,7 @@ impl Default for AutonomyConfig {
         Self {
             level: AutonomyLevel::Supervised,
             workspace_only: true,
-            allowed_commands: vec![],
+            allowed_commands: default_allowed_commands(),
             forbidden_paths: vec![
                 "/etc".into(),
                 "/root".into(),
@@ -158,6 +158,27 @@ impl Default for AutonomyConfig {
             non_cli_natural_language_approval_mode_by_channel: HashMap::new(),
         }
     }
+}
+
+fn default_allowed_commands() -> Vec<String> {
+    [
+        // File navigation and inspection
+        "ls", "cat", "head", "tail", "wc", "less", "more", "file", "stat", "tree",
+        // Search
+        "grep", "find", "rg", "ag", // Git workflows
+        "git", // Build and package managers
+        "cargo", "npm", "pnpm", "yarn", "pip", "pip3", "python3", "python", "node", "go",
+        // Common utilities
+        "echo", "date", "pwd", "whoami", "uname", "hostname", "id", "env", "printenv", "sort",
+        "uniq", "cut", "tr", "awk", "sed", "xargs", "tee", // Compression
+        "tar", "gzip", "gunzip", "zip", "unzip", // Diff and patch
+        "diff", "patch", // Line count and code analysis
+        "cloc", "tokei", // Process inspection
+        "ps", "top",
+    ]
+    .into_iter()
+    .map(std::string::ToString::to_string)
+    .collect()
 }
 
 #[cfg(test)]

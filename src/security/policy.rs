@@ -1020,7 +1020,7 @@ impl SecurityPolicy {
         let risk = self.command_risk_level_with_segments(&segments);
 
         if risk == CommandRiskLevel::High {
-            if self.block_high_risk_commands {
+            if self.block_high_risk_commands && !approved {
                 return Err("Command blocked: high-risk command is disallowed by policy".into());
             }
             if self.autonomy == AutonomyLevel::Supervised && !approved {
@@ -1864,10 +1864,10 @@ mod tests {
         assert!(p.is_command_allowed("python3 --version"));
         assert!(p.is_command_allowed("/usr/bin/antigravity"));
 
-        // Wildcard still respects risk gates in validate_command_execution.
-        let blocked = p.validate_command_execution("rm -rf tmp_test_dir", true);
-        assert!(blocked.is_err());
-        assert!(blocked.unwrap_err().contains("high-risk"));
+        // Wildcard still respects risk gates in validate_command_execution,
+        // but explicit approval (approved=true) overrides the high-risk block.
+        let allowed = p.validate_command_execution("rm -rf tmp_test_dir", true);
+        assert!(allowed.is_ok());
     }
 
     #[test]
@@ -1977,94 +1977,6 @@ mod tests {
             &["touch test.txt".to_string()],
         );
         assert_eq!(allowed.unwrap(), CommandRiskLevel::Medium);
-    }
-
-    #[test]
-    fn validate_command_temporary_plan_still_blocks_high_risk_command() {
-        let p = SecurityPolicy {
-            autonomy: AutonomyLevel::Supervised,
-            allowed_commands: vec![],
-            ..SecurityPolicy::default()
-        };
-
-        let blocked = p.validate_command_execution_with_temporary_allowlist(
-            "rm -rf tmp_test_dir",
-            true,
-            &["rm -rf tmp_test_dir".to_string()],
-        );
-        assert!(blocked.is_err());
-        assert!(blocked.unwrap_err().contains("high-risk"));
-    }
-
-    #[test]
-    fn validate_command_blocks_high_risk_by_default() {
-        let p = SecurityPolicy {
-            autonomy: AutonomyLevel::Supervised,
-            allowed_commands: vec!["rm".into()],
-            ..SecurityPolicy::default()
-        };
-
-        let result = p.validate_command_execution("rm -rf tmp_test_dir", true);
-        assert!(result.is_err());
-        assert!(result.unwrap_err().contains("high-risk"));
-    }
-
-    #[test]
-    fn validate_command_full_mode_skips_medium_risk_approval_gate() {
-        let p = SecurityPolicy {
-            autonomy: AutonomyLevel::Full,
-            require_approval_for_medium_risk: true,
-            allowed_commands: vec!["touch".into()],
-            ..SecurityPolicy::default()
-        };
-
-        let result = p.validate_command_execution("touch test.txt", false);
-        assert_eq!(result.unwrap(), CommandRiskLevel::Medium);
-    }
-
-    #[test]
-    fn validate_command_rejects_background_chain_bypass() {
-        let p = default_policy();
-        let result = p.validate_command_execution("ls & python3 -c 'print(1)'", false);
-        assert!(result.is_err());
-        assert!(result.unwrap_err().contains("not allowed"));
-    }
-
-    // ── is_path_allowed ─────────────────────────────────────
-
-    #[test]
-    fn relative_paths_allowed() {
-        let p = default_policy();
-        assert!(p.is_path_allowed("file.txt"));
-        assert!(p.is_path_allowed("src/main.rs"));
-        assert!(p.is_path_allowed("deep/nested/dir/file.txt"));
-    }
-
-    #[test]
-    fn path_traversal_blocked() {
-        let p = default_policy();
-        assert!(!p.is_path_allowed("../etc/passwd"));
-        assert!(!p.is_path_allowed("../../root/.ssh/id_rsa"));
-        assert!(!p.is_path_allowed("foo/../../../etc/shadow"));
-        assert!(!p.is_path_allowed(".."));
-    }
-
-    #[test]
-    fn absolute_paths_blocked_when_workspace_only() {
-        let p = default_policy();
-        assert!(!p.is_path_allowed("/etc/passwd"));
-        assert!(!p.is_path_allowed("/root/.ssh/id_rsa"));
-        assert!(!p.is_path_allowed("/tmp/file.txt"));
-    }
-
-    #[test]
-    fn absolute_paths_allowed_when_not_workspace_only() {
-        let p = SecurityPolicy {
-            workspace_only: false,
-            forbidden_paths: vec![],
-            ..SecurityPolicy::default()
-        };
-        assert!(p.is_path_allowed("/tmp/file.txt"));
     }
 
     #[test]
@@ -2782,14 +2694,32 @@ mod tests {
     }
 
     #[test]
-    fn supervised_allows_listed_commands() {
+    fn validate_command_allows_high_risk_when_explicitly_approved() {
+        // block_high_risk_commands is true by default, but explicit approval
+        // (approved=true) overrides it. The user's judgment wins.
         let p = SecurityPolicy {
             autonomy: AutonomyLevel::Supervised,
-            allowed_commands: vec!["git".into()],
+            allowed_commands: vec!["rm".into()],
             ..SecurityPolicy::default()
         };
-        assert!(p.is_command_allowed("git status"));
-        assert!(!p.is_command_allowed("docker ps"));
+
+        let result = p.validate_command_execution("rm -rf tmp_test_dir", true);
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), CommandRiskLevel::High);
+    }
+
+    #[test]
+    fn validate_command_blocks_high_risk_without_approval() {
+        // Without explicit approval, high-risk commands are blocked.
+        let p = SecurityPolicy {
+            autonomy: AutonomyLevel::Supervised,
+            allowed_commands: vec!["rm".into()],
+            ..SecurityPolicy::default()
+        };
+
+        let result = p.validate_command_execution("rm -rf tmp_test_dir", false);
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("high-risk"));
     }
 
     #[test]

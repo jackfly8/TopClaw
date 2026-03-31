@@ -518,16 +518,18 @@ mod tests {
     }
 
     #[test]
-    fn shell_approval_precheck_rejects_high_risk_blocked_command() {
+    fn shell_approval_precheck_accepts_high_risk_command_when_approved() {
+        // approval_precheck passes approved=true, meaning "would this be allowed
+        // if the user approves?" High-risk commands should pass precheck because
+        // the user's explicit approval overrides the automatic block.
         let tool = ShellTool::new(
             test_security(AutonomyLevel::Supervised),
             Arc::new(ApprovalPrecheckRuntime { build_error: None }),
         );
 
-        let err = tool
+        assert!(tool
             .approval_precheck(&json!({"command": "rm -rf tmp_shell_precheck_test"}))
-            .expect_err("high-risk blocked command should fail precheck");
-        assert!(err.contains("high-risk"));
+            .is_ok());
     }
 
     #[test]
