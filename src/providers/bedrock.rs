@@ -15,8 +15,7 @@ use futures_util::{stream, StreamExt};
 use hmac::{Hmac, Mac};
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
-use sha2::{Digest, Sha256};
-use sha2_compat::Sha256 as HmacSha256;
+use sha2::Sha256 as HmacSha256;
 
 /// Hostname prefix for the Bedrock Runtime endpoint.
 const ENDPOINT_PREFIX: &str = "bedrock-runtime";
